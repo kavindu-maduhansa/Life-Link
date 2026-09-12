@@ -54,12 +54,7 @@ class _HospitalHomeScreenState extends State<HospitalHomeScreen> {
   final AlertWatcher _alertWatcher = AlertWatcher();
 
   static const _titles = ['Dashboard', 'Verify Requests', 'Donor Search', 'History'];
-  static const _tabIcons = [
-    Icons.dashboard_rounded,
-    Icons.fact_check_outlined,
-    Icons.search_rounded,
-    Icons.history_rounded,
-  ];
+  static const _tabIcons = [Icons.dashboard_rounded, Icons.fact_check_outlined, Icons.search_rounded, Icons.history_rounded];
 
   @override
   void initState() {
@@ -83,156 +78,196 @@ class _HospitalHomeScreenState extends State<HospitalHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final tabs = [
-      OverviewTab(doctorName: user?.email ?? 'Doctor'),
-      const VerifyRequestsTab(),
-      const DonorSearchTab(),
-      const HistoryTab(),
-    ];
+    final tabs = [OverviewTab(doctorName: user?.email ?? 'Doctor'), const VerifyRequestsTab(), const DonorSearchTab(), const HistoryTab()];
 
     final colors = context.colors;
     // #command-palette - Ctrl+K (Cmd+K on macOS) opens the global
     // "jump to anything" search from anywhere in the Doctor module.
     return CallbackShortcuts(
       bindings: {
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyK): () => showCommandPalette(context, onNavigateTab: (i) => setState(() => _tabIndex = i)),
-        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyK): () => showCommandPalette(context, onNavigateTab: (i) => setState(() => _tabIndex = i)),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyK): () =>
+            showCommandPalette(context, onNavigateTab: (i) => setState(() => _tabIndex = i)),
+        LogicalKeySet(LogicalKeyboardKey.meta, LogicalKeyboardKey.keyK): () =>
+            showCommandPalette(context, onNavigateTab: (i) => setState(() => _tabIndex = i)),
       },
       child: Focus(
         autofocus: true,
         child: Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(color: kHospitalPrimary, shape: BoxShape.circle),
+          backgroundColor: colors.background,
+          appBar: AppBar(
+            // #title-overflow - the title shares the bar with a presence
+            // chip and five action icons. Without an explicit single-line
+            // constraint the Text keeps wrapping as the free width shrinks
+            // and, on a narrow phone, ends up one character per line - the
+            // title rendered as a vertical strip. Flexible + ellipsis +
+            // softWrap:false makes it truncate instead of stack.
+            titleSpacing: 12,
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(color: kHospitalPrimary, shape: BoxShape.circle),
+                ),
+                Flexible(child: Text(_titles[_tabIndex], maxLines: 1, softWrap: false, overflow: TextOverflow.ellipsis)),
+              ],
             ),
-            Text(_titles[_tabIndex]),
-          ],
-        ),
-        backgroundColor: colors.surface,
-        foregroundColor: colors.textPrimary,
-        surfaceTintColor: Colors.transparent,
-        actions: [
-          const _StaffPresenceChip(),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: 'Search (Ctrl+K)',
-            icon: const Icon(Icons.search_rounded),
-            onPressed: () => showCommandPalette(context, onNavigateTab: (i) => setState(() => _tabIndex = i)),
-          ),
-          const AlertBellIcon(),
-          IconButton(
-            tooltip: 'Shift Handover Report',
-            icon: const Icon(Icons.assignment_turned_in_outlined),
-            onPressed: () => showShiftHandoverDialog(context),
-          ),
-          IconButton(
-            tooltip: 'Appearance',
-            icon: const Icon(Icons.palette_outlined),
-            onPressed: () => AppearanceSelectorSheet.show(context),
-          ),
-          IconButton(
-            tooltip: 'Sign Out',
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: _handleSignOut,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // #offline-banner - real connectivity state, above the
-          // critical banner since "you're offline" changes what every
-          // other action on this screen actually means right now.
-          const OfflineBanner(),
-          // #critical - a persistent, app-wide banner (visible from
-          // every tab, not just Verify) the instant any active request
-          // crosses its urgency-specific critical-attention SLA. This
-          // is deliberately not dismissible - a genuinely critical
-          // situation should not be silence-able by an accidental tap.
-          _CriticalEscalationBanner(onTap: () => setState(() => _tabIndex = 1)),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= kWideLayoutBreakpoint;
-
-                if (!isWide) {
-                  return IndexedStack(index: _tabIndex, children: tabs);
-                }
-
-                // Wide (tablet/desktop) layout: navigation rail + larger content area.
-                return Row(
-                  children: [
-                    NavigationRail(
-                      selectedIndex: _tabIndex,
-                      onDestinationSelected: (i) => setState(() => _tabIndex = i),
-                      backgroundColor: colors.surface,
-                      labelType: NavigationRailLabelType.all,
-                      selectedIconTheme: IconThemeData(color: colors.primary),
-                      unselectedIconTheme: IconThemeData(color: colors.textSecondary),
-                      selectedLabelTextStyle: TextStyle(color: colors.primary, fontWeight: FontWeight.bold),
-                      unselectedLabelTextStyle: TextStyle(color: colors.textSecondary),
-                      destinations: List.generate(
-                        _titles.length,
-                        (i) => NavigationRailDestination(
-                          icon: i == 1 ? const _PendingBadgeIcon() : Icon(_tabIcons[i]),
-                          selectedIcon: i == 1 ? _PendingBadgeIcon(selected: true, color: colors.primary) : Icon(_tabIcons[i], color: colors.primary),
-                          label: Text(_titles[i]),
-                        ),
+            backgroundColor: colors.surface,
+            foregroundColor: colors.textPrimary,
+            surfaceTintColor: Colors.transparent,
+            actions: [
+              const _StaffPresenceChip(),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: 'Search (Ctrl+K)',
+                icon: const Icon(Icons.search_rounded),
+                onPressed: () => showCommandPalette(context, onNavigateTab: (i) => setState(() => _tabIndex = i)),
+              ),
+              const AlertBellIcon(),
+              // #title-overflow - on a narrow phone six action slots leave
+              // the title almost no width. The two non-urgent actions
+              // (handover, appearance) collapse into one overflow menu
+              // below 420dp; search, alerts and sign-out stay reachable in
+              // one tap because they are used mid-emergency.
+              if (MediaQuery.sizeOf(context).width >= 420) ...[
+                IconButton(
+                  tooltip: 'Shift Handover Report',
+                  icon: const Icon(Icons.assignment_turned_in_outlined),
+                  onPressed: () => showShiftHandoverDialog(context),
+                ),
+                IconButton(
+                  tooltip: 'Appearance',
+                  icon: const Icon(Icons.palette_outlined),
+                  onPressed: () => AppearanceSelectorSheet.show(context),
+                ),
+              ] else
+                PopupMenuButton<String>(
+                  tooltip: 'More actions',
+                  icon: const Icon(Icons.more_vert_rounded),
+                  onSelected: (value) {
+                    if (value == 'handover') {
+                      showShiftHandoverDialog(context);
+                    } else if (value == 'appearance') {
+                      AppearanceSelectorSheet.show(context);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'handover',
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.assignment_turned_in_outlined),
+                        title: Text('Shift Handover Report'),
                       ),
                     ),
-                    const VerticalDivider(width: 1),
-                    Expanded(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1100),
-                        child: IndexedStack(index: _tabIndex, children: tabs),
+                    PopupMenuItem(
+                      value: 'appearance',
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.palette_outlined),
+                        title: Text('Appearance'),
                       ),
                     ),
                   ],
-                );
-              },
-            ),
+                ),
+              IconButton(tooltip: 'Sign Out', icon: const Icon(Icons.logout_rounded), onPressed: _handleSignOut),
+            ],
           ),
-        ],
-      ),
-      bottomNavigationBar: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= kWideLayoutBreakpoint) return const SizedBox.shrink();
-          return NavigationBar(
-            selectedIndex: _tabIndex,
-            onDestinationSelected: (i) => setState(() => _tabIndex = i),
-            backgroundColor: colors.surface,
-            indicatorColor: colors.primary.withValues(alpha: 0.15),
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard_rounded, color: colors.primary),
-                label: 'Dashboard',
-              ),
-              NavigationDestination(
-                icon: const _PendingBadgeIcon(),
-                selectedIcon: _PendingBadgeIcon(selected: true, color: colors.primary),
-                label: 'Verify',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.search_rounded),
-                selectedIcon: Icon(Icons.search_rounded, color: colors.primary),
-                label: 'Donors',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.history_rounded),
-                selectedIcon: Icon(Icons.history_rounded, color: colors.primary),
-                label: 'History',
+          body: Column(
+            children: [
+              // #offline-banner - real connectivity state, above the
+              // critical banner since "you're offline" changes what every
+              // other action on this screen actually means right now.
+              const OfflineBanner(),
+              // #critical - a persistent, app-wide banner (visible from
+              // every tab, not just Verify) the instant any active request
+              // crosses its urgency-specific critical-attention SLA. This
+              // is deliberately not dismissible - a genuinely critical
+              // situation should not be silence-able by an accidental tap.
+              _CriticalEscalationBanner(onTap: () => setState(() => _tabIndex = 1)),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= kWideLayoutBreakpoint;
+
+                    if (!isWide) {
+                      return IndexedStack(index: _tabIndex, children: tabs);
+                    }
+
+                    // Wide (tablet/desktop) layout: navigation rail + larger content area.
+                    return Row(
+                      children: [
+                        NavigationRail(
+                          selectedIndex: _tabIndex,
+                          onDestinationSelected: (i) => setState(() => _tabIndex = i),
+                          backgroundColor: colors.surface,
+                          labelType: NavigationRailLabelType.all,
+                          selectedIconTheme: IconThemeData(color: colors.primary),
+                          unselectedIconTheme: IconThemeData(color: colors.textSecondary),
+                          selectedLabelTextStyle: TextStyle(color: colors.primary, fontWeight: FontWeight.bold),
+                          unselectedLabelTextStyle: TextStyle(color: colors.textSecondary),
+                          destinations: List.generate(
+                            _titles.length,
+                            (i) => NavigationRailDestination(
+                              icon: i == 1 ? const _PendingBadgeIcon() : Icon(_tabIcons[i]),
+                              selectedIcon: i == 1
+                                  ? _PendingBadgeIcon(selected: true, color: colors.primary)
+                                  : Icon(_tabIcons[i], color: colors.primary),
+                              label: Text(_titles[i]),
+                            ),
+                          ),
+                        ),
+                        const VerticalDivider(width: 1),
+                        Expanded(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1100),
+                            child: IndexedStack(index: _tabIndex, children: tabs),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+          bottomNavigationBar: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= kWideLayoutBreakpoint) return const SizedBox.shrink();
+              return NavigationBar(
+                selectedIndex: _tabIndex,
+                onDestinationSelected: (i) => setState(() => _tabIndex = i),
+                backgroundColor: colors.surface,
+                indicatorColor: colors.primary.withValues(alpha: 0.15),
+                destinations: [
+                  NavigationDestination(
+                    icon: const Icon(Icons.dashboard_outlined),
+                    selectedIcon: Icon(Icons.dashboard_rounded, color: colors.primary),
+                    label: 'Dashboard',
+                  ),
+                  NavigationDestination(
+                    icon: const _PendingBadgeIcon(),
+                    selectedIcon: _PendingBadgeIcon(selected: true, color: colors.primary),
+                    label: 'Verify',
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.search_rounded),
+                    selectedIcon: Icon(Icons.search_rounded, color: colors.primary),
+                    label: 'Donors',
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.history_rounded),
+                    selectedIcon: Icon(Icons.history_rounded, color: colors.primary),
+                    label: 'History',
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -268,20 +303,16 @@ class _CriticalEscalationBannerState extends State<_CriticalEscalationBanner> {
       stream: FirebaseFirestore.instance.collection('requests').where('status', whereIn: RequestStatus.activeStatuses).snapshots(),
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? const [];
-        final criticalRequests = docs
-            .map(BloodRequest.fromDoc)
-            .where((r) {
-              final level = RequestHealth.computeLevel(
-                status: r.status,
-                urgency: r.urgency,
-                createdAt: r.createdAt,
-                unitsNeeded: r.unitsNeeded,
-                unitsConfirmed: r.unitsConfirmed,
-              );
-              return level == RequestHealth.criticalAttention;
-            })
-            .toList()
-          ..sort((a, b) => (a.createdAt ?? DateTime.now()).compareTo(b.createdAt ?? DateTime.now()));
+        final criticalRequests = docs.map(BloodRequest.fromDoc).where((r) {
+          final level = RequestHealth.computeLevel(
+            status: r.status,
+            urgency: r.urgency,
+            createdAt: r.createdAt,
+            unitsNeeded: r.unitsNeeded,
+            unitsConfirmed: r.unitsConfirmed,
+          );
+          return level == RequestHealth.criticalAttention;
+        }).toList()..sort((a, b) => (a.createdAt ?? DateTime.now()).compareTo(b.createdAt ?? DateTime.now()));
         final criticalCount = criticalRequests.length;
 
         return AnimatedSize(
@@ -295,38 +326,44 @@ class _CriticalEscalationBannerState extends State<_CriticalEscalationBanner> {
                     children: [
                       Semantics(
                         button: true,
-                        label: '$criticalCount request${criticalCount == 1 ? '' : 's'} need immediate attention. ${_expanded ? 'Expanded' : 'Collapsed'}, double tap to ${_expanded ? 'hide' : 'show'} the list.',
+                        label:
+                            '$criticalCount request${criticalCount == 1 ? '' : 's'} need immediate attention. ${_expanded ? 'Expanded' : 'Collapsed'}, double tap to ${_expanded ? 'hide' : 'show'} the list.',
                         child: InkWell(
-                        onTap: () => setState(() => _expanded = !_expanded),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.critical.withValues(alpha: 0.35)))),
-                          child: Row(
-                            children: [
-                              LivePulseDot(color: colors.critical),
-                              const SizedBox(width: 8),
-                              Icon(Icons.emergency_outlined, size: 15, color: colors.critical),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  criticalCount == 1
-                                      ? '1 request needs immediate attention - waiting time has passed the critical threshold.'
-                                      : '$criticalCount requests need immediate attention - waiting time has passed the critical threshold.',
-                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.critical),
-                                  overflow: TextOverflow.ellipsis,
+                          onTap: () => setState(() => _expanded = !_expanded),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                            decoration: BoxDecoration(
+                              border: Border(bottom: BorderSide(color: colors.critical.withValues(alpha: 0.35))),
+                            ),
+                            child: Row(
+                              children: [
+                                LivePulseDot(color: colors.critical),
+                                const SizedBox(width: 8),
+                                Icon(Icons.emergency_outlined, size: 15, color: colors.critical),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    criticalCount == 1
+                                        ? '1 request needs immediate attention - waiting time has passed the critical threshold.'
+                                        : '$criticalCount requests need immediate attention - waiting time has passed the critical threshold.',
+                                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.critical),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(_expanded ? 'Hide' : 'Show', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: colors.critical)),
-                              AnimatedRotation(
-                                duration: const Duration(milliseconds: 200),
-                                turns: _expanded ? 0.5 : 0,
-                                child: Icon(Icons.expand_more_rounded, size: 18, color: colors.critical),
-                              ),
-                            ],
+                                const SizedBox(width: 6),
+                                Text(
+                                  _expanded ? 'Hide' : 'Show',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: colors.critical),
+                                ),
+                                AnimatedRotation(
+                                  duration: const Duration(milliseconds: 200),
+                                  turns: _expanded ? 0.5 : 0,
+                                  child: Icon(Icons.expand_more_rounded, size: 18, color: colors.critical),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                         ),
                       ),
                       AnimatedSize(
@@ -337,7 +374,9 @@ class _CriticalEscalationBannerState extends State<_CriticalEscalationBanner> {
                             : Container(
                                 width: double.infinity,
                                 constraints: const BoxConstraints(maxHeight: 220),
-                                decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.critical.withValues(alpha: 0.35)))),
+                                decoration: BoxDecoration(
+                                  border: Border(bottom: BorderSide(color: colors.critical.withValues(alpha: 0.35))),
+                                ),
                                 child: ListView.builder(
                                   shrinkWrap: true,
                                   padding: const EdgeInsets.symmetric(vertical: 4),
@@ -345,7 +384,8 @@ class _CriticalEscalationBannerState extends State<_CriticalEscalationBanner> {
                                   itemBuilder: (context, i) {
                                     final r = criticalRequests[i];
                                     return InkWell(
-                                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: r.id))),
+                                      onTap: () =>
+                                          Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: r.id))),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                         child: Row(
@@ -354,16 +394,34 @@ class _CriticalEscalationBannerState extends State<_CriticalEscalationBanner> {
                                               width: 28,
                                               height: 28,
                                               alignment: Alignment.center,
-                                              decoration: BoxDecoration(color: colors.critical.withValues(alpha: 0.15), shape: BoxShape.circle),
-                                              child: Text(r.bloodGroup, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colors.critical)),
+                                              decoration: BoxDecoration(
+                                                color: colors.critical.withValues(alpha: 0.15),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Text(
+                                                r.bloodGroup,
+                                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colors.critical),
+                                              ),
                                             ),
                                             const SizedBox(width: 10),
                                             Expanded(
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Text(r.patientName, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary), overflow: TextOverflow.ellipsis),
-                                                  Text('Waiting ${WaitingTime.format(r.createdAt)} · ${r.hospitalName}', style: TextStyle(fontSize: 11, color: colors.textSecondary), overflow: TextOverflow.ellipsis),
+                                                  Text(
+                                                    r.patientName,
+                                                    style: TextStyle(
+                                                      fontSize: 12.5,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: colors.textPrimary,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                  Text(
+                                                    'Waiting ${WaitingTime.format(r.createdAt)} · ${r.hospitalName}',
+                                                    style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
                                                 ],
                                               ),
                                             ),
@@ -383,7 +441,15 @@ class _CriticalEscalationBannerState extends State<_CriticalEscalationBanner> {
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 7),
                             alignment: Alignment.center,
-                            child: Text('Open full Verify Requests queue', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: colors.critical, decoration: TextDecoration.underline)),
+                            child: Text(
+                              'Open full Verify Requests queue',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: colors.critical,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
                           ),
                         ),
                     ],
@@ -422,7 +488,10 @@ class _StaffPresenceChip extends StatelessWidget {
                 children: [
                   LivePulseDot(color: colors.success),
                   const SizedBox(width: 6),
-                  Text('$count online', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: colors.success)),
+                  Text(
+                    '$count online',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: colors.success),
+                  ),
                 ],
               ),
             ),

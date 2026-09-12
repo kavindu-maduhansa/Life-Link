@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../utils/donor_availability.dart';
 import '../../../utils/request_status.dart';
 import '../../../theme/app_colors.dart';
 import '../../../models/blood_request.dart';
@@ -68,9 +69,8 @@ class _DonorSearchTabState extends State<DonorSearchTab> {
 
   static const _groups = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
 
-  List<String>? get _compatibleGroups => widget.initialBloodGroupFilter != null
-      ? BloodCompatibility.compatibleDonorGroups(widget.initialBloodGroupFilter!)
-      : null;
+  List<String>? get _compatibleGroups =>
+      widget.initialBloodGroupFilter != null ? BloodCompatibility.compatibleDonorGroups(widget.initialBloodGroupFilter!) : null;
 
   // #perf - created once instead of calling `.snapshots()` inline in
   // build(). The search field's onChanged calls setState on every
@@ -135,161 +135,189 @@ class _DonorSearchTabState extends State<DonorSearchTab> {
               color: colors.surface,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: colors.border),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 14, offset: const Offset(0, 4)),
-              ],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 14, offset: const Offset(0, 4))],
             ),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: colors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                    child: Icon(Icons.volunteer_activism_rounded, size: 18, color: colors.primary),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Find Donors', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-                        Text(
-                          _compareMode
-                              ? 'Select up to 4 donors to compare'
-                              : (widget.selectMode ? 'Ranked by application match score' : 'Search the verified donor pool'),
-                          style: TextStyle(fontSize: 11, color: colors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!widget.selectMode)
-                    Tooltip(
-                      message: _compareMode ? 'Exit comparison' : 'Compare Donors',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap: () => setState(() {
-                          _compareMode = !_compareMode;
-                          if (!_compareMode) _compareSelection.clear();
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: _compareMode ? colors.primary : colors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(Icons.compare_arrows_rounded, size: 18, color: _compareMode ? Colors.white : colors.primary),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (_) => setState(() {}),
-                      style: TextStyle(color: colors.textPrimary),
-                      decoration: InputDecoration(
-                        hintText: 'Search by name or location...',
-                        hintStyle: TextStyle(color: colors.textSecondary),
-                        prefixIcon: Icon(Icons.search_rounded, color: colors.textSecondary),
-                        filled: true,
-                        fillColor: colors.elevatedSurface,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.border)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.border)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.primary, width: 1.6)),
-                      ),
-                    ),
-                  ),
-                  if (!widget.selectMode) ...[
-                    const SizedBox(width: 8),
-                    Tooltip(
-                      message: 'Register Walk-in Donor',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => _RegisterWalkInDonorSheet.show(context),
-                        child: Container(
-                          height: 48,
-                          width: 48,
-                          decoration: BoxDecoration(
-                            color: colors.primary,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 36,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    _FilterChip(
-                      label: compatibleGroups != null ? 'All Compatible' : 'All Groups',
-                      selected: _bloodGroupFilter == null,
-                      onTap: () => setState(() => _bloodGroupFilter = null),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: colors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                      child: Icon(Icons.volunteer_activism_rounded, size: 18, color: colors.primary),
                     ),
-                    ...(compatibleGroups ?? _groups).map((g) => Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: _FilterChip(label: g, selected: _bloodGroupFilter == g, onTap: () => setState(() => _bloodGroupFilter = g)),
-                        )),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _ToggleFilterChip(label: 'Eligible only', selected: _onlyEligible, onChanged: (v) => setState(() => _onlyEligible = v)),
-                        _ToggleFilterChip(label: 'Verified only', selected: _onlyVerified, onChanged: (v) => setState(() => _onlyVerified = v)),
-                        _ToggleFilterChip(label: 'Available only', selected: _onlyAvailable, onChanged: (v) => setState(() => _onlyAvailable = v)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  PopupMenuButton<_SortMode>(
-                    tooltip: 'Sort donors',
-                    initialValue: _sortMode,
-                    onSelected: (v) => setState(() => _sortMode = v),
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: _SortMode.bestMatch, child: Text('Best Match')),
-                      PopupMenuItem(value: _SortMode.recentlyAvailable, child: Text('Recently Available')),
-                      PopupMenuItem(value: _SortMode.name, child: Text('Name (A-Z)')),
-                    ],
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: colors.elevatedSurface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: colors.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.sort_rounded, size: 15, color: colors.textSecondary),
-                          const SizedBox(width: 4),
-                          Text(_sortLabel(_sortMode), style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontWeight: FontWeight.w600)),
+                          Text(
+                            'Find Donors',
+                            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                          ),
+                          Text(
+                            _compareMode
+                                ? 'Select up to 4 donors to compare'
+                                : (widget.selectMode ? 'Ranked by application match score' : 'Search the verified donor pool'),
+                            style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                          ),
                         ],
                       ),
                     ),
+                    if (!widget.selectMode)
+                      Tooltip(
+                        message: _compareMode ? 'Exit comparison' : 'Compare Donors',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => setState(() {
+                            _compareMode = !_compareMode;
+                            if (!_compareMode) _compareSelection.clear();
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: _compareMode ? colors.primary : colors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.compare_arrows_rounded, size: 18, color: _compareMode ? Colors.white : colors.primary),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
+                        style: TextStyle(color: colors.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Search by name or location...',
+                          hintStyle: TextStyle(color: colors.textSecondary),
+                          prefixIcon: Icon(Icons.search_rounded, color: colors.textSecondary),
+                          filled: true,
+                          fillColor: colors.elevatedSurface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: colors.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: colors.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: colors.primary, width: 1.6),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (!widget.selectMode) ...[
+                      const SizedBox(width: 8),
+                      Tooltip(
+                        message: 'Register Walk-in Donor',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _RegisterWalkInDonorSheet.show(context),
+                          child: Container(
+                            height: 48,
+                            width: 48,
+                            decoration: BoxDecoration(color: colors.primary, borderRadius: BorderRadius.circular(12)),
+                            child: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 36,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      _FilterChip(
+                        label: compatibleGroups != null ? 'All Compatible' : 'All Groups',
+                        selected: _bloodGroupFilter == null,
+                        onTap: () => setState(() => _bloodGroupFilter = null),
+                      ),
+                      ...(compatibleGroups ?? _groups).map(
+                        (g) => Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: _FilterChip(
+                            label: g,
+                            selected: _bloodGroupFilter == g,
+                            onTap: () => setState(() => _bloodGroupFilter = g),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _ToggleFilterChip(
+                            label: 'Eligible only',
+                            selected: _onlyEligible,
+                            onChanged: (v) => setState(() => _onlyEligible = v),
+                          ),
+                          _ToggleFilterChip(
+                            label: 'Verified only',
+                            selected: _onlyVerified,
+                            onChanged: (v) => setState(() => _onlyVerified = v),
+                          ),
+                          _ToggleFilterChip(
+                            label: 'Available only',
+                            selected: _onlyAvailable,
+                            onChanged: (v) => setState(() => _onlyAvailable = v),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PopupMenuButton<_SortMode>(
+                      tooltip: 'Sort donors',
+                      initialValue: _sortMode,
+                      onSelected: (v) => setState(() => _sortMode = v),
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(value: _SortMode.bestMatch, child: Text('Best Match')),
+                        PopupMenuItem(value: _SortMode.recentlyAvailable, child: Text('Recently Available')),
+                        PopupMenuItem(value: _SortMode.name, child: Text('Name (A-Z)')),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: colors.elevatedSurface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: colors.border),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.sort_rounded, size: 15, color: colors.textSecondary),
+                            const SizedBox(width: 4),
+                            Text(
+                              _sortLabel(_sortMode),
+                              style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         Expanded(
@@ -403,130 +431,191 @@ class _DonorListStream extends StatelessWidget {
     final _sortMode = sortMode;
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: donorsStream,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return ErrorStateView(message: 'Unable to load donors right now.\n${snapshot.error}');
-              }
-              if (!snapshot.hasData) {
-                return const ListCardSkeleton();
-              }
+      stream: donorsStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return ErrorStateView(message: 'Unable to load donors right now.\n${snapshot.error}');
+        }
+        if (!snapshot.hasData) {
+          return const ListCardSkeleton();
+        }
 
-              final query = searchQuery.trim().toLowerCase();
-              var donors = snapshot.data!.docs.where((doc) {
-                final data = doc.data();
-                final name = (data['fullName'] as String? ?? '').toLowerCase();
-                final location = (data['location'] as String? ?? '').toLowerCase();
-                final group = data['bloodGroup'] as String?;
-                final verified = data['verified'] == true;
-                final available = data['availableNow'] != false; // missing = assumed available
-                final lastDonation = (data['lastDonationDate'] as Timestamp?)?.toDate();
-                final eligible = DonorEligibility.isEligible(lastDonation);
+        final query = searchQuery.trim().toLowerCase();
+        var donors = snapshot.data!.docs.where((doc) {
+          final data = doc.data();
+          final name = (data['fullName'] as String? ?? '').toLowerCase();
+          final location = (data['location'] as String? ?? '').toLowerCase();
+          final group = data['bloodGroup'] as String?;
+          final verified = data['verified'] == true;
+          // #availability-contract - resolved through the
+          // compatibility adapter, which prefers canonical
+          // `isAvailable`, falls back to legacy `availableNow`,
+          // and reports Unknown when neither is present. It is
+          // never inferred from absence - see
+          // docs/LIFELINK_DATA_CONTRACT.md.
+          final availability = DonorAvailabilityReader.read(data);
+          final lastDonation = (data['lastDonationDate'] as Timestamp?)?.toDate();
+          final eligible = DonorEligibility.isEligible(lastDonation);
 
-                if (data['isActive'] == false) return false;
-                if (_bloodGroupFilter != null) {
-                  if (group != _bloodGroupFilter) return false;
-                } else if (compatibleGroups != null) {
-                  if (group == null || !compatibleGroups.contains(group)) return false;
-                }
-                if (_onlyVerified && !verified) return false;
-                if (_onlyEligible && !eligible) return false;
-                if (_onlyAvailable && !available) return false;
-                if (query.isNotEmpty && !name.contains(query) && !location.contains(query)) return false;
-                return true;
-              }).toList();
+          if (data['isActive'] == false) return false;
+          if (_bloodGroupFilter != null) {
+            if (group != _bloodGroupFilter) return false;
+          } else if (compatibleGroups != null) {
+            if (group == null || !compatibleGroups.contains(group)) return false;
+          }
+          if (_onlyVerified && !verified) return false;
+          if (_onlyEligible && !eligible) return false;
+          // "Available only" means donors who positively said yes,
+          // not donors who merely have not said no.
+          if (_onlyAvailable && !availability.isConfirmedAvailable) return false;
+          if (query.isNotEmpty && !name.contains(query) && !location.contains(query)) return false;
+          return true;
+        }).toList();
 
-              // #14 - Smart Donor Matching: transparent, deterministic
-              // ranking. Never presented as medical certainty - every
-              // contributing factor is shown as a checkmark tag below.
-              switch (_sortMode) {
-                case _SortMode.bestMatch:
-                  donors.sort((a, b) => _matchScore(b.data(), requestLocation).compareTo(_matchScore(a.data(), requestLocation)));
-                case _SortMode.recentlyAvailable:
-                  donors.sort((a, b) {
-                    final aAvail = a.data()['availableNow'] != false;
-                    final bAvail = b.data()['availableNow'] != false;
-                    if (aAvail != bAvail) return aAvail ? -1 : 1;
-                    final aTime = (a.data()['lastDonationDate'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-                    final bTime = (b.data()['lastDonationDate'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-                    return bTime.compareTo(aTime);
-                  });
-                case _SortMode.name:
-                  donors.sort((a, b) => (a.data()['fullName'] as String? ?? '').compareTo(b.data()['fullName'] as String? ?? ''));
-              }
+        // #14 - Smart Donor Matching: transparent, deterministic
+        // ranking. Never presented as medical certainty - every
+        // contributing factor is shown as a checkmark tag below.
+        switch (_sortMode) {
+          case _SortMode.bestMatch:
+            donors.sort((a, b) => _matchScore(b.data(), requestLocation).compareTo(_matchScore(a.data(), requestLocation)));
+          case _SortMode.recentlyAvailable:
+            donors.sort((a, b) {
+              // Confirmed available first, then unknown, then
+              // confirmed unavailable.
+              final aWeight = DonorAvailabilityReader.read(a.data()).sortWeight;
+              final bWeight = DonorAvailabilityReader.read(b.data()).sortWeight;
+              if (aWeight != bWeight) return aWeight.compareTo(bWeight);
+              final aTime = (a.data()['lastDonationDate'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+              final bTime = (b.data()['lastDonationDate'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+              return bTime.compareTo(aTime);
+            });
+          case _SortMode.name:
+            donors.sort((a, b) => (a.data()['fullName'] as String? ?? '').compareTo(b.data()['fullName'] as String? ?? ''));
+        }
 
-              if (donors.isEmpty) {
-                return EmptyState(
-                  icon: Icons.person_search_rounded,
-                  title: 'No available donors',
-                  message: 'No compatible available donors were found. Try widening your filters.',
-                );
-              }
-
-              final verifiedCount = donors.where((d) => d.data()['verified'] == true).length;
-              final availableCount = donors.where((d) => d.data()['availableNow'] != false).length;
-              final eligibleCount = donors.where((d) => DonorEligibility.isEligible((d.data()['lastDonationDate'] as Timestamp?)?.toDate())).length;
-
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: colors.elevatedSurface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: colors.border),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(child: _DonorStatChip(label: 'Found', value: donors.length, color: colors.textPrimary, icon: Icons.groups_rounded)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _DonorStatChip(label: 'Verified', value: verifiedCount, color: colors.success, icon: Icons.verified_rounded)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _DonorStatChip(label: 'Available', value: availableCount, color: colors.primary, icon: Icons.event_available_rounded)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _DonorStatChip(label: 'Eligible', value: eligibleCount, color: colors.warning, icon: Icons.health_and_safety_rounded)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                      itemCount: donors.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final doc = donors[index];
-                        return EntranceFadeSlide(
-                          delay: Duration(milliseconds: 35 * index.clamp(0, 10)),
-                          child: _DonorCard(
-                            donorId: doc.id,
-                            data: doc.data(),
-                            selectMode: selectMode,
-                            requestLocation: requestLocation,
-                            rank: selectMode ? index : null,
-                            reliability: reliability[doc.id],
-                            compareMode: compareMode,
-                            compareSelected: compareSelection.containsKey(doc.id),
-                            onToggleCompare: onToggleCompare,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                    child: Text(
-                      'Matching assistance only — final donor selection remains with authorized medical staff.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 10.5, color: colors.textSecondary, fontStyle: FontStyle.italic),
-                    ),
-                  ),
-                ],
-              );
-            },
+        if (donors.isEmpty) {
+          return EmptyState(
+            icon: Icons.person_search_rounded,
+            title: 'No available donors',
+            message: 'No compatible available donors were found. Try widening your filters.',
           );
+        }
+
+        final verifiedCount = donors.where((d) => d.data()['verified'] == true).length;
+        final availableCount = donors.where((d) => DonorAvailabilityReader.read(d.data()).isConfirmedAvailable).length;
+        final unknownAvailabilityCount = donors.where((d) => DonorAvailabilityReader.read(d.data()) == DonorAvailability.unknown).length;
+        final eligibleCount = donors
+            .where((d) => DonorEligibility.isEligible((d.data()['lastDonationDate'] as Timestamp?)?.toDate()))
+            .length;
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colors.elevatedSurface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colors.border),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _DonorStatChip(label: 'Found', value: donors.length, color: colors.textPrimary, icon: Icons.groups_rounded),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _DonorStatChip(label: 'Verified', value: verifiedCount, color: colors.success, icon: Icons.verified_rounded),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _DonorStatChip(
+                        label: 'Available',
+                        value: availableCount,
+                        color: colors.primary,
+                        icon: Icons.event_available_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _DonorStatChip(
+                        label: 'Eligible',
+                        value: eligibleCount,
+                        color: colors.warning,
+                        icon: Icons.health_and_safety_rounded,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // #availability-contract - a visible count of donor
+            // records that carry no availability field at all.
+            // These used to be silently counted as "Available";
+            // surfacing them tells staff how much of the pool is
+            // actually unconfirmed, and is honest about why.
+            if (unknownAvailabilityCount > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: colors.warningContainer,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.warning.withValues(alpha: 0.45)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.help_outline_rounded, size: 16, color: colors.warning),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '$unknownAvailabilityCount of ${donors.length} donor record(s) do not record availability. '
+                          'They are not counted as available — confirm by phone before relying on them.',
+                          style: TextStyle(fontSize: 11.5, color: colors.textPrimary, height: 1.35),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                itemCount: donors.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final doc = donors[index];
+                  return EntranceFadeSlide(
+                    delay: Duration(milliseconds: 35 * index.clamp(0, 10)),
+                    child: _DonorCard(
+                      donorId: doc.id,
+                      data: doc.data(),
+                      selectMode: selectMode,
+                      requestLocation: requestLocation,
+                      rank: selectMode ? index : null,
+                      reliability: reliability[doc.id],
+                      compareMode: compareMode,
+                      compareSelected: compareSelection.containsKey(doc.id),
+                      onToggleCompare: onToggleCompare,
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Text(
+                'Matching assistance only — final donor selection remains with authorized medical staff.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 10.5, color: colors.textSecondary, fontStyle: FontStyle.italic),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -538,8 +627,10 @@ class _DonorListStream extends StatelessWidget {
 int _matchScore(Map<String, dynamic> data, String? requestLocation) {
   var score = 0;
   if (data['verified'] == true) score += 20;
-  final available = data['availableNow'] != false;
-  if (available) score += 20;
+  // Only a positively confirmed donor earns availability points. An
+  // unknown availability scores 0 rather than being credited as if the
+  // donor had said yes.
+  if (DonorAvailabilityReader.read(data).isConfirmedAvailable) score += 20;
   final lastDonation = (data['lastDonationDate'] as Timestamp?)?.toDate();
   if (DonorEligibility.isEligible(lastDonation)) score += 30;
   final donorLocation = (data['location'] as String? ?? '').toLowerCase().trim();
@@ -568,7 +659,7 @@ class _MatchFactor {
 
 List<_MatchFactor> _matchBreakdown(Map<String, dynamic> data, String? requestLocation) {
   final verified = data['verified'] == true;
-  final available = data['availableNow'] != false;
+  final availability = DonorAvailabilityReader.read(data);
   final lastDonation = (data['lastDonationDate'] as Timestamp?)?.toDate();
   final eligible = DonorEligibility.isEligible(lastDonation);
   final donorLocation = (data['location'] as String? ?? '').toLowerCase().trim();
@@ -585,9 +676,11 @@ List<_MatchFactor> _matchBreakdown(Map<String, dynamic> data, String? requestLoc
     _MatchFactor(
       label: 'Availability',
       icon: Icons.event_available_outlined,
-      points: available ? 20 : 0,
+      points: availability.isConfirmedAvailable ? 20 : 0,
       maxPoints: 20,
-      detail: available ? 'Marked available to donate right now.' : 'Currently marked unavailable.',
+      // The explanation distinguishes "said no" from "never said" -
+      // they are different facts and lead to different staff action.
+      detail: availability.explanation,
     ),
     _MatchFactor(
       label: 'Eligibility (90-day rule)',
@@ -595,7 +688,9 @@ List<_MatchFactor> _matchBreakdown(Map<String, dynamic> data, String? requestLoc
       points: eligible ? 30 : 0,
       maxPoints: 30,
       detail: eligible
-          ? (lastDonation == null ? 'No prior donation on record - eligible by default.' : 'Past the required 90-day recovery window since last donation.')
+          ? (lastDonation == null
+                ? 'No prior donation on record - eligible by default.'
+                : 'Past the required 90-day recovery window since last donation.')
           : 'Still inside the 90-day recovery window since last donation.',
     ),
     _MatchFactor(
@@ -622,7 +717,14 @@ class _MatchTier {
 /// #14 - "WHY this donor matched": tapping the score/tier chip opens a
 /// transparent, factor-by-factor breakdown of the exact same points
 /// used to rank the donor, so staff never have to trust a bare number.
-void _showMatchBreakdown(BuildContext context, AppColors colors, int score, _MatchTier? tier, Map<String, dynamic> data, String? requestLocation) {
+void _showMatchBreakdown(
+  BuildContext context,
+  AppColors colors,
+  int score,
+  _MatchTier? tier,
+  Map<String, dynamic> data,
+  String? requestLocation,
+) {
   final factors = _matchBreakdown(data, requestLocation);
   showDialog(
     context: context,
@@ -632,7 +734,9 @@ void _showMatchBreakdown(BuildContext context, AppColors colors, int score, _Mat
         title: Row(
           children: [
             if (tier != null) ...[Text(tier.emoji, style: const TextStyle(fontSize: 18)), const SizedBox(width: 8)],
-            Expanded(child: Text('$score% Application Match', style: TextStyle(color: colors.textPrimary, fontSize: 16))),
+            Expanded(
+              child: Text('$score% Application Match', style: TextStyle(color: colors.textPrimary, fontSize: 16)),
+            ),
           ],
         ),
         content: SingleChildScrollView(
@@ -655,8 +759,18 @@ void _showMatchBreakdown(BuildContext context, AppColors colors, int score, _Mat
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(f.label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-                                Text('+${f.points}/${f.maxPoints}', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: f.points > 0 ? colors.success : colors.textSecondary)),
+                                Text(
+                                  f.label,
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                                ),
+                                Text(
+                                  '+${f.points}/${f.maxPoints}',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: f.points > 0 ? colors.success : colors.textSecondary,
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 2),
@@ -688,9 +802,7 @@ void _showMatchBreakdown(BuildContext context, AppColors colors, int score, _Mat
             ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close')),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close'))],
       );
     },
   );
@@ -746,7 +858,11 @@ class _CompareBar extends StatelessWidget {
           const SizedBox(width: 4),
           ElevatedButton(
             onPressed: onCompare,
-            style: ElevatedButton.styleFrom(backgroundColor: colors.primary, foregroundColor: Colors.white, disabledBackgroundColor: colors.border),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors.primary,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: colors.border,
+            ),
             child: const Text('Compare'),
           ),
         ],
@@ -780,8 +896,16 @@ void _showDonorComparisonDialog(BuildContext context, AppColors colors, List<_Co
                   children: [
                     Icon(Icons.compare_arrows_rounded, color: colors.primary),
                     const SizedBox(width: 8),
-                    Expanded(child: Text('Donor Comparison', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary))),
-                    IconButton(icon: Icon(Icons.close_rounded, color: colors.textSecondary), onPressed: () => Navigator.pop(dialogContext)),
+                    Expanded(
+                      child: Text(
+                        'Donor Comparison',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close_rounded, color: colors.textSecondary),
+                      onPressed: () => Navigator.pop(dialogContext),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -792,17 +916,30 @@ void _showDonorComparisonDialog(BuildContext context, AppColors colors, List<_Co
                       headingRowColor: WidgetStateProperty.all(colors.elevatedSurface),
                       columns: [
                         const DataColumn(label: Text('')),
-                        for (final e in entries) DataColumn(label: Text(e.data['fullName'] as String? ?? 'Donor', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary))),
+                        for (final e in entries)
+                          DataColumn(
+                            label: Text(
+                              e.data['fullName'] as String? ?? 'Donor',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary),
+                            ),
+                          ),
                       ],
                       rows: [
                         _compareRow('Blood Group', entries, (e) => e.data['bloodGroup'] as String? ?? '-', colors),
                         _compareRow('Verified', entries, (e) => e.data['verified'] == true ? 'Yes' : 'No', colors),
-                        _compareRow('Available', entries, (e) => e.data['availableNow'] != false ? 'Yes' : 'No', colors),
+                        _compareRow('Available', entries, (e) => DonorAvailabilityReader.read(e.data).label, colors),
                         _compareRow('Eligible', entries, (e) {
                           final last = (e.data['lastDonationDate'] as Timestamp?)?.toDate();
                           return DonorEligibility.isEligible(last) ? 'Yes' : 'In ${DonorEligibility.daysUntilEligible(last)}d';
                         }, colors),
-                        _compareRow('Location', entries, (e) => (e.data['location'] as String?)?.trim().isNotEmpty == true ? (e.data['location'] as String).trim() : 'Not set', colors),
+                        _compareRow(
+                          'Location',
+                          entries,
+                          (e) => (e.data['location'] as String?)?.trim().isNotEmpty == true
+                              ? (e.data['location'] as String).trim()
+                              : 'Not set',
+                          colors,
+                        ),
                         _compareRow('Match Score', entries, (e) => '${_matchScore(e.data, null)}%', colors),
                         _compareRow('Reliability', entries, (e) {
                           final r = e.reliability;
@@ -828,10 +965,17 @@ void _showDonorComparisonDialog(BuildContext context, AppColors colors, List<_Co
 }
 
 DataRow _compareRow(String label, List<_CompareEntry> entries, String Function(_CompareEntry) valueOf, AppColors colors) {
-  return DataRow(cells: [
-    DataCell(Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textSecondary))),
-    for (final e in entries) DataCell(Text(valueOf(e), style: TextStyle(fontSize: 12.5, color: colors.textPrimary))),
-  ]);
+  return DataRow(
+    cells: [
+      DataCell(
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textSecondary),
+        ),
+      ),
+      for (final e in entries) DataCell(Text(valueOf(e), style: TextStyle(fontSize: 12.5, color: colors.textPrimary))),
+    ],
+  );
 }
 
 class _FilterChip extends StatelessWidget {
@@ -853,7 +997,14 @@ class _FilterChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: selected ? colors.primary : colors.border),
         ),
-        child: Text(label, style: TextStyle(fontSize: 12, color: selected ? colors.primary : colors.textSecondary, fontWeight: selected ? FontWeight.bold : FontWeight.w500)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: selected ? colors.primary : colors.textSecondary,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
@@ -881,9 +1032,20 @@ class _ToggleFilterChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(selected ? Icons.check_circle_rounded : Icons.circle_outlined, size: 14, color: selected ? colors.primary : colors.textSecondary),
+            Icon(
+              selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+              size: 14,
+              color: selected ? colors.primary : colors.textSecondary,
+            ),
             const SizedBox(width: 5),
-            Text(label, style: TextStyle(fontSize: 12, color: selected ? colors.primary : colors.textSecondary, fontWeight: selected ? FontWeight.w600 : FontWeight.normal)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: selected ? colors.primary : colors.textSecondary,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
           ],
         ),
       ),
@@ -921,7 +1083,7 @@ class _DonorCard extends StatelessWidget {
     final group = data['bloodGroup'] as String? ?? '-';
     final location = (data['location'] as String?)?.trim();
     final verified = data['verified'] == true;
-    final available = data['availableNow'] != false;
+    final availability = DonorAvailabilityReader.read(data);
     final lastDonation = (data['lastDonationDate'] as Timestamp?)?.toDate();
     final eligible = DonorEligibility.isEligible(lastDonation);
     final daysLeft = DonorEligibility.daysUntilEligible(lastDonation);
@@ -933,13 +1095,13 @@ class _DonorCard extends StatelessWidget {
       onTap: compareMode
           ? () => onToggleCompare?.call(_CompareEntry(donorId: donorId, data: data, reliability: reliability))
           : (selectMode
-              ? () => Navigator.pop(context, {
+                ? () => Navigator.pop(context, {
                     'donorId': donorId,
                     'donorName': name,
                     'donorPhone': data['phoneNumber'] ?? '',
                     'bloodGroup': group,
                   })
-              : () => _showDonorProfile(context, colors)),
+                : () => _showDonorProfile(context, colors)),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -949,9 +1111,7 @@ class _DonorCard extends StatelessWidget {
             color: compareSelected ? colors.primary : (tier != null ? tier.color(colors).withValues(alpha: 0.5) : colors.border),
             width: compareSelected ? 1.8 : (tier != null ? 1.4 : 1),
           ),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3)),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -967,7 +1127,10 @@ class _DonorCard extends StatelessWidget {
                     children: [
                       Text(tier.emoji, style: const TextStyle(fontSize: 14)),
                       const SizedBox(width: 4),
-                      Text(tier.label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: tier.color(colors), letterSpacing: 0.4)),
+                      Text(
+                        tier.label,
+                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: tier.color(colors), letterSpacing: 0.4),
+                      ),
                       const SizedBox(width: 3),
                       Icon(Icons.info_outline_rounded, size: 10, color: tier.color(colors).withValues(alpha: 0.7)),
                     ],
@@ -988,12 +1151,18 @@ class _DonorCard extends StatelessWidget {
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: tier != null ? tier.color(colors) : colors.critical.withValues(alpha: 0.3), width: tier != null ? 2 : 1.4),
+                    border: Border.all(
+                      color: tier != null ? tier.color(colors) : colors.critical.withValues(alpha: 0.3),
+                      width: tier != null ? 2 : 1.4,
+                    ),
                   ),
                   child: CircleAvatar(
                     radius: 22,
                     backgroundColor: colors.critical.withValues(alpha: 0.1),
-                    child: Text(group, style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold, fontSize: 13)),
+                    child: Text(
+                      group,
+                      style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1004,13 +1173,20 @@ class _DonorCard extends StatelessWidget {
                       Row(
                         children: [
                           Flexible(
-                            child: Text(name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                            child: Text(
+                              name,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                            ),
                           ),
                           if (verified) ...[const SizedBox(width: 4), Icon(Icons.verified_rounded, size: 15, color: colors.primary)],
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text(location?.isNotEmpty == true ? location! : 'Location not set', style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+                      Text(
+                        location?.isNotEmpty == true ? location! : 'Location not set',
+                        style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                      ),
                     ],
                   ),
                 ),
@@ -1024,7 +1200,10 @@ class _DonorCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('$score% Match', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: colors.primary)),
+                          Text(
+                            '$score% Match',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: colors.primary),
+                          ),
                           const SizedBox(width: 2),
                           Icon(Icons.info_outline_rounded, size: 10, color: colors.primary.withValues(alpha: 0.7)),
                         ],
@@ -1043,7 +1222,7 @@ class _DonorCard extends StatelessWidget {
               runSpacing: 6,
               children: [
                 _Tag(label: 'Compatible', ok: true),
-                _Tag(label: 'Available', ok: available),
+                _AvailabilityTag(availability: availability),
                 _Tag(label: 'Eligible', ok: eligible, hint: eligible ? null : 'in ${daysLeft}d'),
                 if (requestLocation != null) _Tag(label: 'Nearby', ok: score >= 50 && (location?.isNotEmpty ?? false)),
                 if (reliability != null) _ReliabilityBadge(reliability: reliability!),
@@ -1066,7 +1245,7 @@ class _DonorCard extends StatelessWidget {
     final group = data['bloodGroup'] as String? ?? '-';
     final location = (data['location'] as String?)?.trim();
     final verified = data['verified'] == true;
-    final available = data['availableNow'] != false;
+    final availability = DonorAvailabilityReader.read(data);
     final lastDonation = (data['lastDonationDate'] as Timestamp?)?.toDate();
     final eligible = DonorEligibility.isEligible(lastDonation);
     final daysLeft = DonorEligibility.daysUntilEligible(lastDonation);
@@ -1098,16 +1277,28 @@ class _DonorCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 26,
                   backgroundColor: colors.critical.withValues(alpha: 0.1),
-                  child: Text(group, style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    group,
+                    style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-                      Text('Donor ID ${donorId.substring(0, donorId.length < 8 ? donorId.length : 8).toUpperCase()}', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
-                      Text(location?.isNotEmpty == true ? location! : 'Location not set', style: TextStyle(fontSize: 12.5, color: colors.textSecondary)),
+                      Text(
+                        name,
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      ),
+                      Text(
+                        'Donor ID ${donorId.substring(0, donorId.length < 8 ? donorId.length : 8).toUpperCase()}',
+                        style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                      ),
+                      Text(
+                        location?.isNotEmpty == true ? location! : 'Location not set',
+                        style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
+                      ),
                     ],
                   ),
                 ),
@@ -1119,47 +1310,69 @@ class _DonorCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _Tag(label: 'Verified', ok: verified),
-                _Tag(label: 'Available', ok: available),
+                _AvailabilityTag(availability: availability),
                 _Tag(label: 'Eligible', ok: eligible, hint: eligible ? null : 'in ${daysLeft}d'),
               ],
             ),
             const SizedBox(height: 8),
             _InfoLine(label: 'Last Donation', value: lastDonation == null ? 'Not on record' : _formatDate(lastDonation)),
-            _InfoLine(label: 'Next Eligible', value: eligible ? 'Eligible now' : (daysLeft != null ? _formatDate(DateTime.now().add(Duration(days: daysLeft))) : '—')),
+            _InfoLine(
+              label: 'Next Eligible',
+              value: eligible ? 'Eligible now' : (daysLeft != null ? _formatDate(DateTime.now().add(Duration(days: daysLeft))) : '—'),
+            ),
             const SizedBox(height: 20),
-            Text('DONATION HISTORY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.6, color: colors.textSecondary)),
+            Text(
+              'DONATION HISTORY',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.6, color: colors.textSecondary),
+            ),
             const SizedBox(height: 10),
             StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance.collectionGroup('responses').where('donorId', isEqualTo: donorId).snapshots(),
               builder: (context, snap) {
                 if (!snap.hasData) {
-                  return Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary)));
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary)),
+                  );
                 }
                 final records = snap.data!.docs.map(DonorResponseRecord.fromDoc).toList()
-                  ..sort((a, b) => (b.respondedAt ?? b.notifiedAt ?? DateTime(2000)).compareTo(a.respondedAt ?? a.notifiedAt ?? DateTime(2000)));
+                  ..sort(
+                    (a, b) => (b.respondedAt ?? b.notifiedAt ?? DateTime(2000)).compareTo(a.respondedAt ?? a.notifiedAt ?? DateTime(2000)),
+                  );
 
                 if (records.isEmpty) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No response history yet - this donor has not been notified for a request.', style: TextStyle(fontSize: 12.5, color: colors.textSecondary)),
+                    child: Text(
+                      'No response history yet - this donor has not been notified for a request.',
+                      style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
+                    ),
                   );
                 }
 
                 final completed = records.where((r) => r.status == 'completed').length;
                 final declined = records.where((r) => r.status == 'declined').length;
                 final resolved = completed + declined;
-                final responseRate = records.isEmpty ? 0 : (records.where((r) => r.status != 'notified').length / records.length * 100).round();
+                final responseRate = records.isEmpty
+                    ? 0
+                    : (records.where((r) => r.status != 'notified').length / records.length * 100).round();
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Expanded(child: _MiniStat(label: 'Completed', value: '$completed', color: colors.success)),
+                        Expanded(
+                          child: _MiniStat(label: 'Completed', value: '$completed', color: colors.success),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: _MiniStat(label: 'Declined', value: '$declined', color: colors.critical)),
+                        Expanded(
+                          child: _MiniStat(label: 'Declined', value: '$declined', color: colors.critical),
+                        ),
                         const SizedBox(width: 8),
-                        Expanded(child: _MiniStat(label: 'Response Rate', value: '$responseRate%', color: colors.primary)),
+                        Expanded(
+                          child: _MiniStat(label: 'Response Rate', value: '$responseRate%', color: colors.primary),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: _MiniStat(
@@ -1186,7 +1399,10 @@ class _DonorCard extends StatelessWidget {
                 },
                 icon: Icon(Icons.edit_rounded, size: 17, color: colors.primary),
                 label: Text(verified ? 'Update Verification' : 'Verify Donor', style: TextStyle(color: colors.primary)),
-                style: OutlinedButton.styleFrom(side: BorderSide(color: colors.primary), padding: const EdgeInsets.symmetric(vertical: 12)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: colors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
               ),
             ),
           ],
@@ -1218,14 +1434,25 @@ class _DonorCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  verified ? 'Already verified. Update details below if needed.' : 'Confirm this donor\'s blood group before they appear in matching search results.',
+                  verified
+                      ? 'Already verified. Update details below if needed.'
+                      : 'Confirm this donor\'s blood group before they appear in matching search results.',
                   style: TextStyle(fontSize: 13, color: colors.textSecondary),
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
                   initialValue: selectedGroup,
                   decoration: const InputDecoration(labelText: 'Confirmed Blood Group', border: OutlineInputBorder()),
-                  items: const ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                  items: const [
+                    'O+',
+                    'O-',
+                    'A+',
+                    'A-',
+                    'B+',
+                    'B-',
+                    'AB+',
+                    'AB-',
+                  ].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
                   onChanged: (v) => setDialogState(() => selectedGroup = v),
                 ),
                 const SizedBox(height: 12),
@@ -1366,7 +1593,10 @@ class _RegisterWalkInDonorSheetState extends State<_RegisterWalkInDonorSheet> {
                 children: [
                   Icon(Icons.person_add_alt_1_rounded, color: colors.primary),
                   const SizedBox(width: 8),
-                  Text('Register Walk-in Donor', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                  Text(
+                    'Register Walk-in Donor',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -1418,7 +1648,11 @@ class _RegisterWalkInDonorSheetState extends State<_RegisterWalkInDonorSheet> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: colors.primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   onPressed: _submitting ? null : _submit,
                   child: _submitting
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
@@ -1455,13 +1689,16 @@ class _DonorStatChip extends StatelessWidget {
       ),
       child: Column(
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 14, color: color),
-            const SizedBox(height: 3),
-          ],
-          Text('$value', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+          if (icon != null) ...[Icon(icon, size: 14, color: color), const SizedBox(height: 3)],
+          Text(
+            '$value',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
+          ),
           const SizedBox(height: 1),
-          Text(label, style: TextStyle(fontSize: 9.5, color: colors.textSecondary, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 9.5, color: colors.textSecondary, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -1493,7 +1730,10 @@ class _ReliabilityBadge extends StatelessWidget {
           children: [
             Icon(Icons.auto_awesome_rounded, size: 11, color: colors.textSecondary),
             const SizedBox(width: 3),
-            Text('New donor', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: colors.textSecondary)),
+            Text(
+              'New donor',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: colors.textSecondary),
+            ),
           ],
         ),
       );
@@ -1508,7 +1748,10 @@ class _ReliabilityBadge extends StatelessWidget {
         children: [
           Icon(Icons.workspace_premium_outlined, size: 11, color: color),
           const SizedBox(width: 3),
-          Text('$pct% reliable ($completed/$total)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+          Text(
+            '$pct% reliable ($completed/$total)',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+          ),
         ],
       ),
     );
@@ -1528,7 +1771,10 @@ class _InfoLine extends StatelessWidget {
       child: Row(
         children: [
           Text('$label: ', style: TextStyle(fontSize: 12, color: colors.textSecondary)),
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+          Text(
+            value,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary),
+          ),
         ],
       ),
     );
@@ -1549,9 +1795,16 @@ class _MiniStat extends StatelessWidget {
       decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
       child: Column(
         children: [
-          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+          Text(
+            value,
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
+          ),
           const SizedBox(height: 2),
-          Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 9.5, color: colors.textSecondary)),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 9.5, color: colors.textSecondary),
+          ),
         ],
       ),
     );
@@ -1586,16 +1839,66 @@ class _DonationHistoryRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              record.status[0].toUpperCase() + record.status.substring(1) + (record.unitsPledged > 0 && record.status != 'notified' ? ' · ${record.unitsPledged} unit(s)' : ''),
+              record.status[0].toUpperCase() +
+                  record.status.substring(1) +
+                  (record.unitsPledged > 0 && record.status != 'notified' ? ' · ${record.unitsPledged} unit(s)' : ''),
               style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary),
             ),
           ),
           Text(date == null ? '—' : _DonorCard._formatDate(date), style: TextStyle(fontSize: 11, color: colors.textSecondary)),
         ],
+      ),
+    );
+  }
+}
+
+/// Three-state availability tag.
+///
+/// Availability is not a yes/no fact in this data set: a donor record can
+/// also simply not say. Rendering "unknown" as a red "no" would be wrong,
+/// and rendering it as a green "yes" (what the old
+/// `availableNow != false` check effectively did) is worse - it tells
+/// staff somebody is ready to donate on no evidence.
+///
+/// Status is carried by icon + text + colour together, never colour
+/// alone.
+class _AvailabilityTag extends StatelessWidget {
+  final DonorAvailability availability;
+  const _AvailabilityTag({required this.availability});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final (Color color, IconData icon, String label) = switch (availability) {
+      DonorAvailability.available => (colors.success, Icons.check_rounded, 'Available'),
+      DonorAvailability.unavailable => (colors.textSecondary, Icons.close_rounded, 'Unavailable'),
+      DonorAvailability.unknown => (colors.warning, Icons.help_outline_rounded, 'Availability unknown'),
+    };
+
+    return Tooltip(
+      message: availability.explanation,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1619,7 +1922,10 @@ class _Tag extends StatelessWidget {
         children: [
           Icon(ok ? Icons.check_rounded : Icons.close_rounded, size: 11, color: color),
           const SizedBox(width: 3),
-          Text(hint != null ? '$label ($hint)' : label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+          Text(
+            hint != null ? '$label ($hint)' : label,
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+          ),
         ],
       ),
     );
