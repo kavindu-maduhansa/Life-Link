@@ -529,3 +529,375 @@ class StatusBadgeConfig {
     required this.description,
   });
 }
+
+// ---------------------------------------------------------------------------
+// MyResponsesTab
+// ---------------------------------------------------------------------------
+// Scaffold-free version of MyResponsesScreen for use inside the DonorShell
+// IndexedStack. All Firebase queries, field reads and sorting logic are
+// identical to the Screen version above — only the Scaffold/AppBar are absent.
+// ---------------------------------------------------------------------------
+
+class MyResponsesTab extends StatefulWidget {
+  const MyResponsesTab({super.key});
+
+  @override
+  State<MyResponsesTab> createState() => _MyResponsesTabState();
+}
+
+class _MyResponsesTabState extends State<MyResponsesTab> {
+  int _streamKey = 0;
+
+  User? get _currentUser {
+    try {
+      return FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _retryLoading() => setState(() => _streamKey++);
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _getResponsesStream(String uid) {
+    try {
+      return FirebaseFirestore.instance.collection('donor_responses').where('donorId', isEqualTo: uid).snapshots();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final currentUser = _currentUser;
+
+    // Not signed in
+    if (currentUser == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.account_circle_outlined, size: 56, color: colors.textSecondary),
+              const SizedBox(height: 16),
+              Text(
+                'Please Sign In',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sign in to your donor account to track your submitted blood donation responses.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: colors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final stream = _getResponsesStream(currentUser.uid);
+
+    if (stream == null) {
+      return Center(
+        child: Text('Database is not connected.', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+      );
+    }
+
+    return KeyedSubtree(
+      key: ValueKey(_streamKey),
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: stream,
+        builder: (context, snapshot) {
+          // 1. Loading
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: colors.primary, strokeWidth: 3),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading your responses...',
+                    style: TextStyle(fontSize: 14, color: colors.textSecondary, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // 2. Error
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: colors.criticalContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.error_outline_rounded, size: 46, color: colors.critical),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Unable to load your responses',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'We encountered an issue retrieving your response history. Please check your connection and try again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.4),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: _retryLoading,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Try Again'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final docs = snapshot.data?.docs.toList() ?? [];
+
+          // 3. Sort by respondedAt descending (newest first, nulls last)
+          docs.sort((a, b) {
+            final dateA = MyResponsesScreen.parseDateTime(a.data()['respondedAt']);
+            final dateB = MyResponsesScreen.parseDateTime(b.data()['respondedAt']);
+            if (dateA == null && dateB == null) return 0;
+            if (dateA == null) return 1;
+            if (dateB == null) return -1;
+            return dateB.compareTo(dateA);
+          });
+
+          // 4. Empty state
+          if (docs.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.assignment_outlined, size: 56, color: colors.primary),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'No Responses Yet',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "You haven't responded to any emergency blood requests yet.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+                    ),
+                    const SizedBox(height: 22),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const EmergencyRequestsScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.emergency_rounded, size: 18),
+                      label: const Text('View Emergency Requests'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // 5. Response card list
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            itemCount: docs.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 14),
+            itemBuilder: (context, index) {
+              final doc = docs[index];
+              final data = doc.data();
+
+              final rawBloodGroup = data['bloodGroup'] as String? ?? data['requestBloodGroup'] as String?;
+              final bloodGroup = (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
+                  ? rawBloodGroup.trim()
+                  : 'Blood Donor';
+
+              final rawHospital = (data['hospitalName'] ?? data['organizationName']) as String?;
+              final hospitalName = (rawHospital != null && rawHospital.trim().isNotEmpty)
+                  ? rawHospital.trim()
+                  : 'Emergency Blood Request';
+
+              final rawRequestId = data['requestId'] as String?;
+              final requestIdDisplay = (rawRequestId != null && rawRequestId.trim().isNotEmpty)
+                  ? (rawRequestId.length > 10 ? 'Ref: #${rawRequestId.substring(0, 8)}...' : 'Ref: #$rawRequestId')
+                  : null;
+
+              final rawStatus = data['status'];
+              final statusConfig = MyResponsesScreen.getStatusConfig(context, rawStatus);
+              final respondedDateStr = MyResponsesScreen.formatResponseDate(data['respondedAt']);
+
+              return Card(
+                elevation: 0,
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: colors.border),
+                ),
+                color: colors.surface,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header: Blood Group Badge + Status Badge
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: colors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colors.primary.withValues(alpha: 0.25),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.water_drop_rounded, size: 15, color: Colors.white),
+                                const SizedBox(width: 4),
+                                Text(
+                                  bloodGroup,
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: statusConfig.backgroundColor,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: statusConfig.borderColor),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(statusConfig.icon, size: 14, color: statusConfig.textColor),
+                                const SizedBox(width: 5),
+                                Text(
+                                  statusConfig.label,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusConfig.textColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Hospital Name
+                      Row(
+                        children: [
+                          Icon(Icons.local_hospital_rounded, size: 18, color: colors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              hospitalName,
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Status description note
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colors.background,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: colors.border),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 15, color: statusConfig.textColor),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                statusConfig.description,
+                                style: TextStyle(fontSize: 12, color: colors.textSecondary, height: 1.35),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Divider(height: 1, color: colors.border),
+                      const SizedBox(height: 10),
+                      // Footer: Timestamp & Request Reference
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.access_time_rounded, size: 14, color: colors.textSecondary),
+                              const SizedBox(width: 4),
+                              Text(respondedDateStr, style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+                            ],
+                          ),
+                          if (requestIdDisplay != null)
+                            Text(
+                              requestIdDisplay,
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: colors.textSecondary),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+

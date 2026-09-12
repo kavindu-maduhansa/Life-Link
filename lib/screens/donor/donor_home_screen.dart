@@ -28,6 +28,75 @@ import 'my_responses_screen.dart';
 class DonorHomeScreen extends StatelessWidget {
   const DonorHomeScreen({super.key});
 
+  Future<void> _handleSignOut(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
+  }
+
+  void _navigateToProfile(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const DonorProfileScreen()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Scaffold(
+      backgroundColor: colors.background,
+      // Shared app-bar treatment: brand mark + role label, on the surface
+      // tone rather than a full-width red header - the same bar the
+      // Doctor module uses.
+      appBar: AppBar(
+        titleSpacing: LLSpacing.md,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const LLBrandMark(),
+            const SizedBox(width: LLSpacing.sm),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Donor Dashboard',
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                  ),
+                  Text(
+                    'Donor',
+                    maxLines: 1,
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: colors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'My Profile',
+            icon: const Icon(Icons.account_circle_rounded),
+            onPressed: () => _navigateToProfile(context),
+          ),
+          IconButton(
+            tooltip: 'Sign Out',
+            icon: const Icon(Icons.logout_rounded),
+            onPressed: () => _handleSignOut(context),
+          ),
+        ],
+      ),
+      body: const DonorHomeTab(),
+    );
+  }
+}
+
+class DonorHomeTab extends StatelessWidget {
+  const DonorHomeTab({super.key});
+
   User? get _currentUser {
     try {
       return FirebaseAuth.instance.currentUser;
@@ -42,12 +111,6 @@ class DonorHomeScreen extends StatelessWidget {
     } catch (_) {
       return null;
     }
-  }
-
-  Future<void> _handleSignOut(BuildContext context) async {
-    try {
-      await FirebaseAuth.instance.signOut();
-    } catch (_) {}
   }
 
   void _navigateToProfile(BuildContext context) {
@@ -110,73 +173,24 @@ class DonorHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final user = _currentUser;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      // Shared app-bar treatment: brand mark + role label, on the surface
-      // tone rather than a full-width red header - the same bar the
-      // Doctor module uses.
-      appBar: AppBar(
-        titleSpacing: LLSpacing.md,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const LLBrandMark(),
-            const SizedBox(width: LLSpacing.sm),
-            Flexible(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Donor Dashboard',
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
-                  ),
-                  Text(
-                    'Donor',
-                    maxLines: 1,
-                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: colors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'My Profile',
-            icon: const Icon(Icons.account_circle_rounded),
-            onPressed: () => _navigateToProfile(context),
-          ),
-          IconButton(
-            tooltip: 'Sign Out',
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () => _handleSignOut(context),
-          ),
-        ],
-      ),
-      body: user == null
-          ? _buildDashboardContent(context, null)
-          : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: _getUserStream(user.uid),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return LLErrorState(error: snapshot.error!, whatFailed: 'your donor profile');
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const LLLoadingState(message: 'Loading dashboard...');
-                }
+    return user == null
+        ? _buildDashboardContent(context, null)
+        : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: _getUserStream(user.uid),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return LLErrorState(error: snapshot.error!, whatFailed: 'your donor profile');
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LLLoadingState(message: 'Loading dashboard...');
+              }
 
-                final data = snapshot.data?.data();
-                return _buildDashboardContent(context, data);
-              },
-            ),
-    );
+              final data = snapshot.data?.data();
+              return _buildDashboardContent(context, data);
+            },
+          );
   }
 
   /// Builds main dashboard scrollable content using user profile data.

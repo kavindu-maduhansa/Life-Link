@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
-import '../donor/donor_home_screen.dart';
+import '../donor/donor_shell.dart';
 import '../recipient/recipient_home_screen.dart';
 import '../hospital/hospital_home_screen.dart';
 import '../coordinator/organisation_home_screen.dart';
@@ -70,7 +70,7 @@ class AuthGate extends StatelessWidget {
             // Route to appropriate role area
             switch (role) {
               case 'donor':
-                return const DonorHomeScreen();
+                return const DonorShell();
               case 'recipient':
                 return const RecipientHomeScreen();
               case 'hospital':

@@ -690,3 +690,323 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// DonorProfileTab
+// ---------------------------------------------------------------------------
+// Scaffold-free version of DonorProfileScreen for use inside the DonorShell
+// IndexedStack. All Firebase queries (`users/{uid}`), field reads
+// (`fullName`, `phoneNumber`, `bloodGroup`, `location`, `isAvailable`,
+// `lastDonationDate`) and edit functionality are identical to
+// DonorProfileScreen — only the Scaffold/AppBar wrappers are absent.
+// Card backgrounds use colors.surface instead of Colors.white so dark
+// mode works correctly.
+// ---------------------------------------------------------------------------
+
+class DonorProfileTab extends StatelessWidget {
+  const DonorProfileTab({super.key});
+
+  String _formatLastDonationDate(dynamic value) {
+    if (value == null) return 'No donation recorded';
+
+    DateTime? date;
+    if (value is Timestamp) {
+      date = value.toDate();
+    } else if (value is DateTime) {
+      date = value;
+    } else if (value is String) {
+      date = DateTime.tryParse(value);
+    }
+
+    if (date == null) return 'No donation recorded';
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+  }
+
+  void _showEditProfileModal(BuildContext context, Map<String, dynamic> data) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _EditDonorProfileBottomSheet(initialData: data),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    User? user;
+    try {
+      user = FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      user = null;
+    }
+
+    if (user == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.account_circle_outlined, size: 56, color: colors.textSecondary),
+              const SizedBox(height: 16),
+              Text('Please Sign In',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              const SizedBox(height: 8),
+              Text('Sign in to your donor account to view your profile.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: colors.textSecondary)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: colors.primary, strokeWidth: 3),
+                const SizedBox(height: 16),
+                Text('Loading profile...', style: TextStyle(fontSize: 14, color: colors.textSecondary)),
+              ],
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline_rounded, size: 48, color: colors.critical),
+                  const SizedBox(height: 16),
+                  Text('Failed to load profile',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                  const SizedBox(height: 8),
+                  Text(snapshot.error?.toString() ?? 'An error occurred.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: colors.textSecondary)),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final doc = snapshot.data;
+        final data = doc?.data() ?? <String, dynamic>{};
+
+        final rawFullName = data['fullName'] as String?;
+        final fullName =
+            (rawFullName != null && rawFullName.trim().isNotEmpty) ? rawFullName.trim() : 'Not set';
+
+        final email = (data['email'] as String?)?.trim().isNotEmpty == true
+            ? (data['email'] as String).trim()
+            : (user!.email ?? 'Not set');
+
+        final rawPhone = data['phoneNumber'] as String?;
+        final phoneNumber =
+            (rawPhone != null && rawPhone.trim().isNotEmpty) ? rawPhone.trim() : 'Not set';
+
+        final rawBloodGroup = data['bloodGroup'] as String?;
+        final bloodGroup =
+            (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty) ? rawBloodGroup.trim() : 'Not set';
+
+        final rawLocation = data['location'] as String?;
+        final location =
+            (rawLocation != null && rawLocation.trim().isNotEmpty) ? rawLocation.trim() : 'Not set';
+
+        final isAvailable = (data['isAvailable'] as bool?) ?? false;
+        final lastDonationDisplay = _formatLastDonationDate(data['lastDonationDate']);
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Profile Avatar & Header Card (colors.surface for dark mode)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colors.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 46,
+                          backgroundColor: colors.primary.withValues(alpha: 0.12),
+                          child: Icon(Icons.person_rounded, size: 52, color: colors.primary),
+                        ),
+                        if (bloodGroup != 'Not set')
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: colors.primary,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: colors.surface, width: 2),
+                            ),
+                            child: Text(
+                              bloodGroup,
+                              style: const TextStyle(
+                                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Text(fullName,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                    const SizedBox(height: 4),
+                    Text(email,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: colors.textSecondary)),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isAvailable ? colors.successContainer : colors.criticalContainer,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: isAvailable ? colors.successContainer : colors.criticalContainer),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isAvailable ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                            size: 16,
+                            color: isAvailable ? colors.success : colors.critical,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            isAvailable ? 'Available to Donate' : 'Currently Unavailable',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isAvailable ? colors.success : colors.critical,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Text(
+                  'DONOR DETAILS',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: colors.textSecondary),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Information Details Card (colors.surface for dark mode)
+              Container(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colors.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _ProfileInfoTile(
+                        icon: Icons.person_outline_rounded, label: 'Full Name', value: fullName),
+                    const Divider(height: 1, indent: 56, endIndent: 16),
+                    _ProfileInfoTile(
+                      icon: Icons.email_outlined,
+                      label: 'Email',
+                      value: email,
+                      trailing: Icon(Icons.lock_outline_rounded, size: 16, color: colors.textSecondary),
+                    ),
+                    const Divider(height: 1, indent: 56, endIndent: 16),
+                    _ProfileInfoTile(
+                        icon: Icons.phone_outlined, label: 'Phone Number', value: phoneNumber),
+                    const Divider(height: 1, indent: 56, endIndent: 16),
+                    _ProfileInfoTile(
+                      icon: Icons.bloodtype_outlined,
+                      label: 'Blood Group',
+                      value: bloodGroup,
+                      valueColor: bloodGroup != 'Not set' ? colors.primary : colors.textSecondary,
+                      valueBold: bloodGroup != 'Not set',
+                    ),
+                    const Divider(height: 1, indent: 56, endIndent: 16),
+                    _ProfileInfoTile(
+                        icon: Icons.location_on_outlined, label: 'Location', value: location),
+                    const Divider(height: 1, indent: 56, endIndent: 16),
+                    _ProfileInfoTile(
+                      icon: Icons.event_available_rounded,
+                      label: 'Availability Status',
+                      value: isAvailable ? 'Available' : 'Unavailable',
+                      valueColor: isAvailable ? colors.success : colors.critical,
+                      valueBold: true,
+                    ),
+                    const Divider(height: 1, indent: 56, endIndent: 16),
+                    _ProfileInfoTile(
+                      icon: Icons.calendar_month_outlined,
+                      label: 'Last Donation Date',
+                      value: lastDonationDisplay,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              ElevatedButton.icon(
+                onPressed: () => _showEditProfileModal(context, data),
+                icon: const Icon(Icons.edit_rounded, size: 20),
+                label: const Text('Edit Profile',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 1,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
