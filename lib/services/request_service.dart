@@ -1,7 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/blood_inventory.dart';
 import '../models/blood_request.dart';
+import '../utils/alert_actions.dart';
+import '../utils/request_assignment.dart';
+import '../utils/request_escalation.dart';
 import '../utils/request_status.dart';
+import '../utils/stock_readiness.dart';
 
 /// Centralises every Firestore write the Doctor/Hospital module makes,
 /// so screens stay presentation-only (item #22 - code architecture).
@@ -39,10 +44,7 @@ class RequestService {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> auditTrail(String requestId) {
-    return _auditLogs
-        .where('requestId', isEqualTo: requestId)
-        .orderBy('timestamp', descending: true)
-        .snapshots();
+    return _auditLogs.where('requestId', isEqualTo: requestId).orderBy('timestamp', descending: true).snapshots();
   }
 
   // ---------------------------------------------------------------
@@ -59,18 +61,14 @@ class RequestService {
         .limit(20)
         .get();
 
-    return snapshot.docs
-        .map(BloodRequest.fromDoc)
-        .where((r) => r.id != request.id)
-        .where((r) {
-          if (r.createdAt == null) return false;
-          final diff = r.createdAt!.difference(request.createdAt!).abs();
-          // Same hospital + same blood group + created within a 24h
-          // window is treated as a *possible* duplicate worth a
-          // manual look - never asserted as definite.
-          return diff.inHours <= 24;
-        })
-        .toList();
+    return snapshot.docs.map(BloodRequest.fromDoc).where((r) => r.id != request.id).where((r) {
+      if (r.createdAt == null) return false;
+      final diff = r.createdAt!.difference(request.createdAt!).abs();
+      // Same hospital + same blood group + created within a 24h
+      // window is treated as a *possible* duplicate worth a
+      // manual look - never asserted as definite.
+      return diff.inHours <= 24;
+    }).toList();
   }
 
   // ---------------------------------------------------------------
@@ -129,20 +127,10 @@ class RequestService {
       'verifiedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    await logAudit(
-      action: 'request_verified',
-      requestId: request.id,
-      performedBy: doctorId,
-      performedByName: doctorName,
-    );
+    await logAudit(action: 'request_verified', requestId: request.id, performedBy: doctorId, performedByName: doctorName);
   }
 
-  Future<void> rejectRequest(
-    BloodRequest request, {
-    required String doctorId,
-    required String doctorName,
-    required String reason,
-  }) async {
+  Future<void> rejectRequest(BloodRequest request, {required String doctorId, required String doctorName, required String reason}) async {
     if (!RequestStatus.isValidTransition(request.status, RequestStatus.rejected)) return;
     await requestRef(request.id).update({
       'status': RequestStatus.rejected,
@@ -164,23 +152,12 @@ class RequestService {
   /// back to `pending` so it re-enters the verification queue after
   /// the recipient updates it. Uses the same `requests` collection -
   /// no second request-creation system is introduced.
-  Future<void> requestReVerification(
-    BloodRequest request, {
-    required String doctorId,
-    required String doctorName,
-  }) async {
+  Future<void> requestReVerification(BloodRequest request, {required String doctorId, required String doctorName}) async {
     if (!RequestStatus.isValidTransition(request.status, RequestStatus.pending)) return;
-    await requestRef(request.id).update({
-      'status': RequestStatus.pending,
-      'rejectionReason': FieldValue.delete(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    await logAudit(
-      action: 'reverification_requested',
-      requestId: request.id,
-      performedBy: doctorId,
-      performedByName: doctorName,
-    );
+    await requestRef(
+      request.id,
+    ).update({'status': RequestStatus.pending, 'rejectionReason': FieldValue.delete(), 'updatedAt': FieldValue.serverTimestamp()});
+    await logAudit(action: 'reverification_requested', requestId: request.id, performedBy: doctorId, performedByName: doctorName);
   }
 
   // ---------------------------------------------------------------
@@ -213,10 +190,7 @@ class RequestService {
       'notifiedAt': FieldValue.serverTimestamp(),
     });
 
-    await requestRef(requestId).update({
-      'status': RequestStatus.matched,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await requestRef(requestId).update({'status': RequestStatus.matched, 'updatedAt': FieldValue.serverTimestamp()});
 
     await _recomputeCounts(requestId);
 
@@ -238,15 +212,12 @@ class RequestService {
     required String doctorId,
     required String doctorName,
   }) async {
-    await requestRef(requestId).collection('responses').doc(responseId).update({
-      'status': status,
-      'respondedAt': FieldValue.serverTimestamp(),
-    });
+    await requestRef(
+      requestId,
+    ).collection('responses').doc(responseId).update({'status': status, 'respondedAt': FieldValue.serverTimestamp()});
 
     if (status == 'completed') {
-      await _db.collection('users').doc(donorId).update({
-        'lastDonationDate': FieldValue.serverTimestamp(),
-      });
+      await _db.collection('users').doc(donorId).update({'lastDonationDate': FieldValue.serverTimestamp()});
     }
 
     await _recomputeCounts(requestId);
@@ -324,11 +295,7 @@ class RequestService {
   // ---------------------------------------------------------------
   // #8 - Smart Alert Center (Firestore-based, no FCM configured yet)
   // ---------------------------------------------------------------
-  Future<void> _createResponseAlert({
-    required String requestId,
-    required String donorName,
-    required String status,
-  }) async {
+  Future<void> _createResponseAlert({required String requestId, required String donorName, required String status}) async {
     if (status != 'accepted' && status != 'declined') return;
     final id = '${requestId}_${status}_$donorName'.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
     await _alerts.doc(id).set({
@@ -433,5 +400,365 @@ class RequestService {
     });
 
     return doc.id;
+  }
+
+  // ---------------------------------------------------------------
+  // Request ownership / assignment
+  //
+  // The rules live in `utils/request_assignment.dart`; the job here is
+  // to apply them ATOMICALLY. Two operators tapping "Assign to me" on
+  // the same request at the same moment is a realistic blood-bank
+  // scenario, and a plain `update()` would silently let the second
+  // write win. A transaction re-reads the document inside the commit,
+  // so the loser is told who got it instead of quietly overwriting
+  // their colleague.
+  // ---------------------------------------------------------------
+
+  /// Claims an unassigned request for [doctorId].
+  ///
+  /// Returns [AssignmentOutcome.conflict] (naming the current owner)
+  /// when somebody else claimed it first, without writing anything.
+  Future<AssignmentAttempt> claimRequest({required String requestId, required String doctorId, required String doctorName}) async {
+    if (doctorId.trim().isEmpty) {
+      return const AssignmentAttempt(AssignmentOutcome.notPermitted);
+    }
+
+    var outcome = AssignmentOutcome.notPermitted;
+    String? ownerName;
+
+    await _db.runTransaction((tx) async {
+      // Reset per attempt: a transaction body can be retried.
+      outcome = AssignmentOutcome.notPermitted;
+      ownerName = null;
+
+      final snapshot = await tx.get(requestRef(requestId));
+      if (!snapshot.exists) {
+        outcome = AssignmentOutcome.missing;
+        return;
+      }
+      final data = snapshot.data() ?? <String, dynamic>{};
+      final currentOwner = (data['assignedDoctorId'] as String?)?.trim() ?? '';
+
+      if (currentOwner == doctorId) {
+        outcome = AssignmentOutcome.noChange;
+        return;
+      }
+      if (currentOwner.isNotEmpty) {
+        outcome = AssignmentOutcome.conflict;
+        ownerName = (data['assignedDoctorName'] as String?)?.trim();
+        return;
+      }
+
+      tx.update(requestRef(requestId), {
+        'assignedDoctorId': doctorId,
+        'assignedDoctorName': doctorName,
+        'assignedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      outcome = AssignmentOutcome.applied;
+    });
+
+    if (outcome == AssignmentOutcome.applied) {
+      await logAudit(
+        action: 'request_assigned',
+        requestId: requestId,
+        performedBy: doctorId,
+        performedByName: doctorName,
+        details: {'assignedTo': doctorName, 'via': 'assign_to_me'},
+      );
+    }
+    return AssignmentAttempt(outcome, ownerName: ownerName);
+  }
+
+  /// Releases [doctorId]'s own claim on a request.
+  ///
+  /// Refuses (without writing) if the request is held by somebody else
+  /// by the time the transaction runs.
+  Future<AssignmentAttempt> releaseRequest({required String requestId, required String doctorId, required String doctorName}) async {
+    var outcome = AssignmentOutcome.notPermitted;
+    String? ownerName;
+
+    await _db.runTransaction((tx) async {
+      outcome = AssignmentOutcome.notPermitted;
+      ownerName = null;
+
+      final snapshot = await tx.get(requestRef(requestId));
+      if (!snapshot.exists) {
+        outcome = AssignmentOutcome.missing;
+        return;
+      }
+      final data = snapshot.data() ?? <String, dynamic>{};
+      final currentOwner = (data['assignedDoctorId'] as String?)?.trim() ?? '';
+
+      if (currentOwner.isEmpty) {
+        outcome = AssignmentOutcome.noChange;
+        return;
+      }
+      if (currentOwner != doctorId) {
+        outcome = AssignmentOutcome.conflict;
+        ownerName = (data['assignedDoctorName'] as String?)?.trim();
+        return;
+      }
+
+      tx.update(requestRef(requestId), {
+        'assignedDoctorId': FieldValue.delete(),
+        'assignedDoctorName': FieldValue.delete(),
+        'assignedAt': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      outcome = AssignmentOutcome.applied;
+    });
+
+    if (outcome == AssignmentOutcome.applied) {
+      await logAudit(action: 'request_assignment_released', requestId: requestId, performedBy: doctorId, performedByName: doctorName);
+    }
+    return AssignmentAttempt(outcome, ownerName: ownerName);
+  }
+
+  /// Takes a request over from the operator who currently holds it.
+  ///
+  /// [previousOwnerName] is recorded in the audit trail so the handover
+  /// is traceable. The UI only offers this after an explicit
+  /// confirmation naming that operator.
+  Future<AssignmentAttempt> reassignRequestToMe({required String requestId, required String doctorId, required String doctorName}) async {
+    if (doctorId.trim().isEmpty) {
+      return const AssignmentAttempt(AssignmentOutcome.notPermitted);
+    }
+
+    var outcome = AssignmentOutcome.notPermitted;
+    String? previousOwnerName;
+
+    await _db.runTransaction((tx) async {
+      outcome = AssignmentOutcome.notPermitted;
+      previousOwnerName = null;
+
+      final snapshot = await tx.get(requestRef(requestId));
+      if (!snapshot.exists) {
+        outcome = AssignmentOutcome.missing;
+        return;
+      }
+      final data = snapshot.data() ?? <String, dynamic>{};
+      final currentOwner = (data['assignedDoctorId'] as String?)?.trim() ?? '';
+
+      if (currentOwner == doctorId) {
+        outcome = AssignmentOutcome.noChange;
+        return;
+      }
+      previousOwnerName = (data['assignedDoctorName'] as String?)?.trim();
+
+      tx.update(requestRef(requestId), {
+        'assignedDoctorId': doctorId,
+        'assignedDoctorName': doctorName,
+        'assignedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      outcome = AssignmentOutcome.applied;
+    });
+
+    if (outcome == AssignmentOutcome.applied) {
+      await logAudit(
+        action: 'request_reassigned',
+        requestId: requestId,
+        performedBy: doctorId,
+        performedByName: doctorName,
+        details: {'takenFrom': previousOwnerName ?? 'an unnamed operator', 'assignedTo': doctorName},
+      );
+    }
+    return AssignmentAttempt(outcome, ownerName: previousOwnerName);
+  }
+
+  // ---------------------------------------------------------------
+  // Emergency escalation
+  // ---------------------------------------------------------------
+
+  /// Records an escalation level change, its reason, and an audit entry
+  /// naming the actor and both levels.
+  ///
+  /// Validation is done by [EscalationRules.evaluate] before this is
+  /// called; the check is repeated here so a mis-wired caller cannot
+  /// write an unvalidated change.
+  Future<bool> setEscalationLevel({
+    required BloodRequest request,
+    required EscalationLevel next,
+    required String reason,
+    required String doctorId,
+    required String doctorName,
+  }) async {
+    final decision = EscalationRules.evaluate(requestStatus: request.status, current: request.escalationLevel, next: next, reason: reason);
+    if (!decision.allowed) return false;
+
+    await requestRef(request.id).update({
+      'escalationLevel': next.value,
+      'escalatedAt': FieldValue.serverTimestamp(),
+      'escalationNote': reason.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await logAudit(
+      action: decision.isEscalation ? 'request_escalated' : 'request_de_escalated',
+      requestId: request.id,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {
+        'fromLevel': request.escalationLevel.value,
+        'toLevel': next.value,
+        'reason': reason.trim(),
+        'summary': EscalationRules.auditSummary(actorName: doctorName, from: request.escalationLevel, to: next, reason: reason),
+      },
+    );
+
+    if (next == EscalationLevel.critical) {
+      await createEscalationAlert(request: request, level: next, reason: reason.trim());
+    }
+    return true;
+  }
+
+  /// Logs what a human actually did about a request.
+  ///
+  /// LifeLink has no SMS/email/push integration, so this never claims a
+  /// message was delivered - it records an attempt, defaulting to
+  /// "manual follow-up required".
+  Future<void> recordResponseAttempt({
+    required String requestId,
+    required ResponseAttemptOutcome outcome,
+    required String doctorId,
+    required String doctorName,
+    String? note,
+  }) async {
+    await logAudit(
+      action: 'response_attempt_recorded',
+      requestId: requestId,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {'outcome': outcome.value, 'outcomeLabel': outcome.label, if (note != null && note.trim().isNotEmpty) 'note': note.trim()},
+    );
+  }
+
+  /// Adds a free-text note to a request's audit timeline.
+  Future<void> addTimelineNote({
+    required String requestId,
+    required String note,
+    required String doctorId,
+    required String doctorName,
+  }) async {
+    final trimmed = note.trim();
+    if (trimmed.isEmpty) return;
+    await logAudit(
+      action: 'timeline_note_added',
+      requestId: requestId,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {'note': trimmed},
+    );
+  }
+
+  // ---------------------------------------------------------------
+  // Blood stock readiness (`bloodInventory`)
+  //
+  // A new, isolated collection. No other module reads or writes it, so
+  // adding it cannot affect the Donor, Recipient or Coordinator work.
+  // ---------------------------------------------------------------
+
+  CollectionReference<Map<String, dynamic>> get _inventory => _db.collection('bloodInventory');
+
+  /// Live stock lines, newest-updated first.
+  ///
+  /// Limited to [limit] documents: a blood bank has at most 8 groups x a
+  /// handful of components per facility, so this is a generous bound
+  /// that still prevents an unbounded read if the collection is misused.
+  Stream<List<BloodInventoryItem>> inventoryStream({String? facilityId, int limit = 120}) {
+    Query<Map<String, dynamic>> query = _inventory;
+    if (facilityId != null && facilityId.trim().isNotEmpty) {
+      query = query.where('facilityId', isEqualTo: facilityId.trim());
+    }
+    return query
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(BloodInventoryItem.fromDoc).toList()..sort((a, b) => StockReadiness.compare(a, b)));
+  }
+
+  /// Records or updates one stock line.
+  ///
+  /// Used by the "Update stock" sheet. Staff enter the counts; LifeLink
+  /// never estimates or seeds stock numbers of its own.
+  Future<void> upsertInventoryLine({
+    required String facilityId,
+    required String bloodGroup,
+    required String component,
+    required int availableUnits,
+    required int reservedUnits,
+    required int minimumThreshold,
+    required int expiryRiskUnits,
+    required String doctorId,
+    required String doctorName,
+  }) async {
+    // Deterministic id, so updating the same group+component line twice
+    // edits one document instead of creating a duplicate row.
+    final id = '${facilityId}_${bloodGroup}_$component'.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    await _inventory.doc(id).set({
+      'facilityId': facilityId,
+      'bloodGroup': bloodGroup.toUpperCase(),
+      'component': component,
+      'availableUnits': availableUnits < 0 ? 0 : availableUnits,
+      'reservedUnits': reservedUnits < 0 ? 0 : reservedUnits,
+      'minimumThreshold': minimumThreshold < 0 ? 0 : minimumThreshold,
+      'expiryRiskUnits': expiryRiskUnits < 0 ? 0 : expiryRiskUnits,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedBy': doctorName,
+    }, SetOptions(merge: true));
+
+    await _auditLogs.add({
+      'action': 'blood_stock_updated',
+      'requestId': id,
+      'performedBy': doctorId,
+      'performedByName': doctorName,
+      'timestamp': FieldValue.serverTimestamp(),
+      'details': {
+        'bloodGroup': bloodGroup.toUpperCase(),
+        'component': component,
+        'availableUnits': availableUnits,
+        'reservedUnits': reservedUnits,
+      },
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Additional actionable alerts
+  //
+  // Every id is deterministic (see AlertActions.documentId), so running
+  // the same detection from several doctor devices merges onto one
+  // document rather than creating duplicates.
+  // ---------------------------------------------------------------
+
+  Future<void> createEscalationAlert({required BloodRequest request, required EscalationLevel level, required String reason}) async {
+    await _alerts.doc(AlertActions.documentId(type: AlertType.requestEscalated, key: request.id)).set({
+      'type': AlertType.requestEscalated,
+      'requestId': request.id,
+      'message': 'Escalated to ${level.label}: ${request.bloodGroup} at ${request.hospitalName} — $reason',
+      'createdAt': FieldValue.serverTimestamp(),
+      'readBy': <String>[],
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> createUnassignedUrgentAlert(BloodRequest request) async {
+    await _alerts.doc(AlertActions.documentId(type: AlertType.unassignedUrgent, key: request.id)).set({
+      'type': AlertType.unassignedUrgent,
+      'requestId': request.id,
+      'message': 'Unassigned ${request.urgency} request: ${request.bloodGroup} at ${request.hospitalName}.',
+      'createdAt': FieldValue.serverTimestamp(),
+      'readBy': <String>[],
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> createLowStockAlert(BloodInventoryItem item, StockLevel level) async {
+    final key = '${item.bloodGroup}_${item.component}';
+    await _alerts.doc(AlertActions.documentId(type: AlertType.lowStock, key: key)).set({
+      'type': AlertType.lowStock,
+      // No requestId: this alert is about stock, and the action that
+      // opens stock readiness needs no request reference.
+      'message': '${level.label}: ${item.bloodGroup} ${BloodComponent.shortLabel(item.component)} — ${item.usableUnits} unit(s) free.',
+      'createdAt': FieldValue.serverTimestamp(),
+      'readBy': <String>[],
+    }, SetOptions(merge: true));
   }
 }
