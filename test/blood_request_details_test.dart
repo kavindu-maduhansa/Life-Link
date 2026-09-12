@@ -6,25 +6,35 @@ void main() {
   group('BloodRequestDetailsScreen Helper Unit Tests', () {
     test('formatRequestDate handles null and valid DateTime', () {
       expect(BloodRequestDetailsScreen.formatRequestDate(null), 'Not specified');
-      expect(
-        BloodRequestDetailsScreen.formatRequestDate(DateTime(2026, 8, 31, 14, 30)),
-        '31 Aug 2026 at 14:30',
-      );
+      expect(BloodRequestDetailsScreen.formatRequestDate(DateTime(2026, 8, 31, 14, 30)), '31 Aug 2026 at 14:30');
     });
 
     test('formatRequestDate handles ISO string format', () {
-      expect(
-        BloodRequestDetailsScreen.formatRequestDate('2026-10-15T09:15:00.000'),
-        '15 Oct 2026 at 09:15',
-      );
+      expect(BloodRequestDetailsScreen.formatRequestDate('2026-10-15T09:15:00.000'), '15 Oct 2026 at 09:15');
     });
 
-    test('getUrgencyConfig maps urgency levels correctly', () {
-      expect(BloodRequestDetailsScreen.getUrgencyConfig('critical').label, 'Critical');
-      expect(BloodRequestDetailsScreen.getUrgencyConfig('high').label, 'High Urgency');
-      expect(BloodRequestDetailsScreen.getUrgencyConfig('medium').label, 'Medium Urgency');
-      expect(BloodRequestDetailsScreen.getUrgencyConfig('low').label, 'Low Urgency');
-      expect(BloodRequestDetailsScreen.getUrgencyConfig(null).label, 'Standard');
+    // getUrgencyConfig now takes a BuildContext, because its colours come
+    // from the active theme instead of hard-coded light-mode literals -
+    // that is what gives this screen Dark Mode. The label assertions are
+    // unchanged; the test just supplies a real context.
+    testWidgets('getUrgencyConfig maps urgency levels correctly', (WidgetTester tester) async {
+      late BuildContext context;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (ctx) {
+              context = ctx;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+
+      expect(BloodRequestDetailsScreen.getUrgencyConfig(context, 'critical').label, 'Critical');
+      expect(BloodRequestDetailsScreen.getUrgencyConfig(context, 'high').label, 'High Urgency');
+      expect(BloodRequestDetailsScreen.getUrgencyConfig(context, 'medium').label, 'Medium Urgency');
+      expect(BloodRequestDetailsScreen.getUrgencyConfig(context, 'low').label, 'Low Urgency');
+      expect(BloodRequestDetailsScreen.getUrgencyConfig(context, null).label, 'Standard');
     });
   });
 
@@ -44,10 +54,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: BloodRequestDetailsScreen(
-          requestId: 'test_request_123',
-          requestData: sampleData,
-        ),
+        home: BloodRequestDetailsScreen(requestId: 'test_request_123', requestData: sampleData),
       ),
     );
 
