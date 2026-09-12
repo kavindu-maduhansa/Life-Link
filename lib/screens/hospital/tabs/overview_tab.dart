@@ -4,8 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../hospital_home_screen.dart';
 import '../../../models/blood_request.dart';
+import '../../../utils/donor_availability.dart';
 import '../../../utils/request_status.dart';
 import '../../../theme/app_colors.dart';
+import '../blood_stock_screen.dart';
 import '../../../widgets/request_health_badge.dart';
 import '../../../widgets/common_states.dart';
 import '../../../widgets/entrance_fade_slide.dart';
@@ -65,16 +67,24 @@ class OverviewTab extends StatelessWidget {
                 return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: FirebaseFirestore.instance.collectionGroup('responses').snapshots(),
                   builder: (context, responseSnap) {
-                    final responseDocs = responseSnap.hasError ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[] : (responseSnap.data?.docs ?? []);
+                    final responseDocs = responseSnap.hasError
+                        ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+                        : (responseSnap.data?.docs ?? []);
 
                     // #22 - Live Activity Feed, built from real
                     // `auditLogs` entries (already written by every
                     // action in RequestService) - a single top-level
                     // collection query, not a listener per request.
                     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance.collection('auditLogs').orderBy('timestamp', descending: true).limit(15).snapshots(),
+                      stream: FirebaseFirestore.instance
+                          .collection('auditLogs')
+                          .orderBy('timestamp', descending: true)
+                          .limit(15)
+                          .snapshots(),
                       builder: (context, auditSnap) {
-                        final auditDocs = auditSnap.hasError ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[] : (auditSnap.data?.docs ?? []);
+                        final auditDocs = auditSnap.hasError
+                            ? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+                            : (auditSnap.data?.docs ?? []);
 
                         // #30 - Pinned Requests. Only ever shown when the
                         // current doctor actually has pins - no demo
@@ -132,6 +142,14 @@ class OverviewTab extends StatelessWidget {
                               delay: const Duration(milliseconds: 140),
                               child: _CommandCenterSection(allRequests: allRequests),
                             ),
+                            // Blood stock sits directly under the
+                            // critical/urgent command area: "have we
+                            // already got the units?" is the question
+                            // that decides whether donor outreach is
+                            // even needed, so it belongs above the
+                            // response analytics rather than with them.
+                            const SizedBox(height: 16),
+                            const EntranceFadeSlide(delay: Duration(milliseconds: 180), child: BloodStockReadinessCard()),
                             const SizedBox(height: 16),
                             EntranceFadeSlide(
                               delay: const Duration(milliseconds: 220),
@@ -229,8 +247,18 @@ class _DashboardSectionHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: colors.textPrimary, letterSpacing: 0.2)),
-                Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: colors.textSecondary)),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: colors.textPrimary, letterSpacing: 0.2),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
+                ),
               ],
             ),
           ),
@@ -267,7 +295,10 @@ class _DemoBadge extends StatelessWidget {
         children: [
           Icon(Icons.visibility_outlined, size: 11, color: colors.warning),
           const SizedBox(width: 4),
-          Text('DEMO DATA', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: colors.warning, letterSpacing: 0.4)),
+          Text(
+            'DEMO DATA',
+            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: colors.warning, letterSpacing: 0.4),
+          ),
         ],
       ),
     );
@@ -314,7 +345,10 @@ class _OperationalHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$_greeting, Doctor', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  '$_greeting, Doctor',
+                  style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 2),
                 Text('Blood Bank Operations Overview', style: TextStyle(color: colors.textSecondary, fontSize: 12.5)),
                 const SizedBox(height: 8),
@@ -369,11 +403,19 @@ class _QuickStatsRow extends StatelessWidget {
       ];
     } else {
       final pending = allRequests.where((r) => r.status == RequestStatus.pending).length;
-      final critical = allRequests.where((r) => r.urgency == UrgencyLevel.critical && RequestStatus.activeStatuses.contains(r.status)).length;
+      final critical = allRequests
+          .where((r) => r.urgency == UrgencyLevel.critical && RequestStatus.activeStatuses.contains(r.status))
+          .length;
       final activeResponses = allRequests.fold<int>(0, (t, r) => t + r.donorsNotifiedCount - r.donorsAcceptedCount).clamp(0, 1 << 30);
+      // #availability-contract - "Verified Donors" on the dashboard
+      // means staff-verified AND positively confirmed available. A
+      // donor record with no availability field is not counted here:
+      // the old `availableNow != false` check counted every
+      // app-registered donor (who has no such field at all) as
+      // available, which overstated the pool.
       final verifiedDonors = donorDocs.where((d) {
         final data = d.data();
-        return data['verified'] == true && data['availableNow'] != false;
+        return data['verified'] == true && DonorAvailabilityReader.read(data).isConfirmedAvailable;
       }).length;
       chips = [
         _QuickStat('Pending', pending, Icons.hourglass_top_rounded, colors.warning),
@@ -398,7 +440,9 @@ class _QuickStatsRow extends StatelessWidget {
               children: [
                 for (var i = 0; i < chips.length; i++) ...[
                   if (i > 0) const SizedBox(width: 10),
-                  Expanded(child: _QuickStatChip(data: chips[i], demo: isDemo)),
+                  Expanded(
+                    child: _QuickStatChip(data: chips[i], demo: isDemo),
+                  ),
                 ],
               ],
             ),
@@ -417,7 +461,10 @@ class _QuickStatsRow extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             itemCount: chips.length,
             separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (context, i) => SizedBox(width: 140, child: _QuickStatChip(data: chips[i], demo: isDemo)),
+            itemBuilder: (context, i) => SizedBox(
+              width: 140,
+              child: _QuickStatChip(data: chips[i], demo: isDemo),
+            ),
           ),
         );
       },
@@ -449,40 +496,48 @@ class _QuickStatChip extends StatelessWidget {
       label: '${data.label}: ${data.value}${demo ? ' (demo data)' : ''}',
       child: ExcludeSemantics(
         child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(color: data.color.withValues(alpha: 0.12), shape: BoxShape.circle),
-                child: Icon(data.icon, size: 15, color: data.color),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(color: data.color.withValues(alpha: 0.12), shape: BoxShape.circle),
+                    child: Icon(data.icon, size: 15, color: data.color),
+                  ),
+                  if (demo) ...[const Spacer(), Icon(Icons.visibility_outlined, size: 12, color: colors.champagne)],
+                ],
               ),
-              if (demo) ...[const Spacer(), Icon(Icons.visibility_outlined, size: 12, color: colors.champagne)],
+              const SizedBox(height: 8),
+              // FittedBox so a larger system text-size setting (or a
+              // number that grows another digit) scales the number down
+              // instead of pushing the card taller and overlapping the
+              // label below it - the actual bug in the screenshot.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: AnimatedCount(
+                  value: data.value,
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                data.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontWeight: FontWeight.w600),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          // FittedBox so a larger system text-size setting (or a
-          // number that grows another digit) scales the number down
-          // instead of pushing the card taller and overlapping the
-          // label below it - the actual bug in the screenshot.
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: AnimatedCount(value: data.value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-          ),
-          const SizedBox(height: 2),
-          Text(data.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontWeight: FontWeight.w600)),
-        ],
-      ),
         ),
       ),
     );
@@ -517,8 +572,10 @@ class _CommandCenterSection extends StatelessWidget {
             Icon(Icons.emergency_share_rounded, color: colors.critical, size: 20),
             const SizedBox(width: 8),
             Expanded(
-              child: Text('Emergency Command Center',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              child: Text(
+                'Emergency Command Center',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+              ),
             ),
             if (showDemo)
               const _DemoBadge()
@@ -529,10 +586,14 @@ class _CommandCenterSection extends StatelessWidget {
         const SizedBox(height: 10),
         if (showDemo)
           Column(
-            children: _demoCommandCards.map((d) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _DemoCommandCard(data: d),
-            )).toList(),
+            children: _demoCommandCards
+                .map(
+                  (d) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _DemoCommandCard(data: d),
+                  ),
+                )
+                .toList(),
           )
         else if (topCases.isEmpty)
           _PolishedEmptyCard(
@@ -541,7 +602,12 @@ class _CommandCenterSection extends StatelessWidget {
             message: 'All current requests are under control.',
           )
         else
-          ...topCases.map((r) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _CommandCard(request: r))),
+          ...topCases.map(
+            (r) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _CommandCard(request: r),
+            ),
+          ),
       ],
     );
   }
@@ -585,14 +651,20 @@ class _DemoCommandCard extends StatelessWidget {
             CircleAvatar(
               radius: 22,
               backgroundColor: colors.critical.withValues(alpha: 0.15),
-              child: Text(data.bloodGroup, style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold)),
+              child: Text(
+                data.bloodGroup,
+                style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${data.urgency} · ${data.units} units required', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                  Text(
+                    '${data.urgency} · ${data.units} units required',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                  ),
                   const SizedBox(height: 3),
                   Text('${data.waiting} waiting · sample preview', style: TextStyle(fontSize: 11.5, color: colors.textSecondary)),
                 ],
@@ -631,12 +703,19 @@ class _CommandCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: urgencyColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
-                child: Text(request.urgency.toUpperCase(),
-                    style: TextStyle(color: urgencyColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Text(
+                  request.urgency.toUpperCase(),
+                  style: TextStyle(color: urgencyColor, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
               ),
               if (isCritical) ...[const SizedBox(width: 8), LivePulseDot(color: colors.critical)],
               const SizedBox(width: 8),
-              Flexible(child: Align(alignment: Alignment.centerRight, child: RequestHealthBadge(request: request, showWaitingTime: false))),
+              Flexible(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: RequestHealthBadge(request: request, showWaitingTime: false),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -646,27 +725,37 @@ class _CommandCard extends StatelessWidget {
               Hero(
                 tag: 'bloodgroup-avatar-${request.id}',
                 child: CircleAvatar(
-                radius: 22,
-                backgroundColor: colors.critical.withValues(alpha: 0.1),
-                child: Text(request.bloodGroup, style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold)),
-              ),
+                  radius: 22,
+                  backgroundColor: colors.critical.withValues(alpha: 0.1),
+                  child: Text(
+                    request.bloodGroup,
+                    style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${request.unitsNeeded} units required · ${request.hospitalName}',
-                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                    Text(
+                      '${request.unitsNeeded} units required · ${request.hospitalName}',
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                    ),
                     const SizedBox(height: 2),
-                    Text('${request.unitsConfirmed}/${request.unitsNeeded} confirmed · ${request.unitsRemaining} unit(s) remaining',
-                        style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+                    Text(
+                      '${request.unitsConfirmed}/${request.unitsNeeded} confirmed · ${request.unitsRemaining} unit(s) remaining',
+                      style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                    ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         Icon(Icons.schedule_rounded, size: 13, color: colors.textSecondary),
                         const SizedBox(width: 3),
-                        Text('${WaitingTime.format(request.createdAt)} waiting', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                        Text(
+                          '${WaitingTime.format(request.createdAt)} waiting',
+                          style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                        ),
                         const SizedBox(width: 10),
                         Icon(Icons.location_on_outlined, size: 13, color: colors.textSecondary),
                         const SizedBox(width: 3),
@@ -699,11 +788,17 @@ class _CommandCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              Text(RequestStatus.label(request.status), style: TextStyle(fontSize: 11.5, color: RequestStatus.color(request.status), fontWeight: FontWeight.w600)),
+              Text(
+                RequestStatus.label(request.status),
+                style: TextStyle(fontSize: 11.5, color: RequestStatus.color(request.status), fontWeight: FontWeight.w600),
+              ),
               const Spacer(),
               TextButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: request.id))),
-                child: Text('Review Request', style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Text(
+                  'Review Request',
+                  style: TextStyle(color: colors.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -737,9 +832,15 @@ class _DonorCoverageBar extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('DONOR COVERAGE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.6, color: colors.textSecondary)),
+            Text(
+              'DONOR COVERAGE',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.6, color: colors.textSecondary),
+            ),
             const Spacer(),
-            Text('$pct%', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: barColor)),
+            Text(
+              '$pct%',
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: barColor),
+            ),
           ],
         ),
         const SizedBox(height: 5),
@@ -800,14 +901,19 @@ class _AnalyticsSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Dashboard Analytics', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              Text(
+                'Dashboard Analytics',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+              ),
               const SizedBox(width: 8),
               const _DemoBadge(),
             ],
           ),
           const SizedBox(height: 4),
-          Text('Real analytics will replace this preview once requests start coming in from the Recipient app.',
-              style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+          Text(
+            'Real analytics will replace this preview once requests start coming in from the Recipient app.',
+            style: TextStyle(fontSize: 12, color: colors.textSecondary),
+          ),
           const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, constraints) => GridView.builder(
@@ -844,10 +950,22 @@ class _AnalyticsSection extends StatelessWidget {
     final stats = [
       _StatData('Pending Verification', '$pending', Icons.hourglass_top_rounded, colors.warning, subtitle: 'Awaiting review'),
       _StatData('Active Requests', '$active', Icons.sync_rounded, colors.primary, subtitle: 'In progress'),
-      _StatData('Critical Now', '$critical', Icons.priority_high_rounded, colors.critical, subtitle: critical > 0 ? 'Needs attention' : 'Under control'),
+      _StatData(
+        'Critical Now',
+        '$critical',
+        Icons.priority_high_rounded,
+        colors.critical,
+        subtitle: critical > 0 ? 'Needs attention' : 'Under control',
+      ),
       _StatData('Completed', '$completed', Icons.check_circle_rounded, colors.success, subtitle: 'Fulfilled requests'),
       _StatData('Registered Donors', '$donorCount', Icons.groups_rounded, colors.primary, subtitle: 'In donor pool'),
-      _StatData('Overall Response Rate', responseRate == null ? 'n/a' : '$responseRate%', Icons.insights_rounded, colors.primary, subtitle: 'Notified → accepted'),
+      _StatData(
+        'Overall Response Rate',
+        responseRate == null ? 'n/a' : '$responseRate%',
+        Icons.insights_rounded,
+        colors.primary,
+        subtitle: 'Notified → accepted',
+      ),
       _StatData('Units Confirmed', '$unitsConfirmed', Icons.check_box_rounded, colors.success, subtitle: 'Across active requests'),
       _StatData('Units Remaining (active)', '$unitsRemaining', Icons.pending_actions_rounded, colors.warning, subtitle: 'Still needed'),
     ];
@@ -855,7 +973,10 @@ class _AnalyticsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Dashboard Analytics', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+        Text(
+          'Dashboard Analytics',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+        ),
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) => GridView.builder(
@@ -912,12 +1033,25 @@ class _StatCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(data.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: accent)),
+          Text(
+            data.value,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: accent),
+          ),
           const SizedBox(height: 2),
-          Text(data.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+          Text(
+            data.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: colors.textSecondary),
+          ),
           if (data.subtitle != null) ...[
             const SizedBox(height: 3),
-            Text(data.subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: colors.textSecondary.withValues(alpha: 0.8))),
+            Text(
+              data.subtitle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10, color: colors.textSecondary.withValues(alpha: 0.8)),
+            ),
           ],
         ],
       ),
@@ -974,18 +1108,30 @@ class _ResponseFunnelSection extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: colors.border)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text('Donor Response Funnel', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary))),
+              Expanded(
+                child: Text(
+                  'Donor Response Funnel',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                ),
+              ),
               if (isDemo) const _DemoBadge(),
             ],
           ),
           const SizedBox(height: 4),
-          Text('Notified → Responded → Accepted → Completed, across all requests', style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+          Text(
+            'Notified → Responded → Accepted → Completed, across all requests',
+            style: TextStyle(fontSize: 12, color: colors.textSecondary),
+          ),
           const SizedBox(height: 18),
           ...List.generate(stages.length, (i) {
             final stage = stages[i];
@@ -998,12 +1144,20 @@ class _ResponseFunnelSection extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: Text(stage.label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary))),
+                      Expanded(
+                        child: Text(
+                          stage.label,
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                        ),
+                      ),
                       if (conversion != null) ...[
                         Text('$conversion% conversion', style: TextStyle(fontSize: 10.5, color: colors.textSecondary)),
                         const SizedBox(width: 8),
                       ],
-                      Text('${stage.value}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colors.primary)),
+                      Text(
+                        '${stage.value}',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colors.primary),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 5),
@@ -1103,30 +1257,49 @@ class _ResponsePerformanceSection extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: colors.border)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text('Donor Response Performance', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary))),
+              Expanded(
+                child: Text(
+                  'Donor Response Performance',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                ),
+              ),
               if (isDemo) const _DemoBadge(),
             ],
           ),
           const SizedBox(height: 14),
           Row(
             children: stats
-                .map((s) => Expanded(
-                      child: Column(
-                        children: [
-                          Icon(s.icon, size: 18, color: colors.primary),
-                          const SizedBox(height: 6),
-                          Text(s.value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-                          const SizedBox(height: 2),
-                          Text(s.label, textAlign: TextAlign.center, maxLines: 2, style: TextStyle(fontSize: 10, color: colors.textSecondary)),
-                        ],
-                      ),
-                    ))
+                .map(
+                  (s) => Expanded(
+                    child: Column(
+                      children: [
+                        Icon(s.icon, size: 18, color: colors.primary),
+                        const SizedBox(height: 6),
+                        Text(
+                          s.value,
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          s.label,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          style: TextStyle(fontSize: 10, color: colors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         ],
@@ -1232,24 +1405,33 @@ class _DoctorInsightsSection extends StatelessWidget {
             children: [
               Icon(Icons.insights_rounded, size: 18, color: colors.primary),
               const SizedBox(width: 8),
-              Expanded(child: Text('Operational Insights', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary))),
+              Expanded(
+                child: Text(
+                  'Operational Insights',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                ),
+              ),
               if (isDemo) const _DemoBadge(),
             ],
           ),
           const SizedBox(height: 2),
           Text('Today\'s Operations · deterministic, Firestore-calculated', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
           const SizedBox(height: 12),
-          ...insights.map((line) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.circle, size: 5, color: colors.primary),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(line, style: TextStyle(fontSize: 12.5, color: colors.textPrimary))),
-                  ],
-                ),
-              )),
+          ...insights.map(
+            (line) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.circle, size: 5, color: colors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(line, style: TextStyle(fontSize: 12.5, color: colors.textPrimary)),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1273,45 +1455,59 @@ class _PinnedRequestsSection extends StatelessWidget {
           children: [
             Icon(Icons.push_pin_rounded, size: 17, color: colors.warning),
             const SizedBox(width: 8),
-            Text('Pinned Requests', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+            Text(
+              'Pinned Requests',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+            ),
           ],
         ),
         const SizedBox(height: 10),
-        ...requests.map((r) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: r.id))),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.warning.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: colors.critical.withValues(alpha: 0.1),
-                        child: Text(r.bloodGroup, style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold, fontSize: 11)),
+        ...requests.map(
+          (r) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: r.id))),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colors.warning.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: colors.critical.withValues(alpha: 0.1),
+                      child: Text(
+                        r.bloodGroup,
+                        style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold, fontSize: 11),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(r.patientName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-                            Text('${RequestStatus.label(r.status)} · ${r.hospitalName}', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
-                          ],
-                        ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.patientName,
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                          ),
+                          Text(
+                            '${RequestStatus.label(r.status)} · ${r.hospitalName}',
+                            style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                          ),
+                        ],
                       ),
-                      Icon(Icons.push_pin_rounded, size: 14, color: colors.warning),
-                    ],
-                  ),
+                    ),
+                    Icon(Icons.push_pin_rounded, size: 14, color: colors.warning),
+                  ],
                 ),
               ),
-            )),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1340,7 +1536,11 @@ class _LiveActivityFeedSection extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: colors.border)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1348,7 +1548,12 @@ class _LiveActivityFeedSection extends StatelessWidget {
             children: [
               LivePulseDot(color: colors.success),
               const SizedBox(width: 8),
-              Expanded(child: Text('Live Activity', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary))),
+              Expanded(
+                child: Text(
+                  'Live Activity',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                ),
+              ),
               if (isDemo) const _DemoBadge(),
             ],
           ),
@@ -1357,29 +1562,35 @@ class _LiveActivityFeedSection extends StatelessWidget {
             for (int i = 0; i < _demoFeed.length; i++)
               EntranceFadeSlide(
                 delay: Duration(milliseconds: 40 * i),
-                child: _ActivityRow(icon: _iconFor(_demoFeed[i].label), label: _demoFeed[i].label, timeLabel: '${_demoFeed[i].minutesAgo} min ago'),
+                child: _ActivityRow(
+                  icon: _iconFor(_demoFeed[i].label),
+                  label: _demoFeed[i].label,
+                  timeLabel: '${_demoFeed[i].minutesAgo} min ago',
+                ),
               )
           else
             for (int i = 0; i < auditDocs.length; i++)
-              Builder(builder: (context) {
-                final data = auditDocs[i].data();
-                final action = data['action'] as String? ?? '';
-                final actor = data['performedByName'] as String? ?? '';
-                final ts = (data['timestamp'] as Timestamp?)?.toDate();
-                // #live-activity-animation - each row fades/slides in with
-                // a small stagger so new items landing at the top of this
-                // real-time feed (it's ordered newest-first) read as
-                // arriving, not just appearing - subtle motion, not a
-                // flashy full-page reflow.
-                return EntranceFadeSlide(
-                  delay: Duration(milliseconds: 40 * i.clamp(0, 12)),
-                  child: _ActivityRow(
-                    icon: _iconFor(action),
-                    label: '${_actionLabel(action)}${actor.isNotEmpty ? ' — $actor' : ''}',
-                    timeLabel: ts == null ? 'just now' : _relativeTime(ts),
-                  ),
-                );
-              }),
+              Builder(
+                builder: (context) {
+                  final data = auditDocs[i].data();
+                  final action = data['action'] as String? ?? '';
+                  final actor = data['performedByName'] as String? ?? '';
+                  final ts = (data['timestamp'] as Timestamp?)?.toDate();
+                  // #live-activity-animation - each row fades/slides in with
+                  // a small stagger so new items landing at the top of this
+                  // real-time feed (it's ordered newest-first) read as
+                  // arriving, not just appearing - subtle motion, not a
+                  // flashy full-page reflow.
+                  return EntranceFadeSlide(
+                    delay: Duration(milliseconds: 40 * i.clamp(0, 12)),
+                    child: _ActivityRow(
+                      icon: _iconFor(action),
+                      label: '${_actionLabel(action)}${actor.isNotEmpty ? ' — $actor' : ''}',
+                      timeLabel: ts == null ? 'just now' : _relativeTime(ts),
+                    ),
+                  );
+                },
+              ),
         ],
       ),
     );
@@ -1434,7 +1645,9 @@ class _ActivityRow extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: colors.primary),
           const SizedBox(width: 10),
-          Expanded(child: Text(label, style: TextStyle(fontSize: 12.5, color: colors.textPrimary))),
+          Expanded(
+            child: Text(label, style: TextStyle(fontSize: 12.5, color: colors.textPrimary)),
+          ),
           Text(timeLabel, style: TextStyle(fontSize: 11, color: colors.textSecondary)),
         ],
       ),
@@ -1468,7 +1681,10 @@ class _PolishedEmptyCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: colors.textPrimary)),
+                Text(
+                  title,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: colors.textPrimary),
+                ),
                 const SizedBox(height: 2),
                 Text(message, style: TextStyle(fontSize: 12, color: colors.textSecondary)),
               ],
@@ -1511,7 +1727,9 @@ class _RequestTrendCardState extends State<_RequestTrendCard> {
 
     final today = DateTime.now();
     final days = List.generate(
-        _rangeDays, (i) => DateTime(today.year, today.month, today.day).subtract(Duration(days: _rangeDays - 1 - i)));
+      _rangeDays,
+      (i) => DateTime(today.year, today.month, today.day).subtract(Duration(days: _rangeDays - 1 - i)),
+    );
     List<int> counts;
     if (isDemo) {
       counts = _rangeDays == 7 ? _demoCounts7 : List.generate(30, (i) => (i % 7 == 3) ? 8 : 2 + (i % 5));
@@ -1529,13 +1747,22 @@ class _RequestTrendCardState extends State<_RequestTrendCard> {
 
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: colors.border)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text('Request Trend', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary))),
+              Expanded(
+                child: Text(
+                  'Request Trend',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                ),
+              ),
               if (isDemo) const _DemoBadge(),
               const SizedBox(width: 8),
               _RangeToggle(
@@ -1563,7 +1790,11 @@ class _RequestTrendCardState extends State<_RequestTrendCard> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        if (_rangeDays == 7) Text('${counts[i]}', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: colors.textSecondary)),
+                        if (_rangeDays == 7)
+                          Text(
+                            '${counts[i]}',
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: colors.textSecondary),
+                          ),
                         const SizedBox(height: 4),
                         // #safety - a plain Column gives non-Expanded children
                         // UNBOUNDED height, so FractionallySizedBox previously
@@ -1598,7 +1829,10 @@ class _RequestTrendCardState extends State<_RequestTrendCard> {
                         SizedBox(
                           height: 12,
                           child: showLabel
-                              ? Text(_rangeDays == 7 ? _weekdayLabel(days[i]) : _dayLabel(days[i]), style: TextStyle(fontSize: 9.5, color: colors.textSecondary))
+                              ? Text(
+                                  _rangeDays == 7 ? _weekdayLabel(days[i]) : _dayLabel(days[i]),
+                                  style: TextStyle(fontSize: 9.5, color: colors.textSecondary),
+                                )
                               : null,
                         ),
                       ],
@@ -1636,7 +1870,11 @@ class _RangeToggle<T> extends StatelessWidget {
     final colors = context.colors;
     return Container(
       padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(color: colors.elevatedSurface, borderRadius: BorderRadius.circular(8), border: Border.all(color: colors.border)),
+      decoration: BoxDecoration(
+        color: colors.elevatedSurface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.border),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: options.map((o) {
@@ -1647,7 +1885,10 @@ class _RangeToggle<T> extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(color: selected ? colors.primary : Colors.transparent, borderRadius: BorderRadius.circular(6)),
-              child: Text(labels[o] ?? '$o', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: selected ? Colors.white : colors.textSecondary)),
+              child: Text(
+                labels[o] ?? '$o',
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: selected ? Colors.white : colors.textSecondary),
+              ),
             ),
           );
         }).toList(),
@@ -1696,18 +1937,30 @@ class _BloodDemandCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: colors.border)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text('Blood Demand', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary))),
+              Expanded(
+                child: Text(
+                  'Blood Demand',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                ),
+              ),
               if (isDemo) const _DemoBadge(),
             ],
           ),
           const SizedBox(height: 4),
-          Text('Units still needed by blood group · critical demand highlighted', style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+          Text(
+            'Units still needed by blood group · critical demand highlighted',
+            style: TextStyle(fontSize: 12, color: colors.textSecondary),
+          ),
           const SizedBox(height: 14),
           ...sortedGroups.map((g) {
             final value = demand[g] ?? 0;
@@ -1721,7 +1974,14 @@ class _BloodDemandCard extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: 36,
-                    child: Text(g, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5, color: isCritical ? colors.critical : colors.textPrimary)),
+                    child: Text(
+                      g,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12.5,
+                        color: isCritical ? colors.critical : colors.textPrimary,
+                      ),
+                    ),
                   ),
                   Expanded(
                     child: ClipRRect(
@@ -1793,7 +2053,10 @@ class _BloodGroupChartCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text('Donor Pool by Blood Group', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                child: Text(
+                  'Donor Pool by Blood Group',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                ),
               ),
               if (isDemo) const _DemoBadge(),
             ],
@@ -1819,7 +2082,10 @@ class _BloodGroupChartCard extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('$total', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                            Text(
+                              '$total',
+                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                            ),
                             Text('donors', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
                           ],
                         ),
@@ -1837,9 +2103,16 @@ class _BloodGroupChartCard extends StatelessWidget {
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(width: 10, height: 10, decoration: BoxDecoration(color: s.color, shape: BoxShape.circle)),
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(color: s.color, shape: BoxShape.circle),
+                      ),
                       const SizedBox(width: 6),
-                      Text('${s.label}  ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                      Text(
+                        '${s.label}  ',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                      ),
                       Text('${s.value} · $pct%', style: TextStyle(fontSize: 11.5, color: colors.textSecondary)),
                     ],
                   );
@@ -1943,7 +2216,9 @@ class _WeekComparisonStrip extends StatelessWidget {
     final lastWeekStart = now.subtract(const Duration(days: 14));
 
     final thisWeek = allRequests.where((r) => r.createdAt != null && r.createdAt!.isAfter(thisWeekStart)).length;
-    final lastWeek = allRequests.where((r) => r.createdAt != null && r.createdAt!.isAfter(lastWeekStart) && r.createdAt!.isBefore(thisWeekStart)).length;
+    final lastWeek = allRequests
+        .where((r) => r.createdAt != null && r.createdAt!.isAfter(lastWeekStart) && r.createdAt!.isBefore(thisWeekStart))
+        .length;
 
     final hasHistory = allRequests.any((r) => r.createdAt != null && r.createdAt!.isBefore(lastWeekStart));
 
@@ -1983,7 +2258,10 @@ class _WeekComparisonStrip extends StatelessWidget {
           Icon(changeIcon, size: 18, color: changeColor),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(changeLabel, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+            child: Text(
+              changeLabel,
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary),
+            ),
           ),
         ],
       ),
@@ -2002,12 +2280,7 @@ class _DonorLeaderboardSection extends StatelessWidget {
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> responseDocs;
   const _DonorLeaderboardSection({required this.responseDocs});
 
-  static const _demoEntries = [
-    ('Kasun Perera', 5, 6),
-    ('Nimali Silva', 4, 4),
-    ('Ruwan Fernando', 3, 3),
-    ('Ishara Jayasuriya', 2, 2),
-  ];
+  static const _demoEntries = [('Kasun Perera', 5, 6), ('Nimali Silva', 4, 4), ('Ruwan Fernando', 3, 3), ('Ishara Jayasuriya', 2, 2)];
 
   @override
   Widget build(BuildContext context) {
@@ -2040,7 +2313,11 @@ class _DonorLeaderboardSection extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: colors.border)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2048,7 +2325,12 @@ class _DonorLeaderboardSection extends StatelessWidget {
             children: [
               Icon(Icons.workspace_premium_outlined, size: 18, color: colors.champagne),
               const SizedBox(width: 8),
-              Expanded(child: Text('Top Responding Donors', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary))),
+              Expanded(
+                child: Text(
+                  'Top Responding Donors',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                ),
+              ),
               if (isDemo) const _DemoBadge(),
             ],
           ),
@@ -2085,14 +2367,27 @@ class _DonorLeaderboardSection extends StatelessWidget {
                           color: topThree ? colors.champagne.withValues(alpha: 0.18) : Colors.transparent,
                           border: topThree ? Border.all(color: colors.champagne.withValues(alpha: 0.5)) : null,
                         ),
-                        child: Text('$rank', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: topThree ? colors.champagne : colors.textSecondary)),
+                        child: Text(
+                          '$rank',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: topThree ? colors.champagne : colors.textSecondary,
+                          ),
+                        ),
                       ),
                     ),
                     Expanded(
-                      child: Text(name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary), overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        name,
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    Text('$count donation${count == 1 ? '' : 's'} · $units unit${units == 1 ? '' : 's'}',
-                        style: TextStyle(fontSize: 11.5, color: colors.textSecondary)),
+                    Text(
+                      '$count donation${count == 1 ? '' : 's'} · $units unit${units == 1 ? '' : 's'}',
+                      style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
+                    ),
                   ],
                 ),
               );

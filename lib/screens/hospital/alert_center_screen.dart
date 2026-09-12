@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../services/request_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/alert_actions.dart';
+import 'blood_stock_screen.dart';
 import '../../widgets/common_states.dart';
 import '../../widgets/entrance_fade_slide.dart';
 import '../../widgets/live_pulse_dot.dart';
@@ -96,10 +98,7 @@ class _AlertCenterScreenState extends State<AlertCenterScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Row(
                   children: [
-                    if (unreadIds.isNotEmpty) ...[
-                      LivePulseDot(color: colors.critical),
-                      const SizedBox(width: 8),
-                    ],
+                    if (unreadIds.isNotEmpty) ...[LivePulseDot(color: colors.critical), const SizedBox(width: 8)],
                     Expanded(
                       child: Text(
                         unreadIds.isEmpty ? 'You\'re all caught up' : '${unreadIds.length} unread alert(s)',
@@ -121,21 +120,23 @@ class _AlertCenterScreenState extends State<AlertCenterScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: _AlertCategory.values
-                      .map((c) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: _CategoryChip(label: _categoryLabel(c), selected: _category == c, onTap: () => setState(() => _category = c)),
-                          ))
+                      .map(
+                        (c) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: _CategoryChip(
+                            label: _categoryLabel(c),
+                            selected: _category == c,
+                            onTap: () => setState(() => _category = c),
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ),
               const SizedBox(height: 8),
               Expanded(
                 child: docs.isEmpty
-                    ? const EmptyState(
-                        icon: Icons.notifications_none_rounded,
-                        title: 'No alerts',
-                        message: 'You\'re all caught up.',
-                      )
+                    ? const EmptyState(icon: Icons.notifications_none_rounded, title: 'No alerts', message: 'You\'re all caught up.')
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                         itemCount: docs.length,
@@ -162,13 +163,19 @@ class _AlertCenterScreenState extends State<AlertCenterScreen> {
                               background: Container(
                                 alignment: Alignment.centerLeft,
                                 padding: const EdgeInsets.only(left: 20),
-                                decoration: BoxDecoration(color: colors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(14)),
+                                decoration: BoxDecoration(
+                                  color: colors.success.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(Icons.done_rounded, color: colors.success, size: 18),
                                     const SizedBox(width: 6),
-                                    Text('Mark read', style: TextStyle(color: colors.success, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    Text(
+                                      'Mark read',
+                                      style: TextStyle(color: colors.success, fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -177,56 +184,78 @@ class _AlertCenterScreenState extends State<AlertCenterScreen> {
                                 return false;
                               },
                               child: InkWell(
-                              borderRadius: BorderRadius.circular(14),
-                              onTap: () {
-                                if (!isRead) RequestService.instance.markAlertRead(doc.id, uid);
-                                final requestId = data['requestId'] as String?;
-                                if (requestId != null) {
-                                  Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: requestId)));
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: isRead ? colors.surface : _colorFor(colors, type).withValues(alpha: 0.06),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: isRead ? colors.border : _colorFor(colors, type).withValues(alpha: 0.4)),
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(color: _colorFor(colors, type).withValues(alpha: 0.12), shape: BoxShape.circle),
-                                      child: Icon(_iconFor(type), color: _colorFor(colors, type), size: 18),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            data['message'] as String? ?? '',
-                                            style: TextStyle(fontSize: 13, fontWeight: isRead ? FontWeight.normal : FontWeight.w600, color: colors.textPrimary),
-                                          ),
-                                          if (createdAt != null) ...[
-                                            const SizedBox(height: 4),
-                                            Text(_relativeTime(createdAt), style: TextStyle(fontSize: 11, color: colors.textSecondary)),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    if (!isRead)
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () {
+                                  if (!isRead) RequestService.instance.markAlertRead(doc.id, uid);
+                                  _runAlertAction(
+                                    context,
+                                    action: AlertActions.primaryFor(type, hasRequestId: _hasRequestId(data)),
+                                    requestId: data['requestId'] as String?,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: isRead ? colors.surface : _colorFor(colors, type).withValues(alpha: 0.06),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: isRead ? colors.border : _colorFor(colors, type).withValues(alpha: 0.4)),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
                                       Container(
-                                        margin: const EdgeInsets.only(top: 4),
-                                        width: 8,
-                                        height: 8,
-                                        decoration: BoxDecoration(color: colors.primary, shape: BoxShape.circle),
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: _colorFor(colors, type).withValues(alpha: 0.12),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(_iconFor(type), color: _colorFor(colors, type), size: 18),
                                       ),
-                                  ],
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              data['message'] as String? ?? '',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
+                                                color: colors.textPrimary,
+                                              ),
+                                            ),
+                                            if (createdAt != null) ...[
+                                              const SizedBox(height: 4),
+                                              Text(_relativeTime(createdAt), style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                                            ],
+                                            // #actionable-alerts - every
+                                            // alert now names the one thing
+                                            // to do about it, instead of
+                                            // leaving staff to go find the
+                                            // relevant request themselves.
+                                            // An alert whose request is
+                                            // gone says so rather than
+                                            // offering a dead button.
+                                            const SizedBox(height: 8),
+                                            _AlertActionRow(
+                                              action: AlertActions.primaryFor(type, hasRequestId: _hasRequestId(data)),
+                                              requestId: data['requestId'] as String?,
+                                              referenceMissing: _referencesMissingRequest(type, data),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (!isRead)
+                                        Container(
+                                          margin: const EdgeInsets.only(top: 4),
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(color: colors.primary, shape: BoxShape.circle),
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
                             ),
                           );
                         },
@@ -237,6 +266,46 @@ class _AlertCenterScreenState extends State<AlertCenterScreen> {
         },
       ),
     );
+  }
+
+  /// True when the alert carries a usable request reference.
+  static bool _hasRequestId(Map<String, dynamic> data) {
+    final id = data['requestId'];
+    return id is String && id.trim().isNotEmpty;
+  }
+
+  /// True when the alert's *type* implies a request but the document
+  /// does not carry one - so the tile explains the gap rather than
+  /// silently dropping its action.
+  static bool _referencesMissingRequest(String type, Map<String, dynamic> data) {
+    if (_hasRequestId(data)) return false;
+    return AlertActions.primaryFor(type, hasRequestId: true).requiresRequest;
+  }
+
+  /// Carries out an alert's primary action.
+  ///
+  /// Tab-switching actions (verify queue, stock readiness) navigate to
+  /// the relevant surface; request-scoped ones open the request. An
+  /// action needing a request it does not have is never invoked,
+  /// because [AlertActions.primaryFor] degrades it to
+  /// [AlertAction.none] first.
+  static void _runAlertAction(BuildContext context, {required AlertAction action, String? requestId}) {
+    switch (action) {
+      case AlertAction.openRequest:
+      case AlertAction.openDonorMatches:
+      case AlertAction.openRequestTimeline:
+      case AlertAction.assignToMe:
+        if (requestId == null || requestId.trim().isEmpty) return;
+        Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: requestId)));
+      case AlertAction.openStockReadiness:
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const BloodStockScreen()));
+      case AlertAction.openVerifyQueue:
+        // The verify queue is a tab on the screen behind this one, so
+        // closing the Alert Centre lands the operator on it.
+        Navigator.pop(context);
+      case AlertAction.none:
+        break;
+    }
   }
 
   static String _relativeTime(DateTime dt) {
@@ -276,6 +345,56 @@ class _AlertCenterScreenState extends State<AlertCenterScreen> {
   }
 }
 
+/// The action line under an alert message.
+///
+/// Shows either a verb-first action label, or - when the referenced
+/// request no longer exists - a plain explanation instead of a control
+/// that would go nowhere.
+class _AlertActionRow extends StatelessWidget {
+  const _AlertActionRow({required this.action, required this.requestId, required this.referenceMissing});
+
+  final AlertAction action;
+  final String? requestId;
+  final bool referenceMissing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    if (referenceMissing) {
+      return Row(
+        children: [
+          Icon(Icons.link_off_rounded, size: 13, color: colors.textSecondary),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              AlertActions.missingReferenceNotice,
+              style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: colors.textSecondary),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (action == AlertAction.none) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        Icon(Icons.arrow_forward_rounded, size: 13, color: colors.accent),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            action.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: colors.accent),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _CategoryChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -295,7 +414,14 @@ class _CategoryChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: selected ? colors.primary : colors.border),
         ),
-        child: Text(label, style: TextStyle(fontSize: 12, color: selected ? colors.primary : colors.textSecondary, fontWeight: selected ? FontWeight.bold : FontWeight.w500)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: selected ? colors.primary : colors.textSecondary,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
@@ -371,12 +497,7 @@ class _AlertBellIconState extends State<AlertBellIcon> with SingleTickerProvider
 
         if (unread == 0) return icon;
 
-        return Badge(
-          label: Text('$unread'),
-          backgroundColor: colors.critical,
-          textColor: Colors.white,
-          child: icon,
-        );
+        return Badge(label: Text('$unread'), backgroundColor: colors.critical, textColor: Colors.white, child: icon);
       },
     );
   }

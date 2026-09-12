@@ -1,11 +1,16 @@
 import 'dart:convert';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../request_details_screen.dart';
 import '../../../models/blood_request.dart';
+import '../../../utils/request_assignment.dart';
+import '../../../utils/request_search.dart';
 import '../../../utils/request_status.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/common_states.dart';
@@ -33,6 +38,18 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
   final TextEditingController _searchController = TextEditingController();
   String? _bloodGroupFilter;
   String? _urgencyFilter;
+
+  // #search - the query the list actually filters on. It trails the
+  // text field by RequestSearch.debounce, so a fast typist triggers one
+  // filter pass instead of one per character.
+  String _debouncedQuery = '';
+  Timer? _searchDebounce;
+
+  // #assignment-filter - ownership view: all / assigned to me /
+  // unassigned.
+  AssignmentFilter _assignmentFilter = AssignmentFilter.all;
+
+  String get _currentUserId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   // #6 - Operations Table view: a dense, sortable desktop-only
   // alternative to the card list, for staff who prefer to scan a
@@ -70,8 +87,27 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
 
   @override
   void dispose() {
+    // The debounce timer must be cancelled, or a pending callback fires
+    // setState on a disposed State after the tab is left.
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Restarts the debounce window on each keystroke; only the last one
+  /// survives to update the query the list filters on.
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(RequestSearch.debounce, () {
+      if (!mounted) return;
+      setState(() => _debouncedQuery = value);
+    });
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    setState(() => _debouncedQuery = '');
   }
 
   Future<void> _loadSavedFilters() async {
@@ -106,7 +142,11 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Save this filter'),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(hintText: 'e.g. Critical O- Queue')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'e.g. Critical O- Queue'),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Save')),
@@ -114,10 +154,9 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
       ),
     );
     if (name == null || name.isEmpty || !mounted) return;
-    setState(() => _savedFilters = [
-          ..._savedFilters,
-          _SavedVerifyFilter(name: name, bloodGroup: _bloodGroupFilter, urgency: _urgencyFilter),
-        ]);
+    setState(
+      () => _savedFilters = [..._savedFilters, _SavedVerifyFilter(name: name, bloodGroup: _bloodGroupFilter, urgency: _urgencyFilter)],
+    );
     await _persistSavedFilters();
   }
 
@@ -134,9 +173,7 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) => _buildBody(context, constraints.maxWidth >= _kTableBreakpoint),
-    );
+    return LayoutBuilder(builder: (context, constraints) => _buildBody(context, constraints.maxWidth >= _kTableBreakpoint));
   }
 
   Widget _buildBody(BuildContext context, bool isWide) {
@@ -145,84 +182,112 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
       children: [
         EntranceFadeSlide(
           child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (_) => setState(() {}),
-                  style: TextStyle(color: colors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Search by patient name or hospital...',
-                    hintStyle: TextStyle(color: colors.textSecondary),
-                    prefixIcon: Icon(Icons.search_rounded, color: colors.textSecondary),
-                    filled: true,
-                    fillColor: colors.elevatedSurface,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.border)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.border)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.primary, width: 1.6)),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              // #6 - Operations Table toggle, desktop only.
-              if (isWide) ...[
-                const SizedBox(width: 8),
-                Tooltip(
-                  message: _tableView ? 'Switch to card view' : 'Switch to Operations Table',
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => setState(() => _tableView = !_tableView),
-                    child: Container(
-                      height: 48,
-                      width: 48,
-                      decoration: BoxDecoration(
-                        color: _tableView ? colors.primary : colors.elevatedSurface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _tableView ? colors.primary : colors.border),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: _onSearchChanged,
+                    textInputAction: TextInputAction.search,
+                    style: TextStyle(color: colors.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Search ID, patient, blood group, ward...',
+                      hintStyle: TextStyle(color: colors.textSecondary),
+                      prefixIcon: Icon(Icons.search_rounded, color: colors.textSecondary),
+                      // An explicit clear action - clearing a search by
+                      // backspacing 20 characters is not a control.
+                      //
+                      // Listening to the controller directly means the
+                      // button appears the moment a character is typed,
+                      // without a setState that would rebuild the whole
+                      // queue on every keystroke.
+                      suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _searchController,
+                        builder: (context, value, _) => value.text.isEmpty
+                            ? const SizedBox.shrink()
+                            : IconButton(
+                                tooltip: 'Clear search',
+                                icon: Icon(Icons.close_rounded, color: colors.textSecondary),
+                                onPressed: _clearSearch,
+                              ),
                       ),
-                      child: Icon(Icons.table_rows_outlined, color: _tableView ? Colors.white : colors.textSecondary),
+                      filled: true,
+                      fillColor: colors.elevatedSurface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: colors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: colors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: colors.accent, width: 1.8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
+                // #6 - Operations Table toggle, desktop only.
+                if (isWide) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: _tableView ? 'Switch to card view' : 'Switch to Operations Table',
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => setState(() => _tableView = !_tableView),
+                      child: Container(
+                        height: 48,
+                        width: 48,
+                        decoration: BoxDecoration(
+                          color: _tableView ? colors.primary : colors.elevatedSurface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _tableView ? colors.primary : colors.border),
+                        ),
+                        child: Icon(Icons.table_rows_outlined, color: _tableView ? Colors.white : colors.textSecondary),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
+            ),
           ),
         ),
+        _buildAssignmentFilterRow(context),
         SizedBox(
           height: 42,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             children: [
-              _FilterChip(
-                label: 'All groups',
-                selected: _bloodGroupFilter == null,
-                onTap: () => setState(() => _bloodGroupFilter = null),
-              ),
+              _FilterChip(label: 'All groups', selected: _bloodGroupFilter == null, onTap: () => setState(() => _bloodGroupFilter = null)),
               const SizedBox(width: 8),
-              ..._groups.map((g) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _FilterChip(
-                      label: g,
-                      selected: _bloodGroupFilter == g,
-                      onTap: () => setState(() => _bloodGroupFilter = _bloodGroupFilter == g ? null : g),
-                    ),
-                  )),
+              ..._groups.map(
+                (g) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _FilterChip(
+                    label: g,
+                    selected: _bloodGroupFilter == g,
+                    onTap: () => setState(() => _bloodGroupFilter = _bloodGroupFilter == g ? null : g),
+                  ),
+                ),
+              ),
               const SizedBox(width: 4),
               Container(width: 1, color: colors.border, margin: const EdgeInsets.symmetric(vertical: 8)),
               const SizedBox(width: 12),
-              ..._urgencies.map((u) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _FilterChip(
-                      label: u[0].toUpperCase() + u.substring(1),
-                      color: UrgencyLevel.color(u),
-                      selected: _urgencyFilter == u,
-                      onTap: () => setState(() => _urgencyFilter = _urgencyFilter == u ? null : u),
-                    ),
-                  )),
+              ..._urgencies.map(
+                (u) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _FilterChip(
+                    label: u[0].toUpperCase() + u.substring(1),
+                    color: UrgencyLevel.color(u),
+                    selected: _urgencyFilter == u,
+                    onTap: () => setState(() => _urgencyFilter = _urgencyFilter == u ? null : u),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -293,8 +358,9 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
                 ..sort((a, b) {
                   final urgencyCompare = UrgencyLevel.weight(a.urgency).compareTo(UrgencyLevel.weight(b.urgency));
                   if (urgencyCompare != 0) return urgencyCompare;
-                  return (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-                      .compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0));
+                  return (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+                    a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+                  );
                 });
 
               // #new - at-a-glance queue composition before any filter
@@ -308,12 +374,26 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
                       normal: requests.where((r) => r.urgency == UrgencyLevel.normal).length,
                     );
 
-              final query = _searchController.text.trim().toLowerCase();
-              if (query.isNotEmpty) {
-                requests = requests
-                    .where((r) => r.patientName.toLowerCase().contains(query) || r.hospitalName.toLowerCase().contains(query))
-                    .toList();
-              }
+              // #search - the debounced query, not the raw controller
+              // text, so filtering runs once the operator stops typing
+              // rather than on every keystroke.
+              final query = _debouncedQuery.trim();
+              final totalBeforeSearch = requests.length;
+              // Matching now covers request ID, patient reference,
+              // patient name, blood group, hospital, ward and requesting
+              // officer - see RequestSearch. It filters only the already
+              // loaded snapshot, so it costs no extra Firestore reads.
+              requests = RequestSearch.filter(requests, query);
+              // #assignment-filter - assigned to me / unassigned / all.
+              requests = requests
+                  .where(
+                    (r) => AssignmentRules.matchesFilter(
+                      filter: _assignmentFilter,
+                      assignedDoctorId: r.assignedDoctorId,
+                      currentUserId: _currentUserId,
+                    ),
+                  )
+                  .toList();
               if (_bloodGroupFilter != null) {
                 requests = requests.where((r) => r.bloodGroup == _bloodGroupFilter).toList();
               }
@@ -322,16 +402,20 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
               }
 
               if (requests.isEmpty) {
-                final noFiltersActive = query.isEmpty && _bloodGroupFilter == null && _urgencyFilter == null;
+                final noFiltersActive =
+                    query.isEmpty && _bloodGroupFilter == null && _urgencyFilter == null && _assignmentFilter == AssignmentFilter.all;
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
                   children: [
                     EmptyState(
                       icon: Icons.task_alt_rounded,
-                      title: 'All caught up!',
+                      title: noFiltersActive ? 'All caught up!' : 'No matching requests',
                       message: noFiltersActive
                           ? 'No requests are waiting for verification right now.'
-                          : 'No pending requests match your search/filters.',
+                          // States the scope honestly: an empty result
+                          // means nothing in the LOADED queue matched,
+                          // not that the request does not exist.
+                          : (query.isEmpty ? 'No pending requests match these filters.' : RequestSearch.noMatchMessage),
                     ),
                     // #visibility - when the queue is genuinely empty
                     // there is nothing to demonstrate the critical/
@@ -362,13 +446,22 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
                 );
               }
 
+              // #search - a plain result count, so "3 of 18" is visible
+              // rather than staff having to count cards to know whether
+              // a filter is hiding something.
+              final resultCount = _ResultCountLine(
+                label: RequestSearch.resultCountLabel(shown: requests.length, total: totalBeforeSearch, query: query),
+                scopeNote: query.isEmpty ? null : 'Searches ${RequestSearch.searchableFieldsSummary}.',
+              );
+
               return ListView.separated(
                 padding: const EdgeInsets.all(16),
-                itemCount: requests.length + 1,
+                itemCount: requests.length + 2,
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   if (index == 0) return queueSummary;
-                  final r = requests[index - 1];
+                  if (index == 1) return resultCount;
+                  final r = requests[index - 2];
                   return EntranceFadeSlide(
                     delay: Duration(milliseconds: 40 * (index - 1).clamp(0, 8)),
                     child: _PendingRequestCard(request: r),
@@ -379,6 +472,62 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
           ),
         ),
       ],
+    );
+  }
+
+  /// The ownership filter row: All / Assigned to me / Unassigned.
+  Widget _buildAssignmentFilterRow(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final filter in AssignmentFilter.values) ...[
+              if (filter != AssignmentFilter.values.first) const SizedBox(width: 7),
+              Semantics(
+                selected: _assignmentFilter == filter,
+                button: true,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => setState(() => _assignmentFilter = filter),
+                  child: Container(
+                    // Keeps every chip above the 44dp tap-target floor.
+                    constraints: const BoxConstraints(minHeight: 44),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: _assignmentFilter == filter ? colors.accentContainer : colors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _assignmentFilter == filter ? colors.accent : colors.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Selection reads as a check plus colour, never
+                        // colour on its own.
+                        if (_assignmentFilter == filter) ...[
+                          Icon(Icons.check_rounded, size: 14, color: colors.accent),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          filter.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: _assignmentFilter == filter ? FontWeight.w700 : FontWeight.w500,
+                            color: _assignmentFilter == filter ? colors.accent : colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -454,15 +603,70 @@ class _OperationsTable extends StatelessWidget {
               dataRowMinHeight: 48,
               dataRowMaxHeight: 56,
               columns: [
-                DataColumn(label: Text('Request ID', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12)), onSort: (_, _) => onSort(_TableSortColumn.id)),
-                DataColumn(label: Text('Patient', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12)), onSort: (_, _) => onSort(_TableSortColumn.patient)),
-                DataColumn(label: Text('Group', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12)), onSort: (_, _) => onSort(_TableSortColumn.bloodGroup)),
-                DataColumn(label: Text('Units', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12)), numeric: true, onSort: (_, _) => onSort(_TableSortColumn.units)),
-                DataColumn(label: Text('Urgency', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12)), onSort: (_, _) => onSort(_TableSortColumn.urgency)),
-                DataColumn(label: Text('Hospital', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12)), onSort: (_, _) => onSort(_TableSortColumn.hospital)),
-                DataColumn(label: Text('Waiting', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12)), onSort: (_, _) => onSort(_TableSortColumn.waiting)),
-                DataColumn(label: Text('Coverage', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12)), onSort: (_, _) => onSort(_TableSortColumn.coverage)),
-                DataColumn(label: Text('Status', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12)), onSort: (_, _) => onSort(_TableSortColumn.status)),
+                DataColumn(
+                  label: Text(
+                    'Request ID',
+                    style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  onSort: (_, _) => onSort(_TableSortColumn.id),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Patient',
+                    style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  onSort: (_, _) => onSort(_TableSortColumn.patient),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Group',
+                    style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  onSort: (_, _) => onSort(_TableSortColumn.bloodGroup),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Units',
+                    style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  numeric: true,
+                  onSort: (_, _) => onSort(_TableSortColumn.units),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Urgency',
+                    style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  onSort: (_, _) => onSort(_TableSortColumn.urgency),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Hospital',
+                    style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  onSort: (_, _) => onSort(_TableSortColumn.hospital),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Waiting',
+                    style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  onSort: (_, _) => onSort(_TableSortColumn.waiting),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Coverage',
+                    style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  onSort: (_, _) => onSort(_TableSortColumn.coverage),
+                ),
+                DataColumn(
+                  label: Text(
+                    'Status',
+                    style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  onSort: (_, _) => onSort(_TableSortColumn.status),
+                ),
               ],
               rows: requests.map((r) {
                 final urgencyColor = UrgencyLevel.color(r.urgency);
@@ -470,25 +674,101 @@ class _OperationsTable extends StatelessWidget {
                 return DataRow(
                   onSelectChanged: (_) => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: r.id))),
                   cells: [
-                    DataCell(Text(r.id.substring(0, r.id.length < 8 ? r.id.length : 8).toUpperCase(), style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontFamily: 'monospace'))),
-                    DataCell(Text(r.patientName, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary))),
-                    DataCell(Text(r.bloodGroup, style: TextStyle(fontSize: 12.5, color: colors.critical, fontWeight: FontWeight.bold))),
+                    DataCell(
+                      Text(
+                        r.id.substring(0, r.id.length < 8 ? r.id.length : 8).toUpperCase(),
+                        style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontFamily: 'monospace'),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        r.patientName,
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        r.bloodGroup,
+                        style: TextStyle(fontSize: 12.5, color: colors.critical, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                     DataCell(Text('${r.unitsNeeded}', style: TextStyle(fontSize: 12.5, color: colors.textPrimary))),
-                    DataCell(Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: urgencyColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
-                      child: Text(r.urgency, style: TextStyle(fontSize: 11, color: urgencyColor, fontWeight: FontWeight.bold)),
-                    )),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: urgencyColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
+                        child: Text(
+                          r.urgency,
+                          style: TextStyle(fontSize: 11, color: urgencyColor, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
                     DataCell(Text(r.hospitalName, style: TextStyle(fontSize: 12.5, color: colors.textPrimary))),
                     DataCell(Text(WaitingTime.format(r.createdAt), style: TextStyle(fontSize: 12, color: colors.textSecondary))),
-                    DataCell(Text('$coveragePct%', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: coveragePct >= 100 ? colors.success : colors.textPrimary))),
-                    DataCell(Text(RequestStatus.label(r.status), style: TextStyle(fontSize: 11.5, color: RequestStatus.color(r.status), fontWeight: FontWeight.w600))),
+                    DataCell(
+                      Text(
+                        '$coveragePct%',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: coveragePct >= 100 ? colors.success : colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        RequestStatus.label(r.status),
+                        style: TextStyle(fontSize: 11.5, color: RequestStatus.color(r.status), fontWeight: FontWeight.w600),
+                      ),
+                    ),
                   ],
                 );
               }).toList(),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "3 of 18 requests match ..." plus, while a search is active, a line
+/// naming which fields were searched.
+///
+/// Without this, a filter that hides something looks identical to an
+/// empty queue.
+class _ResultCountLine extends StatelessWidget {
+  const _ResultCountLine({required this.label, this.scopeNote});
+
+  final String label;
+  final String? scopeNote;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.filter_list_rounded, size: 14, color: colors.textSecondary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: colors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+          if (scopeNote != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 20, top: 2),
+              child: Text(scopeNote!, style: TextStyle(fontSize: 10.5, color: colors.textSecondary, height: 1.3)),
+            ),
+        ],
       ),
     );
   }
@@ -505,15 +785,25 @@ class _QueueSummaryStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Each stat carries its own urgency colour, so this widget needs no
+    // palette of its own. (Both this branch and main independently
+    // removed the unused `colors` variable here; the comment is kept so
+    // the next reader knows the omission is deliberate.)
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Expanded(child: _QueueStat(label: 'Critical', value: critical, color: UrgencyLevel.color(UrgencyLevel.critical))),
+          Expanded(
+            child: _QueueStat(label: 'Critical', value: critical, color: UrgencyLevel.color(UrgencyLevel.critical)),
+          ),
           const SizedBox(width: 10),
-          Expanded(child: _QueueStat(label: 'High', value: high, color: UrgencyLevel.color(UrgencyLevel.high))),
+          Expanded(
+            child: _QueueStat(label: 'High', value: high, color: UrgencyLevel.color(UrgencyLevel.high)),
+          ),
           const SizedBox(width: 10),
-          Expanded(child: _QueueStat(label: 'Normal', value: normal, color: UrgencyLevel.color(UrgencyLevel.normal))),
+          Expanded(
+            child: _QueueStat(label: 'Normal', value: normal, color: UrgencyLevel.color(UrgencyLevel.normal)),
+          ),
         ],
       ),
     );
@@ -538,7 +828,10 @@ class _QueueStat extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text('$value', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Text(
+            '$value',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+          ),
           const SizedBox(height: 2),
           Text(label, style: TextStyle(fontSize: 11, color: colors.textSecondary)),
         ],
@@ -558,7 +851,11 @@ class _CriticalHandlingPreview extends StatelessWidget {
 
   static const _rows = [
     (Icons.north_rounded, 'Jumps to the top of the queue', 'Sorted by urgency first, then by longest waiting time.'),
-    (Icons.crop_16_9_rounded, 'Red-tinted card + thick left edge', 'Instantly distinguishable while scanning the list - not just a small label.'),
+    (
+      Icons.crop_16_9_rounded,
+      'Red-tinted card + thick left edge',
+      'Instantly distinguishable while scanning the list - not just a small label.',
+    ),
     (Icons.podcasts_rounded, 'Live pulse indicator', 'A pulsing dot marks it as active/urgent on both this queue and the Dashboard.'),
     (Icons.dashboard_customize_outlined, 'Surfaces on the Dashboard', 'Shows in the Emergency Command Center the moment it is created.'),
     (Icons.notifications_active_outlined, 'Priority alert', 'Pushed to the Alert Center and flagged in the bell icon for staff.'),
@@ -582,12 +879,18 @@ class _CriticalHandlingPreview extends StatelessWidget {
             children: [
               Icon(Icons.emergency_outlined, size: 16, color: colors.critical),
               const SizedBox(width: 8),
-              Text('When a critical request arrives', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              Text(
+                'When a critical request arrives',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colors.textPrimary),
+              ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(color: colors.champagne.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
-                child: Text('PREVIEW', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colors.champagne, letterSpacing: 0.4)),
+                child: Text(
+                  'PREVIEW',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colors.champagne, letterSpacing: 0.4),
+                ),
               ),
             ],
           ),
@@ -613,7 +916,10 @@ class _CriticalHandlingPreview extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(row.$2, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                        Text(
+                          row.$2,
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.textPrimary),
+                        ),
                         const SizedBox(height: 1),
                         Text(row.$3, style: TextStyle(fontSize: 11.5, color: colors.textSecondary)),
                       ],
@@ -653,7 +959,11 @@ class _FilterChip extends StatelessWidget {
         ),
         child: AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 220),
-          style: TextStyle(fontSize: 12.5, color: selected ? accent : colors.textSecondary, fontWeight: selected ? FontWeight.bold : FontWeight.w500),
+          style: TextStyle(
+            fontSize: 12.5,
+            color: selected ? accent : colors.textSecondary,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+          ),
           child: Text(label),
         ),
       ),
@@ -674,10 +984,10 @@ class _SavedVerifyFilter {
 
   Map<String, dynamic> toJson() => {'name': name, 'bloodGroup': bloodGroup, 'urgency': urgency};
   factory _SavedVerifyFilter.fromJson(Map<String, dynamic> json) => _SavedVerifyFilter(
-        name: json['name'] as String? ?? 'Filter',
-        bloodGroup: json['bloodGroup'] as String?,
-        urgency: json['urgency'] as String?,
-      );
+    name: json['name'] as String? ?? 'Filter',
+    bloodGroup: json['bloodGroup'] as String?,
+    urgency: json['urgency'] as String?,
+  );
 }
 
 class _PendingRequestCard extends StatelessWidget {
@@ -719,10 +1029,18 @@ class _PendingRequestCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(color: urgencyColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
-                  child: Text(request.urgency, style: TextStyle(color: urgencyColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    request.urgency,
+                    style: TextStyle(color: urgencyColor, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                Flexible(child: Align(alignment: Alignment.centerRight, child: RequestHealthBadge(request: request, showWaitingTime: true))),
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: RequestHealthBadge(request: request, showWaitingTime: true),
+                  ),
+                ),
               ],
             ),
             // #two-person-verification - a critical request with one
@@ -739,7 +1057,10 @@ class _PendingRequestCard extends StatelessWidget {
                   children: [
                     Icon(Icons.gpp_maybe_outlined, size: 12, color: colors.warning),
                     const SizedBox(width: 4),
-                    Text('1st approval by ${request.firstApproverName ?? 'staff'} - needs 2nd', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: colors.warning)),
+                    Text(
+                      '1st approval by ${request.firstApproverName ?? 'staff'} - needs 2nd',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: colors.warning),
+                    ),
                   ],
                 ),
               ),
@@ -752,7 +1073,10 @@ class _PendingRequestCard extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 22,
                     backgroundColor: colors.critical.withValues(alpha: 0.1),
-                    child: Text(request.bloodGroup, style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      request.bloodGroup,
+                      style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -760,9 +1084,15 @@ class _PendingRequestCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(request.patientName, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                      Text(
+                        request.patientName,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      ),
                       const SizedBox(height: 2),
-                      Text('${request.unitsNeeded} unit(s) · ${request.hospitalName}', style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+                      Text(
+                        '${request.unitsNeeded} unit(s) · ${request.hospitalName}',
+                        style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                      ),
                     ],
                   ),
                 ),
@@ -775,16 +1105,16 @@ class _PendingRequestCard extends StatelessWidget {
             // timeline) - not just a plain tappable row.
             Container(
               padding: const EdgeInsets.symmetric(vertical: 9),
-              decoration: BoxDecoration(
-                color: colors.elevatedSurface,
-                borderRadius: BorderRadius.circular(10),
-              ),
+              decoration: BoxDecoration(color: colors.elevatedSurface, borderRadius: BorderRadius.circular(10)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.badge_outlined, size: 15, color: colors.primary),
                   const SizedBox(width: 6),
-                  Text('View Patient Details & Verify', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.primary)),
+                  Text(
+                    'View Patient Details & Verify',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.primary),
+                  ),
                   const SizedBox(width: 4),
                   Icon(Icons.chevron_right_rounded, size: 16, color: colors.primary),
                 ],
