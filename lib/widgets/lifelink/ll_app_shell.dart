@@ -22,12 +22,7 @@ import 'll_nav.dart';
 /// each screen's scroll position and open Firestore subscriptions rather
 /// than rebuilding them.
 class LLAppShell extends StatefulWidget {
-  const LLAppShell({
-    super.key,
-    required this.nav,
-    this.initialIndex = 0,
-    this.banner,
-  });
+  const LLAppShell({super.key, required this.nav, this.initialIndex = 0, this.banner});
 
   final LLRoleNav nav;
   final int initialIndex;
@@ -59,9 +54,7 @@ class _LLAppShellState extends State<LLAppShell> {
         Expanded(
           child: IndexedStack(
             index: _index,
-            children: [
-              for (final destination in destinations) destination.builder(context),
-            ],
+            children: [for (final destination in destinations) destination.builder(context)],
           ),
         ),
       ],
@@ -122,12 +115,7 @@ class _LLAppShellState extends State<LLAppShell> {
 /// both learned from a real overflow bug on a narrow phone, where an
 /// unconstrained title wrapped to one character per line.
 class LLAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const LLAppBar({
-    super.key,
-    required this.roleLabel,
-    required this.title,
-    this.actions = const [],
-  });
+  const LLAppBar({super.key, required this.roleLabel, required this.title, this.actions = const []});
 
   final String roleLabel;
   final String title;
@@ -177,11 +165,7 @@ class LLAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         for (final action in primary)
-          IconButton(
-            tooltip: action.tooltip,
-            icon: Icon(action.icon),
-            onPressed: action.onPressed,
-          ),
+          IconButton(tooltip: action.tooltip, icon: Icon(action.icon), onPressed: action.onPressed),
         if (overflow.isNotEmpty)
           PopupMenuButton<int>(
             tooltip: 'More actions',

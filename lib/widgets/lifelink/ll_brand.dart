@@ -31,11 +31,7 @@ class LLBrandMark extends StatelessWidget {
           borderRadius: BorderRadius.circular(LLRadius.avatar * size / 42),
         ),
         child: Center(
-          child: Icon(
-            Icons.water_drop_rounded,
-            size: size * 0.62,
-            color: colors.primary,
-          ),
+          child: Icon(Icons.water_drop_rounded, size: size * 0.62, color: colors.primary),
         ),
       ),
     );

@@ -127,12 +127,6 @@ class LLElevation {
 
   static List<BoxShadow> card(Brightness brightness) {
     if (brightness == Brightness.dark) return const [];
-    return [
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.07),
-        blurRadius: 10,
-        offset: const Offset(0, 2),
-      ),
-    ];
+    return [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 2))];
   }
 }

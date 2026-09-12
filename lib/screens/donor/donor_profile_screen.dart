@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../theme/app_colors.dart';
+
 /// Donor Profile Screen displaying personal and donation details
 /// fetched from Firestore `users/{uid}` with edit capabilities.
 class DonorProfileScreen extends StatelessWidget {
   const DonorProfileScreen({super.key});
-
-  static const Color primaryColor = Color(0xFFC62828); // Deep Crimson Red
-  static const Color surfaceColor = Color(0xFFF9FAFB);
-  static const Color cardBorderColor = Color(0xFFE5E7EB);
-  static const Color textPrimaryColor = Color(0xFF1F2937);
-  static const Color textSecondaryColor = Color(0xFF6B7280);
 
   /// Helper to format last donation date nicely from Firestore Timestamp, DateTime, or null.
   String _formatLastDonationDate(dynamic value) {
@@ -32,10 +28,7 @@ class DonorProfileScreen extends StatelessWidget {
       return 'No donation recorded';
     }
 
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     final monthStr = months[date.month - 1];
     return '${date.day.toString().padLeft(2, '0')} $monthStr ${date.year}';
@@ -60,60 +53,43 @@ class DonorProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final user = _getCurrentUser();
 
     if (user == null) {
       return Scaffold(
-        backgroundColor: surfaceColor,
+        backgroundColor: colors.background,
         appBar: AppBar(
           title: const Text('Donor Profile'),
-          backgroundColor: primaryColor,
+          backgroundColor: colors.primary,
           foregroundColor: Colors.white,
         ),
-        body: const Center(
-          child: Text(
-            'User is not signed in.',
-            style: TextStyle(color: textSecondaryColor, fontSize: 16),
-          ),
+        body: Center(
+          child: Text('User is not signed in.', style: TextStyle(color: colors.textSecondary, fontSize: 16)),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: surfaceColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text(
-          'Donor Profile',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: primaryColor,
+        title: const Text('Donor Profile', style: TextStyle(fontWeight: FontWeight.w600)),
+        backgroundColor: colors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(
-                    color: primaryColor,
-                    strokeWidth: 3,
-                  ),
+                  CircularProgressIndicator(color: colors.primary, strokeWidth: 3),
                   SizedBox(height: 16),
-                  Text(
-                    'Loading profile...',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: textSecondaryColor,
-                    ),
-                  ),
+                  Text('Loading profile...', style: TextStyle(fontSize: 14, color: colors.textSecondary)),
                 ],
               ),
             );
@@ -126,28 +102,17 @@ class DonorProfileScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.error_outline_rounded,
-                      size: 48,
-                      color: Color(0xFFD32F2F),
-                    ),
+                    Icon(Icons.error_outline_rounded, size: 48, color: colors.critical),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Failed to load profile',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textPrimaryColor,
-                      ),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       snapshot.error?.toString() ?? 'An error occurred.',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: textSecondaryColor,
-                      ),
+                      style: TextStyle(fontSize: 13, color: colors.textSecondary),
                     ),
                   ],
                 ),
@@ -159,18 +124,14 @@ class DonorProfileScreen extends StatelessWidget {
           final data = doc?.data() ?? <String, dynamic>{};
 
           final rawFullName = data['fullName'] as String?;
-          final fullName = (rawFullName != null && rawFullName.trim().isNotEmpty)
-              ? rawFullName.trim()
-              : 'Not set';
+          final fullName = (rawFullName != null && rawFullName.trim().isNotEmpty) ? rawFullName.trim() : 'Not set';
 
           final email = (data['email'] as String?)?.trim().isNotEmpty == true
               ? (data['email'] as String).trim()
               : (user.email ?? 'Not set');
 
           final rawPhone = data['phoneNumber'] as String?;
-          final phoneNumber = (rawPhone != null && rawPhone.trim().isNotEmpty)
-              ? rawPhone.trim()
-              : 'Not set';
+          final phoneNumber = (rawPhone != null && rawPhone.trim().isNotEmpty) ? rawPhone.trim() : 'Not set';
 
           final rawBloodGroup = data['bloodGroup'] as String?;
           final bloodGroup = (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
@@ -178,9 +139,7 @@ class DonorProfileScreen extends StatelessWidget {
               : 'Not set';
 
           final rawLocation = data['location'] as String?;
-          final location = (rawLocation != null && rawLocation.trim().isNotEmpty)
-              ? rawLocation.trim()
-              : 'Not set';
+          final location = (rawLocation != null && rawLocation.trim().isNotEmpty) ? rawLocation.trim() : 'Not set';
 
           final isAvailable = (data['isAvailable'] as bool?) ?? false;
           final lastDonationDisplay = _formatLastDonationDate(data['lastDonationDate']);
@@ -196,7 +155,7 @@ class DonorProfileScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: cardBorderColor),
+                    border: Border.all(color: colors.border),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.03),
@@ -212,31 +171,20 @@ class DonorProfileScreen extends StatelessWidget {
                         children: [
                           CircleAvatar(
                             radius: 46,
-                            backgroundColor: primaryColor.withValues(alpha: 0.12),
-                            child: const Icon(
-                              Icons.person_rounded,
-                              size: 52,
-                              color: primaryColor,
-                            ),
+                            backgroundColor: colors.primary.withValues(alpha: 0.12),
+                            child: Icon(Icons.person_rounded, size: 52, color: colors.primary),
                           ),
                           if (bloodGroup != 'Not set')
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: primaryColor,
+                                color: colors.primary,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: Colors.white, width: 2),
                               ),
                               child: Text(
                                 bloodGroup,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                               ),
                             ),
                         ],
@@ -245,50 +193,30 @@ class DonorProfileScreen extends StatelessWidget {
                       Text(
                         fullName,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: textPrimaryColor,
-                        ),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         email,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: textSecondaryColor,
-                        ),
+                        style: TextStyle(fontSize: 13, color: colors.textSecondary),
                       ),
                       const SizedBox(height: 12),
                       // Availability Status Badge
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isAvailable
-                              ? const Color(0xFFE8F5E9)
-                              : const Color(0xFFFEE2E2),
+                          color: isAvailable ? colors.successContainer : colors.criticalContainer,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isAvailable
-                                ? const Color(0xFFA5D6A7)
-                                : const Color(0xFFFCA5A5),
-                          ),
+                          border: Border.all(color: isAvailable ? colors.successContainer : colors.criticalContainer),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              isAvailable
-                                  ? Icons.check_circle_rounded
-                                  : Icons.cancel_rounded,
+                              isAvailable ? Icons.check_circle_rounded : Icons.cancel_rounded,
                               size: 16,
-                              color: isAvailable
-                                  ? const Color(0xFF2E7D32)
-                                  : const Color(0xFFDC2626),
+                              color: isAvailable ? colors.success : colors.critical,
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -296,9 +224,7 @@ class DonorProfileScreen extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: isAvailable
-                                    ? const Color(0xFF2E7D32)
-                                    : const Color(0xFFDC2626),
+                                color: isAvailable ? colors.success : colors.critical,
                               ),
                             ),
                           ],
@@ -311,7 +237,7 @@ class DonorProfileScreen extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // Details Section Header
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4.0),
                   child: Text(
                     'DONOR DETAILS',
@@ -319,7 +245,7 @@ class DonorProfileScreen extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.8,
-                      color: textSecondaryColor,
+                      color: colors.textSecondary,
                     ),
                   ),
                 ),
@@ -330,7 +256,7 @@ class DonorProfileScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: cardBorderColor),
+                    border: Border.all(color: colors.border),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.03),
@@ -341,52 +267,32 @@ class DonorProfileScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      _ProfileInfoTile(
-                        icon: Icons.person_outline_rounded,
-                        label: 'Full Name',
-                        value: fullName,
-                      ),
+                      _ProfileInfoTile(icon: Icons.person_outline_rounded, label: 'Full Name', value: fullName),
                       const Divider(height: 1, indent: 56, endIndent: 16),
                       _ProfileInfoTile(
                         icon: Icons.email_outlined,
                         label: 'Email',
                         value: email,
-                        trailing: const Icon(
-                          Icons.lock_outline_rounded,
-                          size: 16,
-                          color: Color(0xFF9CA3AF),
-                        ),
+                        trailing: Icon(Icons.lock_outline_rounded, size: 16, color: colors.textSecondary),
                       ),
                       const Divider(height: 1, indent: 56, endIndent: 16),
-                      _ProfileInfoTile(
-                        icon: Icons.phone_outlined,
-                        label: 'Phone Number',
-                        value: phoneNumber,
-                      ),
+                      _ProfileInfoTile(icon: Icons.phone_outlined, label: 'Phone Number', value: phoneNumber),
                       const Divider(height: 1, indent: 56, endIndent: 16),
                       _ProfileInfoTile(
                         icon: Icons.bloodtype_outlined,
                         label: 'Blood Group',
                         value: bloodGroup,
-                        valueColor: bloodGroup != 'Not set'
-                            ? primaryColor
-                            : textSecondaryColor,
+                        valueColor: bloodGroup != 'Not set' ? colors.primary : colors.textSecondary,
                         valueBold: bloodGroup != 'Not set',
                       ),
                       const Divider(height: 1, indent: 56, endIndent: 16),
-                      _ProfileInfoTile(
-                        icon: Icons.location_on_outlined,
-                        label: 'Location',
-                        value: location,
-                      ),
+                      _ProfileInfoTile(icon: Icons.location_on_outlined, label: 'Location', value: location),
                       const Divider(height: 1, indent: 56, endIndent: 16),
                       _ProfileInfoTile(
                         icon: Icons.event_available_rounded,
                         label: 'Availability Status',
                         value: isAvailable ? 'Available' : 'Unavailable',
-                        valueColor: isAvailable
-                            ? const Color(0xFF2E7D32)
-                            : const Color(0xFFDC2626),
+                        valueColor: isAvailable ? colors.success : colors.critical,
                         valueBold: true,
                       ),
                       const Divider(height: 1, indent: 56, endIndent: 16),
@@ -405,20 +311,12 @@ class DonorProfileScreen extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () => _showEditProfileModal(context, data),
                   icon: const Icon(Icons.edit_rounded, size: 20),
-                  label: const Text(
-                    'Edit Profile',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  label: const Text('Edit Profile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
+                    backgroundColor: colors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     elevation: 1,
                   ),
                 ),
@@ -451,41 +349,29 @@ class _ProfileInfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: const Color(0xFF4B5563),
-            ),
+            decoration: BoxDecoration(color: colors.elevatedSurface, borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, size: 20, color: colors.textSecondary),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
+                Text(label, style: TextStyle(fontSize: 12, color: colors.textSecondary)),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: valueBold ? FontWeight.w600 : FontWeight.w500,
-                    color: valueColor ?? const Color(0xFF1F2937),
+                    color: valueColor ?? colors.textPrimary,
                   ),
                 ),
               ],
@@ -518,24 +404,16 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
   late bool _isAvailable;
   bool _isSaving = false;
 
-  static const List<String> _bloodGroups = [
-    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
-  ];
+  static const List<String> _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
   @override
   void initState() {
     super.initState();
     final data = widget.initialData;
 
-    _nameController = TextEditingController(
-      text: (data['fullName'] as String?) ?? '',
-    );
-    _phoneController = TextEditingController(
-      text: (data['phoneNumber'] as String?) ?? '',
-    );
-    _locationController = TextEditingController(
-      text: (data['location'] as String?) ?? '',
-    );
+    _nameController = TextEditingController(text: (data['fullName'] as String?) ?? '');
+    _phoneController = TextEditingController(text: (data['phoneNumber'] as String?) ?? '');
+    _locationController = TextEditingController(text: (data['location'] as String?) ?? '');
 
     final currentBlood = (data['bloodGroup'] as String?)?.trim();
     if (currentBlood != null && _bloodGroups.contains(currentBlood)) {
@@ -556,6 +434,7 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
   }
 
   Future<void> _handleSave() async {
+    final colors = context.colors;
     if (_isSaving) return;
 
     if (!_formKey.currentState!.validate()) {
@@ -570,9 +449,9 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
     }
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Unable to identify current user. Please re-login.'),
-          backgroundColor: Color(0xFFD32F2F),
+          backgroundColor: colors.critical,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -602,9 +481,9 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
       Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Profile updated successfully.'),
-          backgroundColor: Color(0xFF2E7D32),
+          backgroundColor: colors.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -613,16 +492,16 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.message ?? 'Database error occurred while updating profile.'),
-          backgroundColor: const Color(0xFFD32F2F),
+          backgroundColor: colors.critical,
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Failed to update profile. Please try again.'),
-          backgroundColor: Color(0xFFD32F2F),
+          backgroundColor: colors.critical,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -637,7 +516,7 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828);
+    final colors = context.colors;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -661,10 +540,7 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
                   child: Container(
                     width: 44,
                     height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE5E7EB),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+                    decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -673,13 +549,9 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Edit Profile',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
-                      ),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
@@ -696,13 +568,8 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
                   decoration: InputDecoration(
                     labelText: 'Full Name',
                     prefixIcon: const Icon(Icons.person_outline_rounded),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -722,13 +589,8 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
                     labelText: 'Phone Number',
                     hintText: 'e.g. +94 77 123 4567',
                     prefixIcon: const Icon(Icons.phone_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -739,20 +601,12 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
                   decoration: InputDecoration(
                     labelText: 'Blood Group',
                     prefixIcon: const Icon(Icons.bloodtype_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
                   hint: const Text('Select blood group'),
                   items: _bloodGroups.map((group) {
-                    return DropdownMenuItem<String>(
-                      value: group,
-                      child: Text(group),
-                    );
+                    return DropdownMenuItem<String>(value: group, child: Text(group));
                   }).toList(),
                   onChanged: _isSaving
                       ? null
@@ -772,13 +626,8 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
                     labelText: 'Location / City',
                     hintText: 'e.g. Colombo, Kandy, Galle',
                     prefixIcon: const Icon(Icons.location_on_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -787,30 +636,23 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF9FAFB),
+                    color: colors.background,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    border: Border.all(color: colors.border),
                   ),
                   child: SwitchListTile(
                     value: _isAvailable,
-                    activeThumbColor: primaryColor,
+                    activeThumbColor: colors.primary,
                     contentPadding: EdgeInsets.zero,
-                    title: const Text(
+                    title: Text(
                       'Available to Donate Blood',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F2937),
-                      ),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary),
                     ),
                     subtitle: Text(
                       _isAvailable
                           ? 'Other users can contact you for blood donation requests.'
                           : 'You will appear unavailable for urgent donation requests.',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF6B7280),
-                      ),
+                      style: TextStyle(fontSize: 12, color: colors.textSecondary),
                     ),
                     onChanged: _isSaving
                         ? null
@@ -827,29 +669,18 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
                 ElevatedButton(
                   onPressed: _isSaving ? null : _handleSave,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
+                    backgroundColor: colors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _isSaving
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text(
-                          'Save Changes',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),

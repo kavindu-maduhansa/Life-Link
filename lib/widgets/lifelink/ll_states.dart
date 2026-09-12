@@ -39,13 +39,7 @@ class LLLoadingState extends StatelessWidget {
 /// Empty state: an icon, a title, an explanation, and optionally the one
 /// action that would resolve it.
 class LLEmptyState extends StatelessWidget {
-  const LLEmptyState({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.message,
-    this.action,
-  });
+  const LLEmptyState({super.key, required this.icon, required this.title, required this.message, this.action});
 
   final IconData icon;
   final String title;
@@ -74,10 +68,7 @@ class LLEmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12.5, color: colors.textSecondary, height: 1.45),
             ),
-            if (action != null) ...[
-              const SizedBox(height: LLSpacing.lg),
-              action!,
-            ],
+            if (action != null) ...[const SizedBox(height: LLSpacing.lg), action!],
           ],
         ),
       ),
@@ -89,12 +80,7 @@ class LLEmptyState extends StatelessWidget {
 /// problem, because the two need different responses from the person
 /// reading them: one needs an administrator, the other needs a retry.
 class LLErrorState extends StatelessWidget {
-  const LLErrorState({
-    super.key,
-    required this.error,
-    this.onRetry,
-    this.whatFailed,
-  });
+  const LLErrorState({super.key, required this.error, this.onRetry, this.whatFailed});
 
   final Object error;
   final VoidCallback? onRetry;
@@ -135,7 +121,7 @@ class LLErrorState extends StatelessWidget {
             Text(
               isPermission
                   ? 'Your account does not have permission for this. Ask an administrator to '
-                      'review your role - signing out and back in will not change it.'
+                        'review your role - signing out and back in will not change it.'
                   : 'This is usually a connection problem. Check your connection and try again.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12.5, color: colors.textSecondary, height: 1.45),
@@ -159,12 +145,7 @@ class LLErrorState extends StatelessWidget {
 /// rather than replacing it - a data caveat, a stale-data warning, a
 /// "some records are incomplete" note.
 class LLNotice extends StatelessWidget {
-  const LLNotice({
-    super.key,
-    required this.message,
-    required this.icon,
-    this.tone = LLTone.neutral,
-  });
+  const LLNotice({super.key, required this.message, required this.icon, this.tone = LLTone.neutral});
 
   final String message;
   final IconData icon;
@@ -187,10 +168,7 @@ class LLNotice extends StatelessWidget {
           Icon(icon, size: LLIconSize.label, color: fg),
           const SizedBox(width: LLSpacing.sm),
           Expanded(
-            child: Text(
-              message,
-              style: TextStyle(fontSize: 11.5, color: colors.textPrimary, height: 1.35),
-            ),
+            child: Text(message, style: TextStyle(fontSize: 11.5, color: colors.textPrimary, height: 1.35)),
           ),
         ],
       ),

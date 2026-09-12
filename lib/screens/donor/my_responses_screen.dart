@@ -3,15 +3,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'emergency_requests_screen.dart';
 
+import '../../theme/app_colors.dart';
+
 /// Screen displaying all blood donation responses submitted by the currently logged-in donor.
 class MyResponsesScreen extends StatefulWidget {
   const MyResponsesScreen({super.key});
-
-  static const Color primaryColor = Color(0xFFC62828); // Deep Crimson Red
-  static const Color surfaceColor = Color(0xFFF9FAFB);
-  static const Color cardBorderColor = Color(0xFFE5E7EB);
-  static const Color textPrimaryColor = Color(0xFF1F2937);
-  static const Color textSecondaryColor = Color(0xFF6B7280);
 
   /// Formats date safely from Timestamp, DateTime, String, int, or null.
   static String formatResponseDate(dynamic value) {
@@ -34,10 +30,7 @@ class MyResponsesScreen extends StatefulWidget {
 
     if (date == null) return 'Recently submitted';
 
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     final monthStr = months[date.month - 1];
     final dayStr = date.day.toString().padLeft(2, '0');
@@ -63,37 +56,42 @@ class MyResponsesScreen extends StatefulWidget {
   }
 
   /// Returns visual configuration (label, colors, icon) for a response status.
-  static StatusBadgeConfig getStatusConfig(dynamic rawStatus) {
+  /// Takes a [BuildContext] so the badge colours come from the active
+  /// theme. It previously returned hard-coded light-mode literals, which
+  /// is why this screen had no Dark Mode.
+  static StatusBadgeConfig getStatusConfig(BuildContext context, dynamic rawStatus) {
+    final colors = context.colors;
     final status = rawStatus?.toString().trim().toLowerCase() ?? '';
 
     switch (status) {
       case 'accepted':
       case 'approved':
-        return const StatusBadgeConfig(
+        return StatusBadgeConfig(
           label: 'Accepted',
-          textColor: Color(0xFF15803D),
-          backgroundColor: Color(0xFFDCFCE7),
-          borderColor: Color(0xFF86EFAC),
+          textColor: colors.success,
+          backgroundColor: colors.successContainer,
+          borderColor: colors.successContainer,
           icon: Icons.check_circle_outline_rounded,
           description: 'The hospital coordinator has accepted your donation offer. They will contact you shortly.',
         );
       case 'rejected':
       case 'declined':
-        return const StatusBadgeConfig(
+        return StatusBadgeConfig(
           label: 'Rejected',
-          textColor: Color(0xFFDC2626),
-          backgroundColor: Color(0xFFFEE2E2),
-          borderColor: Color(0xFFFCA5A5),
+          textColor: colors.critical,
+          backgroundColor: colors.criticalContainer,
+          borderColor: colors.criticalContainer,
           icon: Icons.cancel_outlined,
-          description: 'This request has already been fulfilled or cannot proceed at this time. Thank you for your willingness to help.',
+          description:
+              'This request has already been fulfilled or cannot proceed at this time. Thank you for your willingness to help.',
         );
       case 'pending':
       default:
-        return const StatusBadgeConfig(
+        return StatusBadgeConfig(
           label: 'Pending Review',
-          textColor: Color(0xFFB45309),
-          backgroundColor: Color(0xFFFEF3C7),
-          borderColor: Color(0xFFFDE68A),
+          textColor: colors.warning,
+          backgroundColor: colors.warningContainer,
+          borderColor: colors.warningContainer,
           icon: Icons.hourglass_empty_rounded,
           description: 'Your response has been sent to the hospital and is awaiting review by the medical team.',
         );
@@ -123,10 +121,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
 
   Stream<QuerySnapshot<Map<String, dynamic>>>? _getResponsesStream(String uid) {
     try {
-      return FirebaseFirestore.instance
-          .collection('donor_responses')
-          .where('donorId', isEqualTo: uid)
-          .snapshots();
+      return FirebaseFirestore.instance.collection('donor_responses').where('donorId', isEqualTo: uid).snapshots();
     } catch (_) {
       return null;
     }
@@ -134,48 +129,35 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final currentUser = _currentUser;
 
     if (currentUser == null) {
       return Scaffold(
-        backgroundColor: MyResponsesScreen.surfaceColor,
+        backgroundColor: colors.background,
         appBar: AppBar(
-          title: const Text(
-            'My Responses',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
-          ),
-          backgroundColor: MyResponsesScreen.primaryColor,
+          title: const Text('My Responses', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+          backgroundColor: colors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
         ),
-        body: const Center(
+        body: Center(
           child: Padding(
             padding: EdgeInsets.all(32.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.account_circle_outlined,
-                  size: 56,
-                  color: MyResponsesScreen.textSecondaryColor,
-                ),
+                Icon(Icons.account_circle_outlined, size: 56, color: colors.textSecondary),
                 SizedBox(height: 16),
                 Text(
                   'Please Sign In',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: MyResponsesScreen.textPrimaryColor,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
                 ),
                 SizedBox(height: 8),
                 Text(
                   'Sign in to your donor account to track your submitted blood donation responses.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: MyResponsesScreen.textSecondaryColor,
-                  ),
+                  style: TextStyle(fontSize: 14, color: colors.textSecondary),
                 ),
               ],
             ),
@@ -188,39 +170,24 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
 
     if (stream == null) {
       return Scaffold(
-        backgroundColor: MyResponsesScreen.surfaceColor,
+        backgroundColor: colors.background,
         appBar: AppBar(
-          title: const Text(
-            'My Responses',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
-          ),
-          backgroundColor: MyResponsesScreen.primaryColor,
+          title: const Text('My Responses', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+          backgroundColor: colors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
         ),
-        body: const Center(
-          child: Text(
-            'Database is not connected.',
-            style: TextStyle(
-              color: MyResponsesScreen.textSecondaryColor,
-              fontSize: 14,
-            ),
-          ),
+        body: Center(
+          child: Text('Database is not connected.', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: MyResponsesScreen.surfaceColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text(
-          'My Responses',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 19,
-          ),
-        ),
-        backgroundColor: MyResponsesScreen.primaryColor,
+        title: const Text('My Responses', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+        backgroundColor: colors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
@@ -232,22 +199,15 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
           builder: (context, snapshot) {
             // 1. Loading State
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
+              return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(
-                      color: MyResponsesScreen.primaryColor,
-                      strokeWidth: 3,
-                    ),
+                    CircularProgressIndicator(color: colors.primary, strokeWidth: 3),
                     SizedBox(height: 16),
                     Text(
                       'Loading your responses...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: MyResponsesScreen.textSecondaryColor,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(fontSize: 14, color: colors.textSecondary, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -265,35 +225,23 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                       Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEE2E2),
+                          color: colors.criticalContainer,
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                          border: Border.all(color: colors.criticalContainer),
                         ),
-                        child: const Icon(
-                          Icons.error_outline_rounded,
-                          size: 46,
-                          color: Color(0xFFDC2626),
-                        ),
+                        child: Icon(Icons.error_outline_rounded, size: 46, color: colors.critical),
                       ),
                       const SizedBox(height: 20),
-                      const Text(
+                      Text(
                         'Unable to load your responses',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: MyResponsesScreen.textPrimaryColor,
-                        ),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'We encountered an issue retrieving your response history. Please check your connection and try again.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: MyResponsesScreen.textSecondaryColor,
-                          height: 1.4,
-                        ),
+                        style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.4),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton.icon(
@@ -301,15 +249,10 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                         icon: const Icon(Icons.refresh_rounded, size: 18),
                         label: const Text('Try Again'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: MyResponsesScreen.primaryColor,
+                          backgroundColor: colors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
                       ),
@@ -344,57 +287,38 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                       Container(
                         padding: const EdgeInsets.all(22),
                         decoration: BoxDecoration(
-                          color: MyResponsesScreen.primaryColor.withValues(alpha: 0.08),
+                          color: colors.primary.withValues(alpha: 0.08),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.assignment_outlined,
-                          size: 56,
-                          color: MyResponsesScreen.primaryColor,
-                        ),
+                        child: Icon(Icons.assignment_outlined, size: 56, color: colors.primary),
                       ),
                       const SizedBox(height: 20),
-                      const Text(
+                      Text(
                         'No Responses Yet',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: MyResponsesScreen.textPrimaryColor,
-                        ),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         "You haven't responded to any emergency blood requests yet.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: MyResponsesScreen.textSecondaryColor,
-                          height: 1.4,
-                        ),
+                        style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
                       ),
                       const SizedBox(height: 22),
                       ElevatedButton.icon(
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => const EmergencyRequestsScreen(),
-                            ),
+                            MaterialPageRoute(builder: (context) => const EmergencyRequestsScreen()),
                           );
                         },
                         icon: const Icon(Icons.emergency_rounded, size: 18),
                         label: const Text('View Emergency Requests'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: MyResponsesScreen.primaryColor,
+                          backgroundColor: colors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 22,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
                       ),
@@ -429,7 +353,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                     : null;
 
                 final rawStatus = data['status'];
-                final statusConfig = MyResponsesScreen.getStatusConfig(rawStatus);
+                final statusConfig = MyResponsesScreen.getStatusConfig(context, rawStatus);
                 final respondedDateStr = MyResponsesScreen.formatResponseDate(data['respondedAt']);
 
                 return Card(
@@ -437,7 +361,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                   margin: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
-                    side: const BorderSide(color: MyResponsesScreen.cardBorderColor),
+                    side: BorderSide(color: colors.border),
                   ),
                   color: Colors.white,
                   child: Padding(
@@ -450,16 +374,13 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: MyResponsesScreen.primaryColor,
+                                color: colors.primary,
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: MyResponsesScreen.primaryColor.withValues(alpha: 0.25),
+                                    color: colors.primary.withValues(alpha: 0.25),
                                     blurRadius: 6,
                                     offset: const Offset(0, 2),
                                   ),
@@ -468,11 +389,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                    Icons.water_drop_rounded,
-                                    size: 15,
-                                    color: Colors.white,
-                                  ),
+                                  const Icon(Icons.water_drop_rounded, size: 15, color: Colors.white),
                                   const SizedBox(width: 4),
                                   Text(
                                     bloodGroup,
@@ -487,10 +404,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                             ),
                             // Status Badge
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: statusConfig.backgroundColor,
                                 borderRadius: BorderRadius.circular(8),
@@ -499,11 +413,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    statusConfig.icon,
-                                    size: 14,
-                                    color: statusConfig.textColor,
-                                  ),
+                                  Icon(statusConfig.icon, size: 14, color: statusConfig.textColor),
                                   const SizedBox(width: 5),
                                   Text(
                                     statusConfig.label,
@@ -524,20 +434,12 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                         // Hospital Name
                         Row(
                           children: [
-                            const Icon(
-                              Icons.local_hospital_rounded,
-                              size: 18,
-                              color: MyResponsesScreen.primaryColor,
-                            ),
+                            Icon(Icons.local_hospital_rounded, size: 18, color: colors.primary),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 hospitalName,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: MyResponsesScreen.textPrimaryColor,
-                                ),
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -551,27 +453,19 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF9FAFB),
+                            color: colors.background,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: MyResponsesScreen.cardBorderColor),
+                            border: Border.all(color: colors.border),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.info_outline_rounded,
-                                size: 15,
-                                color: statusConfig.textColor,
-                              ),
+                              Icon(Icons.info_outline_rounded, size: 15, color: statusConfig.textColor),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   statusConfig.description,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: MyResponsesScreen.textSecondaryColor,
-                                    height: 1.35,
-                                  ),
+                                  style: TextStyle(fontSize: 12, color: colors.textSecondary, height: 1.35),
                                 ),
                               ),
                             ],
@@ -579,10 +473,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                         ),
 
                         const SizedBox(height: 12),
-                        const Divider(
-                          height: 1,
-                          color: MyResponsesScreen.cardBorderColor,
-                        ),
+                        Divider(height: 1, color: colors.border),
                         const SizedBox(height: 10),
 
                         // Footer: Timestamp & Request Reference
@@ -591,28 +482,18 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(
-                                  Icons.access_time_rounded,
-                                  size: 14,
-                                  color: MyResponsesScreen.textSecondaryColor,
-                                ),
+                                Icon(Icons.access_time_rounded, size: 14, color: colors.textSecondary),
                                 const SizedBox(width: 4),
-                                Text(
-                                  respondedDateStr,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: MyResponsesScreen.textSecondaryColor,
-                                  ),
-                                ),
+                                Text(respondedDateStr, style: TextStyle(fontSize: 12, color: colors.textSecondary)),
                               ],
                             ),
                             if (requestIdDisplay != null)
                               Text(
                                 requestIdDisplay,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
-                                  color: MyResponsesScreen.textSecondaryColor,
+                                  color: colors.textSecondary,
                                 ),
                               ),
                           ],

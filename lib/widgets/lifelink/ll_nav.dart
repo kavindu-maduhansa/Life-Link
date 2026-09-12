@@ -42,12 +42,7 @@ class LLNavDestination {
 /// its space.
 @immutable
 class LLAppBarAction {
-  const LLAppBarAction({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.isPrimary = false,
-  });
+  const LLAppBarAction({required this.icon, required this.tooltip, required this.onPressed, this.isPrimary = false});
 
   final IconData icon;
   final String tooltip;
@@ -63,11 +58,7 @@ class LLAppBarAction {
 /// new role.
 @immutable
 class LLRoleNav {
-  const LLRoleNav({
-    required this.roleLabel,
-    required this.destinations,
-    this.actions = const [],
-  });
+  const LLRoleNav({required this.roleLabel, required this.destinations, this.actions = const []});
 
   /// Shown next to the LifeLink mark in the app bar, e.g. "Donor" or
   /// "Blood Bank". This is how a user knows which role they are in while

@@ -223,12 +223,7 @@ class DonorHomeScreen extends StatelessWidget {
       children: [
         Text(
           '$greeting, $firstName',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: colors.textPrimary,
-            letterSpacing: -0.3,
-          ),
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colors.textPrimary, letterSpacing: -0.3),
         ),
         const SizedBox(height: LLSpacing.xs),
         Text(
@@ -284,10 +279,7 @@ class DonorHomeScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: fg),
                 ),
                 const SizedBox(height: LLSpacing.xxs),
-                Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.3),
-                ),
+                Text(subtitle, style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.3)),
               ],
             ),
           ),
@@ -301,10 +293,7 @@ class DonorHomeScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const LLSectionHeader(
-          icon: Icons.badge_outlined,
-          title: 'Your Donation Profile',
-        ),
+        const LLSectionHeader(icon: Icons.badge_outlined, title: 'Your Donation Profile'),
         const SizedBox(height: LLSpacing.md),
         Row(
           children: [
@@ -397,10 +386,7 @@ class DonorHomeScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const LLSectionHeader(
-          icon: Icons.grid_view_rounded,
-          title: 'Quick Actions',
-        ),
+        const LLSectionHeader(icon: Icons.grid_view_rounded, title: 'Quick Actions'),
         const SizedBox(height: LLSpacing.md),
         GridView.count(
           crossAxisCount: 2,
@@ -540,10 +526,7 @@ class DonorHomeScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: LLSpacing.md),
               ),
               icon: const Icon(Icons.arrow_forward_rounded, size: LLIconSize.action),
-              label: const Text(
-                'View Emergency Requests',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
+              label: const Text('View Emergency Requests', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
             ),
           ),
         ],

@@ -2,23 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../theme/app_colors.dart';
+
 /// Screen displaying the full details of a blood request, allowing a donor
 /// to submit a response ("I Can Donate") while preventing duplicate responses.
 class BloodRequestDetailsScreen extends StatefulWidget {
   final String requestId;
   final Map<String, dynamic> requestData;
 
-  const BloodRequestDetailsScreen({
-    super.key,
-    required this.requestId,
-    required this.requestData,
-  });
-
-  static const Color primaryColor = Color(0xFFC62828); // Deep Crimson Red
-  static const Color surfaceColor = Color(0xFFF9FAFB);
-  static const Color cardBorderColor = Color(0xFFE5E7EB);
-  static const Color textPrimaryColor = Color(0xFF1F2937);
-  static const Color textSecondaryColor = Color(0xFF6B7280);
+  const BloodRequestDetailsScreen({super.key, required this.requestId, required this.requestData});
 
   /// Helper to safely format timestamp or date string.
   static String formatRequestDate(dynamic value) {
@@ -41,10 +33,7 @@ class BloodRequestDetailsScreen extends StatefulWidget {
 
     if (date == null) return 'Not specified';
 
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     final monthStr = months[date.month - 1];
     final dayStr = date.day.toString().padLeft(2, '0');
@@ -54,20 +43,24 @@ class BloodRequestDetailsScreen extends StatefulWidget {
   }
 
   /// Returns visual configuration for an urgency level.
-  static UrgencyBadgeConfig getUrgencyConfig(dynamic rawUrgency) {
+  /// Takes a [BuildContext] so the badge colours come from the active
+  /// theme. It previously returned hard-coded light-mode literals, which
+  /// is why this screen had no Dark Mode.
+  static UrgencyBadgeConfig getUrgencyConfig(BuildContext context, dynamic rawUrgency) {
+    final colors = context.colors;
     final urgency = rawUrgency?.toString().trim().toLowerCase() ?? '';
 
     switch (urgency) {
       case 'critical':
-        return const UrgencyBadgeConfig(
+        return UrgencyBadgeConfig(
           label: 'Critical',
-          textColor: Color(0xFFB71C1C),
-          backgroundColor: Color(0xFFFFEBEE),
-          borderColor: Color(0xFFFFCDD2),
+          textColor: colors.critical,
+          backgroundColor: colors.criticalContainer,
+          borderColor: colors.criticalContainer,
           icon: Icons.warning_amber_rounded,
         );
       case 'high':
-        return const UrgencyBadgeConfig(
+        return UrgencyBadgeConfig(
           label: 'High Urgency',
           textColor: Color(0xFFE65100),
           backgroundColor: Color(0xFFFFF3E0),
@@ -75,19 +68,19 @@ class BloodRequestDetailsScreen extends StatefulWidget {
           icon: Icons.priority_high_rounded,
         );
       case 'medium':
-        return const UrgencyBadgeConfig(
+        return UrgencyBadgeConfig(
           label: 'Medium Urgency',
-          textColor: Color(0xFFF57F17),
+          textColor: colors.warning,
           backgroundColor: Color(0xFFFFFDE7),
           borderColor: Color(0xFFFFF9C4),
           icon: Icons.schedule_rounded,
         );
       case 'low':
-        return const UrgencyBadgeConfig(
+        return UrgencyBadgeConfig(
           label: 'Low Urgency',
-          textColor: Color(0xFF2E7D32),
-          backgroundColor: Color(0xFFE8F5E9),
-          borderColor: Color(0xFFC8E6C9),
+          textColor: colors.success,
+          backgroundColor: colors.successContainer,
+          borderColor: colors.successContainer,
           icon: Icons.check_circle_outline_rounded,
         );
       default:
@@ -96,9 +89,9 @@ class BloodRequestDetailsScreen extends StatefulWidget {
             : 'Standard';
         return UrgencyBadgeConfig(
           label: displayLabel,
-          textColor: const Color(0xFF4B5563),
-          backgroundColor: const Color(0xFFF3F4F6),
-          borderColor: const Color(0xFFE5E7EB),
+          textColor: colors.textSecondary,
+          backgroundColor: colors.elevatedSurface,
+          borderColor: colors.border,
           icon: Icons.info_outline_rounded,
         );
     }
@@ -150,14 +143,15 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
 
   /// Handles "I Can Donate" response submission.
   Future<void> _handleDonateResponse() async {
+    final colors = context.colors;
     if (_hasAlreadyResponded || _isSubmitting) return;
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Please sign in to respond to blood requests.'),
-          backgroundColor: Color(0xFFDC2626),
+          backgroundColor: colors.critical,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -182,9 +176,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
             _isSubmitting = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text('You have already responded to this blood request.'),
-              backgroundColor: Color(0xFFF57F17),
+              backgroundColor: colors.warning,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -193,10 +187,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       }
 
       // Step 2: Fetch current donor profile from users/{uid}
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
       final userData = userDoc.data() ?? {};
 
@@ -204,8 +195,8 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       final donorName = (rawFullName != null && rawFullName.trim().isNotEmpty)
           ? rawFullName.trim()
           : (user.displayName != null && user.displayName!.trim().isNotEmpty)
-              ? user.displayName!.trim()
-              : 'Anonymous Donor';
+          ? user.displayName!.trim()
+          : 'Anonymous Donor';
 
       final rawBloodGroup = userData['bloodGroup'] as String?;
       final donorBloodGroup = (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
@@ -213,21 +204,22 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           : 'Not specified';
 
       final rawPhone = userData['phoneNumber'] as String?;
-      final donorPhone = (rawPhone != null && rawPhone.trim().isNotEmpty)
-          ? rawPhone.trim()
-          : 'Not specified';
+      final donorPhone = (rawPhone != null && rawPhone.trim().isNotEmpty) ? rawPhone.trim() : 'Not specified';
 
       final rawEmail = userData['email'] as String?;
       final donorEmail = (rawEmail != null && rawEmail.trim().isNotEmpty)
           ? rawEmail.trim()
           : (user.email != null && user.email!.trim().isNotEmpty)
-              ? user.email!.trim()
-              : 'Not specified';
+          ? user.email!.trim()
+          : 'Not specified';
 
       // Step 3: Save donor response to donor_responses collection
-      final requestHospital = ((widget.requestData['hospitalName'] ?? widget.requestData['organizationName']) as String?)?.trim() ?? 'Unknown Hospital';
+      final requestHospital =
+          ((widget.requestData['hospitalName'] ?? widget.requestData['organizationName']) as String?)?.trim() ??
+          'Unknown Hospital';
       final requestedBloodGroup = (widget.requestData['bloodGroup'] as String?)?.trim() ?? 'Unknown';
-      final requestUrgency = ((widget.requestData['urgency'] ?? widget.requestData['urgencyLevel']) as String?)?.trim() ?? 'Standard';
+      final requestUrgency =
+          ((widget.requestData['urgency'] ?? widget.requestData['urgencyLevel']) as String?)?.trim() ?? 'Standard';
 
       await FirebaseFirestore.instance.collection('donor_responses').add({
         'requestId': widget.requestId,
@@ -256,9 +248,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Failed to submit response. Please try again.'),
-            backgroundColor: Color(0xFFDC2626),
+            backgroundColor: colors.critical,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -268,6 +260,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
 
   /// Displays a friendly confirmation dialog after response submission.
   void _showSuccessDialog() {
+    final colors = context.colors;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -278,34 +271,19 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFE8F5E9),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                size: 52,
-                color: Color(0xFF2E7D32),
-              ),
+              decoration: BoxDecoration(color: colors.successContainer, shape: BoxShape.circle),
+              child: Icon(Icons.check_circle_rounded, size: 52, color: colors.success),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Thank You, Donor!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: BloodRequestDetailsScreen.textPrimaryColor,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Your response has been submitted successfully. The hospital coordinator has been notified and may contact you soon.',
-              style: TextStyle(
-                fontSize: 14,
-                color: BloodRequestDetailsScreen.textSecondaryColor,
-                height: 1.4,
-              ),
+              style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -314,18 +292,13 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(ctx),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: BloodRequestDetailsScreen.primaryColor,
+                  backgroundColor: colors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Great, Understood',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                ),
+                child: const Text('Great, Understood', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -336,6 +309,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final data = widget.requestData;
 
     final rawBloodGroup = data['bloodGroup'] as String?;
@@ -353,22 +327,16 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         ? rawLocation.trim()
         : 'Location not specified';
 
-    final urgencyConfig = BloodRequestDetailsScreen.getUrgencyConfig(data['urgency'] ?? data['urgencyLevel']);
+    final urgencyConfig = BloodRequestDetailsScreen.getUrgencyConfig(context, data['urgency'] ?? data['urgencyLevel']);
 
     final rawUnits = data['requiredUnits'] ?? data['unitsNeeded'];
-    final unitsString = rawUnits != null
-        ? '$rawUnits ${rawUnits == 1 ? 'Unit' : 'Units'}'
-        : 'Not specified';
+    final unitsString = rawUnits != null ? '$rawUnits ${rawUnits == 1 ? 'Unit' : 'Units'}' : 'Not specified';
 
     final rawPatient = data['patientName'] as String?;
-    final patientName = (rawPatient != null && rawPatient.trim().isNotEmpty)
-        ? rawPatient.trim()
-        : 'Not specified';
+    final patientName = (rawPatient != null && rawPatient.trim().isNotEmpty) ? rawPatient.trim() : 'Not specified';
 
     final rawContact = data['contactNumber'] as String?;
-    final contactNumber = (rawContact != null && rawContact.trim().isNotEmpty)
-        ? rawContact.trim()
-        : 'Not specified';
+    final contactNumber = (rawContact != null && rawContact.trim().isNotEmpty) ? rawContact.trim() : 'Not specified';
 
     final rawDescription = data['description'] as String?;
     final description = (rawDescription != null && rawDescription.trim().isNotEmpty)
@@ -383,16 +351,10 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     final createdDateStr = BloodRequestDetailsScreen.formatRequestDate(data['createdAt']);
 
     return Scaffold(
-      backgroundColor: BloodRequestDetailsScreen.surfaceColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text(
-          'Emergency Request Details',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-        backgroundColor: BloodRequestDetailsScreen.primaryColor,
+        title: const Text('Emergency Request Details', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+        backgroundColor: colors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
@@ -411,7 +373,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: BloodRequestDetailsScreen.cardBorderColor),
+                      border: Border.all(color: colors.border),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.03),
@@ -427,18 +389,15 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                           width: 64,
                           height: 64,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFFB71C1C),
-                                Color(0xFFE53935),
-                              ],
+                            gradient: LinearGradient(
+                              colors: [colors.critical, colors.critical],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: BloodRequestDetailsScreen.primaryColor.withValues(alpha: 0.3),
+                                color: colors.primary.withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 3),
                               ),
@@ -448,19 +407,11 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(
-                                Icons.water_drop_rounded,
-                                size: 16,
-                                color: Colors.white,
-                              ),
+                              const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
                               const SizedBox(height: 2),
                               Text(
                                 bloodGroup,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
@@ -472,18 +423,11 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                             children: [
                               Text(
                                 hospitalName,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: BloodRequestDetailsScreen.textPrimaryColor,
-                                ),
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: colors.textPrimary),
                               ),
                               const SizedBox(height: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: urgencyConfig.backgroundColor,
                                   borderRadius: BorderRadius.circular(8),
@@ -492,11 +436,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
-                                      urgencyConfig.icon,
-                                      size: 13,
-                                      color: urgencyConfig.textColor,
-                                    ),
+                                    Icon(urgencyConfig.icon, size: 13, color: urgencyConfig.textColor),
                                     const SizedBox(width: 5),
                                     Text(
                                       urgencyConfig.label,
@@ -523,7 +463,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: BloodRequestDetailsScreen.cardBorderColor),
+                      border: Border.all(color: colors.border),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.02),
@@ -536,63 +476,43 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                       children: [
                         _DetailRow(
                           icon: Icons.location_on_outlined,
-                          iconColor: const Color(0xFF2563EB),
+                          iconColor: colors.accent,
                           label: 'Hospital Location',
                           value: location,
                         ),
-                        const Divider(
-                          height: 1,
-                          indent: 52,
-                          color: BloodRequestDetailsScreen.cardBorderColor,
-                        ),
+                        Divider(height: 1, indent: 52, color: colors.border),
                         _DetailRow(
                           icon: Icons.medical_services_outlined,
-                          iconColor: BloodRequestDetailsScreen.primaryColor,
+                          iconColor: colors.primary,
                           label: 'Required Units',
                           value: unitsString,
                         ),
-                        const Divider(
-                          height: 1,
-                          indent: 52,
-                          color: BloodRequestDetailsScreen.cardBorderColor,
-                        ),
+                        Divider(height: 1, indent: 52, color: colors.border),
                         _DetailRow(
                           icon: Icons.person_outline_rounded,
-                          iconColor: const Color(0xFF7C3AED),
+                          iconColor: colors.analytics,
                           label: 'Patient Name',
                           value: patientName,
                         ),
-                        const Divider(
-                          height: 1,
-                          indent: 52,
-                          color: BloodRequestDetailsScreen.cardBorderColor,
-                        ),
+                        Divider(height: 1, indent: 52, color: colors.border),
                         _DetailRow(
                           icon: Icons.phone_outlined,
-                          iconColor: const Color(0xFF059669),
+                          iconColor: colors.success,
                           label: 'Contact Number',
                           value: contactNumber,
                         ),
-                        const Divider(
-                          height: 1,
-                          indent: 52,
-                          color: BloodRequestDetailsScreen.cardBorderColor,
-                        ),
+                        Divider(height: 1, indent: 52, color: colors.border),
                         _DetailRow(
                           icon: Icons.timelapse_rounded,
-                          iconColor: const Color(0xFFD97706),
+                          iconColor: colors.warning,
                           label: 'Request Status',
                           value: statusDisplay,
-                          valueColor: const Color(0xFF2E7D32),
+                          valueColor: colors.success,
                         ),
-                        const Divider(
-                          height: 1,
-                          indent: 52,
-                          color: BloodRequestDetailsScreen.cardBorderColor,
-                        ),
+                        Divider(height: 1, indent: 52, color: colors.border),
                         _DetailRow(
                           icon: Icons.calendar_today_outlined,
-                          iconColor: const Color(0xFF4B5563),
+                          iconColor: colors.textSecondary,
                           label: 'Request Date & Time',
                           value: createdDateStr,
                         ),
@@ -608,7 +528,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: BloodRequestDetailsScreen.cardBorderColor),
+                      border: Border.all(color: colors.border),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.02),
@@ -620,33 +540,18 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(
-                              Icons.description_outlined,
-                              size: 18,
-                              color: BloodRequestDetailsScreen.textSecondaryColor,
-                            ),
+                            Icon(Icons.description_outlined, size: 18, color: colors.textSecondary),
                             SizedBox(width: 8),
                             Text(
                               'Clinical Notes & Instructions',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: BloodRequestDetailsScreen.textSecondaryColor,
-                              ),
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textSecondary),
                             ),
                           ],
                         ),
                         const SizedBox(height: 10),
-                        Text(
-                          description,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: BloodRequestDetailsScreen.textPrimaryColor,
-                            height: 1.45,
-                          ),
-                        ),
+                        Text(description, style: TextStyle(fontSize: 14, color: colors.textPrimary, height: 1.45)),
                       ],
                     ),
                   ),
@@ -662,20 +567,12 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(
-                top: BorderSide(color: BloodRequestDetailsScreen.cardBorderColor),
-              ),
+              border: Border(top: BorderSide(color: colors.border)),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -3),
-                ),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -3)),
               ],
             ),
-            child: SafeArea(
-              child: _buildActionButton(),
-            ),
+            child: SafeArea(child: _buildActionButton()),
           ),
         ],
       ),
@@ -684,35 +581,23 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
 
   /// Builds the dynamic bottom response action button according to state.
   Widget _buildActionButton() {
+    final colors = context.colors;
     if (_isCheckingResponse) {
       return SizedBox(
         height: 52,
         child: OutlinedButton(
           onPressed: null,
-          style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          child: const Row(
+          style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: BloodRequestDetailsScreen.textSecondaryColor,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2, color: colors.textSecondary),
               ),
               SizedBox(width: 12),
-              Text(
-                'Checking response status...',
-                style: TextStyle(
-                  color: BloodRequestDetailsScreen.textSecondaryColor,
-                  fontSize: 14,
-                ),
-              ),
+              Text('Checking response status...', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
             ],
           ),
         ),
@@ -723,26 +608,18 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       return Container(
         height: 52,
         decoration: BoxDecoration(
-          color: const Color(0xFFE8F5E9),
+          color: colors.successContainer,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFA5D6A7)),
+          border: Border.all(color: colors.successContainer),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.check_circle_rounded,
-              color: Color(0xFF2E7D32),
-              size: 22,
-            ),
+            Icon(Icons.check_circle_rounded, color: colors.success, size: 22),
             SizedBox(width: 8),
             Text(
               'Response Already Submitted',
-              style: TextStyle(
-                color: Color(0xFF2E7D32),
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: colors.success, fontSize: 15, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -754,12 +631,10 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       child: ElevatedButton(
         onPressed: _isSubmitting ? null : _handleDonateResponse,
         style: ElevatedButton.styleFrom(
-          backgroundColor: BloodRequestDetailsScreen.primaryColor,
+          backgroundColor: colors.primary,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: BloodRequestDetailsScreen.primaryColor.withValues(alpha: 0.6),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          disabledBackgroundColor: colors.primary.withValues(alpha: 0.6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           elevation: 2,
         ),
         child: _isSubmitting
@@ -769,30 +644,19 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                   SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                   ),
                   SizedBox(width: 12),
                   Text(
                     'Submitting Response...',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ],
               )
             : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.volunteer_activism_rounded,
-                    size: 20,
-                    color: Colors.white,
-                  ),
+                  Icon(Icons.volunteer_activism_rounded, size: 20, color: Colors.white),
                   SizedBox(width: 8),
                   Text(
                     'I Can Donate',
@@ -835,16 +699,11 @@ class _DetailRow extends StatelessWidget {
   final String value;
   final Color? valueColor;
 
-  const _DetailRow({
-    required this.icon,
-    this.iconColor,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+  const _DetailRow({required this.icon, this.iconColor, required this.label, required this.value, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 13.0),
       child: Row(
@@ -853,14 +712,10 @@ class _DetailRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: (iconColor ?? const Color(0xFF6B7280)).withValues(alpha: 0.1),
+              color: (iconColor ?? colors.textSecondary).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: iconColor ?? const Color(0xFF6B7280),
-            ),
+            child: Icon(icon, size: 18, color: iconColor ?? colors.textSecondary),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -869,20 +724,12 @@ class _DetailRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: BloodRequestDetailsScreen.textSecondaryColor,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 12, color: colors.textSecondary, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: valueColor ?? BloodRequestDetailsScreen.textPrimaryColor,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor ?? colors.textPrimary),
                 ),
               ],
             ),
