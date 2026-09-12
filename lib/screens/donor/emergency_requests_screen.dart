@@ -2,15 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'blood_request_details_screen.dart';
 
+import '../../theme/app_colors.dart';
+
 /// Screen displaying active emergency blood requests for donors in real time.
 class EmergencyRequestsScreen extends StatefulWidget {
   const EmergencyRequestsScreen({super.key});
-
-  static const Color primaryColor = Color(0xFFC62828); // Deep Crimson Red
-  static const Color surfaceColor = Color(0xFFF9FAFB);
-  static const Color cardBorderColor = Color(0xFFE5E7EB);
-  static const Color textPrimaryColor = Color(0xFF1F2937);
-  static const Color textSecondaryColor = Color(0xFF6B7280);
 
   /// Formats date string from Timestamp, DateTime, String, int, or null safely.
   static String formatRequestDate(dynamic value) {
@@ -33,10 +29,7 @@ class EmergencyRequestsScreen extends StatefulWidget {
 
     if (date == null) return 'Date not specified';
 
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     final monthStr = months[date.month - 1];
     final dayStr = date.day.toString().padLeft(2, '0');
@@ -69,13 +62,7 @@ class EmergencyRequestsScreen extends StatefulWidget {
     final status = rawStatus.toString().trim().toLowerCase();
     if (status.isEmpty) return true;
 
-    const inactiveStatuses = {
-      'completed',
-      'cancelled',
-      'canceled',
-      'closed',
-      'fulfilled',
-    };
+    const inactiveStatuses = {'completed', 'cancelled', 'canceled', 'closed', 'fulfilled'};
     if (inactiveStatuses.contains(status)) {
       return false;
     }
@@ -85,20 +72,24 @@ class EmergencyRequestsScreen extends StatefulWidget {
   }
 
   /// Returns visual configuration (label, foreground, background, icon) for an urgency level.
-  static UrgencyBadgeConfig getUrgencyConfig(dynamic rawUrgency) {
+  /// Takes a [BuildContext] so the badge colours come from the active
+  /// theme. It previously returned hard-coded light-mode literals, which
+  /// is why this screen had no Dark Mode.
+  static UrgencyBadgeConfig getUrgencyConfig(BuildContext context, dynamic rawUrgency) {
+    final colors = context.colors;
     final urgency = rawUrgency?.toString().trim().toLowerCase() ?? '';
 
     switch (urgency) {
       case 'critical':
-        return const UrgencyBadgeConfig(
+        return UrgencyBadgeConfig(
           label: 'Critical',
-          textColor: Color(0xFFB71C1C),
-          backgroundColor: Color(0xFFFFEBEE),
-          borderColor: Color(0xFFFFCDD2),
+          textColor: colors.critical,
+          backgroundColor: colors.criticalContainer,
+          borderColor: colors.criticalContainer,
           icon: Icons.warning_amber_rounded,
         );
       case 'high':
-        return const UrgencyBadgeConfig(
+        return UrgencyBadgeConfig(
           label: 'High Urgency',
           textColor: Color(0xFFE65100),
           backgroundColor: Color(0xFFFFF3E0),
@@ -106,19 +97,19 @@ class EmergencyRequestsScreen extends StatefulWidget {
           icon: Icons.priority_high_rounded,
         );
       case 'medium':
-        return const UrgencyBadgeConfig(
+        return UrgencyBadgeConfig(
           label: 'Medium Urgency',
-          textColor: Color(0xFFF57F17),
+          textColor: colors.warning,
           backgroundColor: Color(0xFFFFFDE7),
           borderColor: Color(0xFFFFF9C4),
           icon: Icons.schedule_rounded,
         );
       case 'low':
-        return const UrgencyBadgeConfig(
+        return UrgencyBadgeConfig(
           label: 'Low Urgency',
-          textColor: Color(0xFF2E7D32),
-          backgroundColor: Color(0xFFE8F5E9),
-          borderColor: Color(0xFFC8E6C9),
+          textColor: colors.success,
+          backgroundColor: colors.successContainer,
+          borderColor: colors.successContainer,
           icon: Icons.check_circle_outline_rounded,
         );
       default:
@@ -127,9 +118,9 @@ class EmergencyRequestsScreen extends StatefulWidget {
             : 'Standard';
         return UrgencyBadgeConfig(
           label: displayLabel,
-          textColor: const Color(0xFF4B5563),
-          backgroundColor: const Color(0xFFF3F4F6),
-          borderColor: const Color(0xFFE5E7EB),
+          textColor: colors.textSecondary,
+          backgroundColor: colors.elevatedSurface,
+          borderColor: colors.border,
           icon: Icons.info_outline_rounded,
         );
     }
@@ -160,57 +151,37 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BloodRequestDetailsScreen(
-          requestId: requestId,
-          requestData: data,
-        ),
+        builder: (context) => BloodRequestDetailsScreen(requestId: requestId, requestData: data),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final stream = _getRequestsStream();
 
     if (stream == null) {
       return Scaffold(
-        backgroundColor: EmergencyRequestsScreen.surfaceColor,
+        backgroundColor: colors.background,
         appBar: AppBar(
-          title: const Text(
-            'Emergency Requests',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 19,
-            ),
-          ),
-          backgroundColor: EmergencyRequestsScreen.primaryColor,
+          title: const Text('Emergency Requests', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+          backgroundColor: colors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: false,
         ),
-        body: const Center(
-          child: Text(
-            'Database is not connected.',
-            style: TextStyle(
-              color: EmergencyRequestsScreen.textSecondaryColor,
-              fontSize: 14,
-            ),
-          ),
+        body: Center(
+          child: Text('Database is not connected.', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: EmergencyRequestsScreen.surfaceColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text(
-          'Emergency Requests',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 19,
-          ),
-        ),
-        backgroundColor: EmergencyRequestsScreen.primaryColor,
+        title: const Text('Emergency Requests', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+        backgroundColor: colors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
@@ -222,22 +193,15 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
           builder: (context, snapshot) {
             // 1. Loading State
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
+              return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(
-                      color: EmergencyRequestsScreen.primaryColor,
-                      strokeWidth: 3,
-                    ),
+                    CircularProgressIndicator(color: colors.primary, strokeWidth: 3),
                     SizedBox(height: 16),
                     Text(
                       'Loading emergency requests...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: EmergencyRequestsScreen.textSecondaryColor,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(fontSize: 14, color: colors.textSecondary, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -255,35 +219,23 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                       Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEE2E2),
+                          color: colors.criticalContainer,
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                          border: Border.all(color: colors.criticalContainer),
                         ),
-                        child: const Icon(
-                          Icons.error_outline_rounded,
-                          size: 46,
-                          color: Color(0xFFDC2626),
-                        ),
+                        child: Icon(Icons.error_outline_rounded, size: 46, color: colors.critical),
                       ),
                       const SizedBox(height: 20),
-                      const Text(
+                      Text(
                         'Unable to load emergency requests',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: EmergencyRequestsScreen.textPrimaryColor,
-                        ),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'We encountered an issue while connecting to the blood requests registry. Please check your internet connection and try again.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: EmergencyRequestsScreen.textSecondaryColor,
-                          height: 1.4,
-                        ),
+                        style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.4),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton.icon(
@@ -291,15 +243,10 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                         icon: const Icon(Icons.refresh_rounded, size: 18),
                         label: const Text('Try Again'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: EmergencyRequestsScreen.primaryColor,
+                          backgroundColor: colors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
                       ),
@@ -339,34 +286,22 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                       Container(
                         padding: const EdgeInsets.all(22),
                         decoration: BoxDecoration(
-                          color: EmergencyRequestsScreen.primaryColor.withValues(alpha: 0.08),
+                          color: colors.primary.withValues(alpha: 0.08),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.volunteer_activism_outlined,
-                          size: 56,
-                          color: EmergencyRequestsScreen.primaryColor,
-                        ),
+                        child: Icon(Icons.volunteer_activism_outlined, size: 56, color: colors.primary),
                       ),
                       const SizedBox(height: 20),
-                      const Text(
+                      Text(
                         'No Emergency Requests',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: EmergencyRequestsScreen.textPrimaryColor,
-                        ),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'There are currently no active blood requests. Please check again later.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: EmergencyRequestsScreen.textSecondaryColor,
-                          height: 1.4,
-                        ),
+                        style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
                       ),
                     ],
                   ),
@@ -399,7 +334,10 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                     ? rawLocation.trim()
                     : 'Location not specified';
 
-                final urgencyConfig = EmergencyRequestsScreen.getUrgencyConfig(data['urgency'] ?? data['urgencyLevel']);
+                final urgencyConfig = EmergencyRequestsScreen.getUrgencyConfig(
+                  context,
+                  data['urgency'] ?? data['urgencyLevel'],
+                );
 
                 final rawUnits = data['requiredUnits'] ?? data['unitsNeeded'];
                 final unitsString = rawUnits != null
@@ -416,7 +354,7 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                   margin: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
-                    side: const BorderSide(color: EmergencyRequestsScreen.cardBorderColor),
+                    side: BorderSide(color: colors.border),
                   ),
                   color: Colors.white,
                   child: InkWell(
@@ -432,16 +370,13 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: EmergencyRequestsScreen.primaryColor,
+                                  color: colors.primary,
                                   borderRadius: BorderRadius.circular(10),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: EmergencyRequestsScreen.primaryColor.withValues(alpha: 0.25),
+                                      color: colors.primary.withValues(alpha: 0.25),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -450,11 +385,7 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
-                                      Icons.water_drop_rounded,
-                                      size: 16,
-                                      color: Colors.white,
-                                    ),
+                                    const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
                                     const SizedBox(width: 4),
                                     Text(
                                       bloodGroup,
@@ -469,10 +400,7 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                               ),
                               // Urgency badge
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
                                   color: urgencyConfig.backgroundColor,
                                   borderRadius: BorderRadius.circular(8),
@@ -481,11 +409,7 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
-                                      urgencyConfig.icon,
-                                      size: 14,
-                                      color: urgencyConfig.textColor,
-                                    ),
+                                    Icon(urgencyConfig.icon, size: 14, color: urgencyConfig.textColor),
                                     const SizedBox(width: 4),
                                     Text(
                                       urgencyConfig.label,
@@ -506,19 +430,15 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                           // Hospital Name
                           Row(
                             children: [
-                              const Icon(
-                                Icons.local_hospital_rounded,
-                                size: 18,
-                                color: EmergencyRequestsScreen.primaryColor,
-                              ),
+                              Icon(Icons.local_hospital_rounded, size: 18, color: colors.primary),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   hospitalName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: EmergencyRequestsScreen.textPrimaryColor,
+                                    color: colors.textPrimary,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -532,19 +452,12 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                           // Location
                           Row(
                             children: [
-                              const Icon(
-                                Icons.location_on_outlined,
-                                size: 16,
-                                color: EmergencyRequestsScreen.textSecondaryColor,
-                              ),
+                              Icon(Icons.location_on_outlined, size: 16, color: colors.textSecondary),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   location,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: EmergencyRequestsScreen.textSecondaryColor,
-                                  ),
+                                  style: TextStyle(fontSize: 13, color: colors.textSecondary),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -557,28 +470,17 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                           // Required Units
                           Row(
                             children: [
-                              const Icon(
-                                Icons.medical_services_outlined,
-                                size: 16,
-                                color: EmergencyRequestsScreen.textSecondaryColor,
-                              ),
+                              Icon(Icons.medical_services_outlined, size: 16, color: colors.textSecondary),
                               const SizedBox(width: 8),
                               Text(
                                 unitsString,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: EmergencyRequestsScreen.textPrimaryColor,
-                                ),
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.textPrimary),
                               ),
                             ],
                           ),
 
                           const SizedBox(height: 12),
-                          const Divider(
-                            height: 1,
-                            color: EmergencyRequestsScreen.cardBorderColor,
-                          ),
+                          Divider(height: 1, color: colors.border),
                           const SizedBox(height: 10),
 
                           // Footer: Status Tag & View Details Indicator
@@ -586,41 +488,26 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE8F5E9),
+                                  color: colors.successContainer,
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: const Color(0xFFC8E6C9)),
+                                  border: Border.all(color: colors.successContainer),
                                 ),
                                 child: Text(
                                   statusDisplay,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF2E7D32),
-                                  ),
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.success),
                                 ),
                               ),
-                              const Row(
+                              Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     'View Details',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: EmergencyRequestsScreen.primaryColor,
-                                    ),
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.primary),
                                   ),
                                   SizedBox(width: 2),
-                                  Icon(
-                                    Icons.chevron_right_rounded,
-                                    size: 16,
-                                    color: EmergencyRequestsScreen.primaryColor,
-                                  ),
+                                  Icon(Icons.chevron_right_rounded, size: 16, color: colors.primary),
                                 ],
                               ),
                             ],
