@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'screens/auth/auth_gate.dart';
+import 'screens/onboarding/onboarding_gate.dart';
 import 'services/theme_controller.dart';
 import 'theme/app_theme.dart';
 
@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: ThemeController.instance.mode,
-          home: const AuthGate(),
+          home: const OnboardingGate(),
         );
       },
     );
