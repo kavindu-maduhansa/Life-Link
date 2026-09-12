@@ -220,5 +220,69 @@ void main() {
       await OnboardingGate.resetForTesting();
       expect(await OnboardingGate.hasSeenOnboarding(), isFalse);
     });
+
+    testWidgets('OnboardingGate renders OnboardingScreen on launch when alwaysShowOnLaunch is true even if already seen',
+        (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({
+        OnboardingGate.prefsKey: true,
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const OnboardingGate(alwaysShowOnLaunch: true),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OnboardingScreen), findsOneWidget);
+      expect(find.text('Connect Blood Donors with Those in Need'), findsOneWidget);
+    });
+
+    testWidgets('OnboardingGate skips OnboardingScreen when alwaysShowOnLaunch is false and already seen',
+        (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({
+        OnboardingGate.prefsKey: true,
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const OnboardingGate(
+            alwaysShowOnLaunch: false,
+            destination: Scaffold(body: Text('Authenticated Home Screen')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OnboardingScreen), findsNothing);
+      expect(find.text('Authenticated Home Screen'), findsOneWidget);
+    });
+
+    testWidgets('OnboardingGate navigates to destination when onboarding completes',
+        (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const OnboardingGate(
+            alwaysShowOnLaunch: true,
+            destination: Scaffold(body: Text('Authenticated Home Screen')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OnboardingScreen), findsOneWidget);
+
+      // Tap skip button
+      await tester.tap(find.text('Skip'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OnboardingScreen), findsNothing);
+      expect(find.text('Authenticated Home Screen'), findsOneWidget);
+    });
   });
 }

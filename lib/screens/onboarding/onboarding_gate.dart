@@ -3,13 +3,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/auth_gate.dart';
 import 'onboarding_screen.dart';
 
-/// Routes new users through the 3-screen onboarding experience on first launch.
+/// Routes users through the 3-screen onboarding experience on launch.
 ///
-/// If onboarding has already been completed or skipped, it routes directly to
+/// When [alwaysShowOnLaunch] is true (the default), the onboarding flow displays
+/// each time the app is launched, allowing evaluators, testers, and users to
+/// see the onboarding experience every time the app is opened.
+///
+/// Once completed or skipped in the current session, it routes directly to
 /// [AuthGate], which preserves the entire existing Firebase authentication
 /// and role-based application logic.
+///
+/// If [alwaysShowOnLaunch] is set to false, it respects persistent storage
+/// ([prefsKey]) to only show on the first launch after install.
 class OnboardingGate extends StatefulWidget {
-  const OnboardingGate({super.key});
+  /// When true, always displays the onboarding flow when the app is launched.
+  final bool alwaysShowOnLaunch;
+
+  /// Optional destination widget after onboarding completes (defaults to [AuthGate]).
+  final Widget? destination;
+
+  const OnboardingGate({
+    super.key,
+    this.alwaysShowOnLaunch = true,
+    this.destination,
+  });
 
   /// Preference key used to persist whether onboarding has been completed.
   static const String prefsKey = 'lifelink_has_seen_onboarding';
@@ -47,6 +64,16 @@ class _OnboardingGateState extends State<OnboardingGate> {
   }
 
   Future<void> _checkStatus() async {
+    if (widget.alwaysShowOnLaunch) {
+      if (mounted) {
+        setState(() {
+          _hasSeenOnboarding = false;
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final seen = prefs.getBool(OnboardingGate.prefsKey) ?? false;
 
@@ -90,6 +117,6 @@ class _OnboardingGateState extends State<OnboardingGate> {
       );
     }
 
-    return const AuthGate();
+    return widget.destination ?? const AuthGate();
   }
 }
