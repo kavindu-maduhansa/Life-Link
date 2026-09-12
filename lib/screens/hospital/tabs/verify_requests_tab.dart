@@ -786,8 +786,9 @@ class _QueueSummaryStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Each stat carries its own urgency colour, so this widget needs no
-    // palette of its own. (Removes a pre-existing unused-variable
-    // warning that predates this milestone.)
+    // palette of its own. (Both this branch and main independently
+    // removed the unused `colors` variable here; the comment is kept so
+    // the next reader knows the omission is deliberate.)
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(

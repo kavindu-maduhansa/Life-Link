@@ -424,11 +424,11 @@ class _DonorListStream extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final compatibleGroups = this.compatibleGroups;
-    final _bloodGroupFilter = bloodGroupFilter;
-    final _onlyVerified = onlyVerified;
-    final _onlyEligible = onlyEligible;
-    final _onlyAvailable = onlyAvailable;
-    final _sortMode = sortMode;
+    final bloodGroupFilterLocal = bloodGroupFilter;
+    final onlyVerifiedLocal = onlyVerified;
+    final onlyEligibleLocal = onlyEligible;
+    final onlyAvailableLocal = onlyAvailable;
+    final sortModeLocal = sortMode;
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: donorsStream,
@@ -457,17 +457,21 @@ class _DonorListStream extends StatelessWidget {
           final lastDonation = (data['lastDonationDate'] as Timestamp?)?.toDate();
           final eligible = DonorEligibility.isEligible(lastDonation);
 
+          // Merge resolution: this keeps main's renamed locals
+          // (bloodGroupFilterLocal etc., which fix the
+          // no_leading_underscores_for_local_identifiers lints) AND this
+          // branch's availability contract. Neither side is discarded.
           if (data['isActive'] == false) return false;
-          if (_bloodGroupFilter != null) {
-            if (group != _bloodGroupFilter) return false;
+          if (bloodGroupFilterLocal != null) {
+            if (group != bloodGroupFilterLocal) return false;
           } else if (compatibleGroups != null) {
             if (group == null || !compatibleGroups.contains(group)) return false;
           }
-          if (_onlyVerified && !verified) return false;
-          if (_onlyEligible && !eligible) return false;
+          if (onlyVerifiedLocal && !verified) return false;
+          if (onlyEligibleLocal && !eligible) return false;
           // "Available only" means donors who positively said yes,
           // not donors who merely have not said no.
-          if (_onlyAvailable && !availability.isConfirmedAvailable) return false;
+          if (onlyAvailableLocal && !availability.isConfirmedAvailable) return false;
           if (query.isNotEmpty && !name.contains(query) && !location.contains(query)) return false;
           return true;
         }).toList();
@@ -475,13 +479,15 @@ class _DonorListStream extends StatelessWidget {
         // #14 - Smart Donor Matching: transparent, deterministic
         // ranking. Never presented as medical certainty - every
         // contributing factor is shown as a checkmark tag below.
-        switch (_sortMode) {
+        switch (sortModeLocal) {
           case _SortMode.bestMatch:
             donors.sort((a, b) => _matchScore(b.data(), requestLocation).compareTo(_matchScore(a.data(), requestLocation)));
           case _SortMode.recentlyAvailable:
             donors.sort((a, b) {
               // Confirmed available first, then unknown, then
-              // confirmed unavailable.
+              // confirmed unavailable. Replaces the previous
+              // `availableNow != false` comparison, which ranked a donor
+              // with no availability field above one who declined.
               final aWeight = DonorAvailabilityReader.read(a.data()).sortWeight;
               final bWeight = DonorAvailabilityReader.read(b.data()).sortWeight;
               if (aWeight != bWeight) return aWeight.compareTo(bWeight);
