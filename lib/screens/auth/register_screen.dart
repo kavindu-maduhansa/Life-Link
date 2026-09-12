@@ -37,18 +37,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       'icon': Icons.healing_rounded,
       'description': 'Request & receive blood',
     },
-    {
-      'id': 'Hospital',
-      'label': 'Hospital',
-      'icon': Icons.local_hospital_rounded,
-      'description': 'Manage clinical requests',
-    },
-    {
-      'id': 'Organisation',
-      'label': 'Organisation',
-      'icon': Icons.corporate_fare_rounded,
-      'description': 'Organise blood campaigns',
-    },
   ];
 
   @override
