@@ -51,7 +51,13 @@ Four destinations — **Dashboard**, **Verify Requests**, **Donor Search**, **Hi
 
 ### Donor module
 
-**Home**, **Requests**, **My Responses**, **History**, **Profile** — browse emergency requests, open the request detail, respond, track what you responded to, and see your own donation history and profile.
+Five destinations — **Home**, **Requests**, **My Responses**, **History**, **Profile**.
+
+- **Home** — an availability banner that says plainly whether the donor is currently available to donate, a donation profile strip (blood group, location, last donation), quick actions, and an emergency call-out that links straight into the active requests in their area.
+- **Requests** — active emergency requests as cards: blood group, hospital, location, units required, and an urgency label (Critical / High / Medium) carried as icon, text and colour together rather than colour alone.
+- **My Responses** — every request the donor responded to, with its current state (for example *Pending Review — your response has been sent to the hospital and is awaiting review by the medical team*), the timestamp, and a short reference so the donor and the hospital are talking about the same record.
+- **History** — total donations and most recent date, then one card per donation with the centre, location, clinical note, and whether the record is Completed or Verified.
+- **Profile** — donor details, availability status and last donation date, with an edit action. The email is shown locked, because it is the account identity rather than an editable field.
 
 ### Across the whole app
 
@@ -87,6 +93,26 @@ Four destinations — **Dashboard**, **Verify Requests**, **Donor Search**, **Hi
 | Alert Center | Exported handover PDF |
 |---|---|
 | ![Alert Center](docs/screenshots/09-alert-center.png) | ![Handover PDF](docs/screenshots/10-handover-pdf.png) |
+
+### Donor module
+
+> Signed in as a donor account. The donor shown is a test account, not a real person.
+
+| Home | Quick actions and emergency call-out |
+|---|---|
+| ![Donor home](docs/screenshots/11-donor-home.png) | ![Donor quick actions](docs/screenshots/12-donor-quick-actions.png) |
+
+| Emergency Requests | Requests tab |
+|---|---|
+| ![Emergency requests](docs/screenshots/13-donor-emergency-requests.png) | ![Requests](docs/screenshots/14-donor-requests.png) |
+
+| My Responses | Donation History |
+|---|---|
+| ![My responses](docs/screenshots/15-donor-my-responses.png) | ![Donation history](docs/screenshots/16-donor-history.png) |
+
+| Profile | Donor details |
+|---|---|
+| ![Donor profile](docs/screenshots/17-donor-profile.png) | ![Donor details](docs/screenshots/18-donor-profile-details.png) |
 
 ---
 
