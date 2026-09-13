@@ -219,6 +219,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
 
             // 2. Error State
             if (snapshot.hasError) {
+              debugPrint('MY_RESPONSES_ERROR: ${snapshot.error}');
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
@@ -270,8 +271,8 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
             // 3. Sort by respondedAt descending in memory (newest first, nulls at the end)
             // This avoids requiring a Firestore composite index while keeping sorting reliable.
             docs.sort((a, b) {
-              final dateA = MyResponsesScreen.parseDateTime(a.data()['respondedAt']);
-              final dateB = MyResponsesScreen.parseDateTime(b.data()['respondedAt']);
+              final dateA = MyResponsesScreen.parseDateTime(a.data()['respondedAt'] ?? a.data()['createdAt'] ?? a.data()['notifiedAt']);
+              final dateB = MyResponsesScreen.parseDateTime(b.data()['respondedAt'] ?? b.data()['createdAt'] ?? b.data()['notifiedAt']);
 
               if (dateA == null && dateB == null) return 0;
               if (dateA == null) return 1;
@@ -357,7 +358,9 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
 
                 final rawStatus = data['status'];
                 final statusConfig = MyResponsesScreen.getStatusConfig(context, rawStatus);
-                final respondedDateStr = MyResponsesScreen.formatResponseDate(data['respondedAt']);
+                final respondedDateStr = MyResponsesScreen.formatResponseDate(
+                  data['respondedAt'] ?? data['createdAt'] ?? data['notifiedAt'],
+                );
 
                 return Card(
                   elevation: 0,
@@ -635,6 +638,7 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
 
           // 2. Error
           if (snapshot.hasError) {
+            debugPrint('MY_RESPONSES_ERROR: ${snapshot.error}');
             return Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
@@ -684,8 +688,8 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
 
           // 3. Sort by respondedAt descending (newest first, nulls last)
           docs.sort((a, b) {
-            final dateA = MyResponsesScreen.parseDateTime(a.data()['respondedAt']);
-            final dateB = MyResponsesScreen.parseDateTime(b.data()['respondedAt']);
+            final dateA = MyResponsesScreen.parseDateTime(a.data()['respondedAt'] ?? a.data()['createdAt'] ?? a.data()['notifiedAt']);
+            final dateB = MyResponsesScreen.parseDateTime(b.data()['respondedAt'] ?? b.data()['createdAt'] ?? b.data()['notifiedAt']);
             if (dateA == null && dateB == null) return 0;
             if (dateA == null) return 1;
             if (dateB == null) return -1;
@@ -770,7 +774,9 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
 
               final rawStatus = data['status'];
               final statusConfig = MyResponsesScreen.getStatusConfig(context, rawStatus);
-              final respondedDateStr = MyResponsesScreen.formatResponseDate(data['respondedAt']);
+              final respondedDateStr = MyResponsesScreen.formatResponseDate(
+                data['respondedAt'] ?? data['createdAt'] ?? data['notifiedAt'],
+              );
 
               return Card(
                 elevation: 0,
