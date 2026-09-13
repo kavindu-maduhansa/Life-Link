@@ -33,7 +33,7 @@ The app signs a user in with Firebase Auth, reads their `role` from `users/{uid}
 |---|---|---|
 | **Hospital / Blood Bank** | Fully built | Verification queue, donor matching, response tracking, request history, stock, alerts |
 | **Donor** | Fully built | Emergency requests, responding, response tracking, donation history, profile |
-| **Recipient** | Entry point only | Signs in and lands on a minimal home screen |
+| **Recipient** | Dashboard built | Request status guide, own-request list — the request form itself is the next piece |
 | **Organisation / Coordinator** | Entry point only | Signs in and lands on a minimal home screen |
 
 ### Hospital / Blood Bank module
@@ -58,6 +58,12 @@ Five destinations — **Home**, **Requests**, **My Responses**, **History**, **P
 - **My Responses** — every request the donor responded to, with its current state (for example *Pending Review — your response has been sent to the hospital and is awaiting review by the medical team*), the timestamp, and a short reference so the donor and the hospital are talking about the same record.
 - **History** — total donations and most recent date, then one card per donation with the centre, location, clinical note, and whether the record is Completed or Verified.
 - **Profile** — donor details, availability status and last donation date, with an edit action. The email is shown locked, because it is the account identity rather than an editable field.
+
+### Recipient module
+
+A **Recipient Dashboard** with the same clinical design language as the rest of the app: a *Create Emergency Request* action, a **Request Status Guide** that names the stages a request passes through — Pending Verification → Verified → Matched → Completed, with Rejected as the other outcome — and **My Requests**, which shows the recipient's own requests and an empty state until they raise one.
+
+The request form behind *Create Emergency Request* is not built yet; the screen says so in its own words rather than leaving a dead button.
 
 ### Across the whole app
 
@@ -221,7 +227,9 @@ Two rules run through the whole interface:
 
 ## Status and limitations
 
-- Recipient and Organisation roles route correctly but their home screens are minimal placeholders.
+- The Organisation / Coordinator role routes correctly but its home screen is still a minimal placeholder.
+- The Recipient dashboard is built, but the emergency-request form it links to is not — the screen states this rather than hiding it.
+- Screenshots below cover the Hospital and Donor modules. The Recipient dashboard is described but not yet captured.
 - Some dashboard panels display clearly labelled sample data until enough real requests exist to compute from.
 - The web build is a demo deployment; it needs a signed-in account with a role to show anything beyond the login screen.
 
