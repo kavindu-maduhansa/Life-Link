@@ -121,7 +121,10 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
 
   Stream<QuerySnapshot<Map<String, dynamic>>>? _getResponsesStream(String uid) {
     try {
-      return FirebaseFirestore.instance.collection('donor_responses').where('donorId', isEqualTo: uid).snapshots();
+      return FirebaseFirestore.instance
+          .collectionGroup('responses')
+          .where('donorId', isEqualTo: uid)
+          .snapshots();
     } catch (_) {
       return null;
     }
@@ -347,7 +350,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                     ? rawHospital.trim()
                     : 'Emergency Blood Request';
 
-                final rawRequestId = data['requestId'] as String?;
+                final rawRequestId = data['requestId'] as String? ?? doc.reference.parent.parent?.id;
                 final requestIdDisplay = (rawRequestId != null && rawRequestId.trim().isNotEmpty)
                     ? (rawRequestId.length > 10 ? 'Ref: #${rawRequestId.substring(0, 8)}...' : 'Ref: #$rawRequestId')
                     : null;
@@ -560,7 +563,10 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
 
   Stream<QuerySnapshot<Map<String, dynamic>>>? _getResponsesStream(String uid) {
     try {
-      return FirebaseFirestore.instance.collection('donor_responses').where('donorId', isEqualTo: uid).snapshots();
+      return FirebaseFirestore.instance
+          .collectionGroup('responses')
+          .where('donorId', isEqualTo: uid)
+          .snapshots();
     } catch (_) {
       return null;
     }
@@ -757,7 +763,7 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
                   ? rawHospital.trim()
                   : 'Emergency Blood Request';
 
-              final rawRequestId = data['requestId'] as String?;
+              final rawRequestId = data['requestId'] as String? ?? doc.reference.parent.parent?.id;
               final requestIdDisplay = (rawRequestId != null && rawRequestId.trim().isNotEmpty)
                   ? (rawRequestId.length > 10 ? 'Ref: #${rawRequestId.substring(0, 8)}...' : 'Ref: #$rawRequestId')
                   : null;

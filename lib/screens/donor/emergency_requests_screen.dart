@@ -54,21 +54,35 @@ class EmergencyRequestsScreen extends StatefulWidget {
     return null;
   }
 
-  /// Checks whether a request status represents an active request.
-  /// Supports: active, open, pending.
-  /// Excludes: completed, cancelled, canceled, closed, fulfilled.
+  /// Checks whether a request status represents an active request for donors.
+  /// Supports: verified, matched, active, open.
+  /// Excludes: pending (awaiting hospital verification), completed, cancelled,
+  /// canceled, closed, fulfilled, rejected, expired.
   static bool isActiveStatus(dynamic rawStatus) {
-    if (rawStatus == null) return true;
+    if (rawStatus == null) return false;
     final status = rawStatus.toString().trim().toLowerCase();
-    if (status.isEmpty) return true;
+    if (status.isEmpty) return false;
 
-    const inactiveStatuses = {'completed', 'cancelled', 'canceled', 'closed', 'fulfilled'};
+    const inactiveStatuses = {
+      'pending',
+      'completed',
+      'cancelled',
+      'canceled',
+      'closed',
+      'fulfilled',
+      'rejected',
+      'expired',
+    };
     if (inactiveStatuses.contains(status)) {
       return false;
     }
 
-    const activeStatuses = {'active', 'open', 'pending'};
-    return activeStatuses.contains(status);
+    const activeStatuses = {'verified', 'matched', 'active', 'open'};
+    if (activeStatuses.contains(status)) return true;
+    if (status.startsWith('verified') || status.startsWith('matched') || status.startsWith('active')) {
+      return true;
+    }
+    return false;
   }
 
   /// Returns visual configuration (label, foreground, background, icon) for an urgency level.
@@ -141,7 +155,7 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
 
   Stream<QuerySnapshot<Map<String, dynamic>>>? _getRequestsStream() {
     try {
-      return FirebaseFirestore.instance.collection('blood_requests').snapshots();
+      return FirebaseFirestore.instance.collection('requests').snapshots();
     } catch (_) {
       return null;
     }
@@ -566,7 +580,7 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
 
   Stream<QuerySnapshot<Map<String, dynamic>>>? _getRequestsStream() {
     try {
-      return FirebaseFirestore.instance.collection('blood_requests').snapshots();
+      return FirebaseFirestore.instance.collection('requests').snapshots();
     } catch (_) {
       return null;
     }

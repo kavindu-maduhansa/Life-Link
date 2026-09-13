@@ -112,7 +112,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     _checkExistingResponse();
   }
 
-  /// Checks Firestore `donor_responses` to verify if current donor already responded.
+  /// Checks Firestore `requests/{requestId}/responses` to verify if current donor already responded.
   Future<void> _checkExistingResponse() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -122,8 +122,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       }
 
       final querySnapshot = await FirebaseFirestore.instance
-          .collection('donor_responses')
-          .where('requestId', isEqualTo: widget.requestId)
+          .collection('requests')
+          .doc(widget.requestId)
+          .collection('responses')
           .where('donorId', isEqualTo: user.uid)
           .limit(1)
           .get();
@@ -163,8 +164,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     try {
       // Step 1: Check duplicate response before writing
       final existingResponse = await FirebaseFirestore.instance
-          .collection('donor_responses')
-          .where('requestId', isEqualTo: widget.requestId)
+          .collection('requests')
+          .doc(widget.requestId)
+          .collection('responses')
           .where('donorId', isEqualTo: user.uid)
           .limit(1)
           .get();
@@ -213,7 +215,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           ? user.email!.trim()
           : 'Not specified';
 
-      // Step 3: Save donor response to donor_responses collection
+      // Step 3: Save donor response to canonical requests/{requestId}/responses subcollection
       final requestHospital =
           ((widget.requestData['hospitalName'] ?? widget.requestData['organizationName']) as String?)?.trim() ??
           'Unknown Hospital';
@@ -221,18 +223,27 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       final requestUrgency =
           ((widget.requestData['urgency'] ?? widget.requestData['urgencyLevel']) as String?)?.trim() ?? 'Standard';
 
-      await FirebaseFirestore.instance.collection('donor_responses').add({
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(widget.requestId)
+          .collection('responses')
+          .add({
         'requestId': widget.requestId,
         'donorId': user.uid,
         'donorName': donorName,
-        'bloodGroup': donorBloodGroup,
+        'donorPhone': donorPhone,
         'phoneNumber': donorPhone,
         'email': donorEmail,
-        'status': 'pending',
-        'respondedAt': FieldValue.serverTimestamp(),
-        'hospitalName': requestHospital,
+        'bloodGroup': donorBloodGroup,
         'requestBloodGroup': requestedBloodGroup,
+        'hospitalName': requestHospital,
         'urgency': requestUrgency,
+        'status': 'accepted',
+        'unitsPledged': 1,
+        'notifiedBy': 'Self-Registered Donor',
+        'notifiedAt': FieldValue.serverTimestamp(),
+        'respondedAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (mounted) {

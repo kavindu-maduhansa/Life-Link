@@ -218,6 +218,44 @@ class RequestService {
 
     if (status == 'completed') {
       await _db.collection('users').doc(donorId).update({'lastDonationDate': FieldValue.serverTimestamp()});
+
+      // Write exactly one donation history record for the completed donation
+      final historyId = '${requestId}_$responseId';
+      final historyRef = _db.collection('donation_history').doc(historyId);
+      final existingHistory = await historyRef.get();
+
+      if (!existingHistory.exists) {
+        final respDoc = await requestRef(requestId).collection('responses').doc(responseId).get();
+        final reqDoc = await requestRef(requestId).get();
+        final respData = respDoc.data() ?? {};
+        final reqData = reqDoc.data() ?? {};
+
+        final bloodGroup = (respData['bloodGroup'] as String?)?.trim().isNotEmpty == true
+            ? respData['bloodGroup']
+            : (reqData['bloodGroup'] as String?) ?? '-';
+        final hospitalName = (reqData['hospitalName'] as String?)?.trim().isNotEmpty == true
+            ? reqData['hospitalName']
+            : (respData['hospitalName'] as String?) ?? 'Hospital';
+        final location = (reqData['location'] as String?)?.trim().isNotEmpty == true
+            ? reqData['location']
+            : 'Hospital';
+
+        await historyRef.set({
+          'donorId': donorId,
+          'donorName': donorName,
+          'bloodGroup': bloodGroup,
+          'hospitalName': hospitalName,
+          'location': location,
+          'donationDate': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'status': 'completed',
+          'requestId': requestId,
+          'responseId': responseId,
+          'verifiedBy': doctorName,
+          'unitsDonated': (respData['unitsPledged'] as num?)?.toInt() ?? 1,
+          'notes': 'Donation verified and completed by hospital staff.',
+        });
+      }
     }
 
     await _recomputeCounts(requestId);
@@ -383,6 +421,7 @@ class RequestService {
       'location': location,
       'role': 'Donor',
       'verified': true, // staff verified them in person at registration time
+      'isAvailable': true,
       'availableNow': true,
       'isActive': true,
       'source': 'walk-in',
