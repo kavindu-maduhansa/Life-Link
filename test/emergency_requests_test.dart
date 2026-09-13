@@ -26,6 +26,7 @@ void main() {
       expect(EmergencyRequestsScreen.isActiveStatus('matched'), isTrue);
       expect(EmergencyRequestsScreen.isActiveStatus('active'), isTrue);
       expect(EmergencyRequestsScreen.isActiveStatus('open'), isTrue);
+      expect(EmergencyRequestsScreen.isActiveStatus('approved'), isTrue);
 
       // Inactive / not yet verified or closed
       expect(EmergencyRequestsScreen.isActiveStatus('pending'), isFalse);

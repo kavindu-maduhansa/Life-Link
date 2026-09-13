@@ -72,8 +72,65 @@ class RequestService {
   }
 
   // ---------------------------------------------------------------
-  // FR08 - verification workflow
+  // Request creation & FR08 - verification workflow
   // ---------------------------------------------------------------
+  Future<String> createEmergencyRequest({
+    required String patientName,
+    required String bloodGroup,
+    required int unitsNeeded,
+    required String urgency,
+    required String hospitalName,
+    required String location,
+    String notes = '',
+    String contactNumber = '',
+    required String doctorId,
+    required String doctorName,
+    String status = RequestStatus.pending,
+  }) async {
+    final docRef = await _requests.add({
+      'patientName': patientName.trim(),
+      'bloodGroup': bloodGroup.trim(),
+      'unitsNeeded': unitsNeeded,
+      'requiredUnits': unitsNeeded,
+      'urgency': urgency.trim(),
+      'urgencyLevel': urgency.trim(),
+      'hospitalName': hospitalName.trim(),
+      'location': location.trim(),
+      'notes': notes.trim(),
+      'description': notes.trim(),
+      'contactNumber': contactNumber.trim(),
+      'status': status,
+      'createdBy': doctorId,
+      'createdByName': doctorName,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      if (status == RequestStatus.verified) ...{
+        'verifiedBy': doctorName,
+        'verifiedAt': FieldValue.serverTimestamp(),
+      },
+      'unitsConfirmed': 0,
+      'donorsNotifiedCount': 0,
+      'donorsAcceptedCount': 0,
+      'pinnedBy': <String>[],
+    });
+
+    await logAudit(
+      action: status == RequestStatus.verified ? 'emergency_request_created_and_verified' : 'emergency_request_created',
+      requestId: docRef.id,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {
+        'patientName': patientName,
+        'bloodGroup': bloodGroup,
+        'unitsNeeded': unitsNeeded,
+        'urgency': urgency,
+        'status': status,
+      },
+    );
+
+    return docRef.id;
+  }
+
   // #two-person-verification - Critical urgency requests require a
   // second, different staff member to co-sign before the request
   // actually transitions to `verified`. Every other urgency level

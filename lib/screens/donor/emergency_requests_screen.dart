@@ -77,9 +77,12 @@ class EmergencyRequestsScreen extends StatefulWidget {
       return false;
     }
 
-    const activeStatuses = {'verified', 'matched', 'active', 'open'};
+    const activeStatuses = {'verified', 'matched', 'active', 'open', 'approved'};
     if (activeStatuses.contains(status)) return true;
-    if (status.startsWith('verified') || status.startsWith('matched') || status.startsWith('active')) {
+    if (status.startsWith('verified') ||
+        status.startsWith('matched') ||
+        status.startsWith('active') ||
+        status.startsWith('approved')) {
       return true;
     }
     return false;
@@ -105,17 +108,17 @@ class EmergencyRequestsScreen extends StatefulWidget {
       case 'high':
         return UrgencyBadgeConfig(
           label: 'High Urgency',
-          textColor: Color(0xFFE65100),
-          backgroundColor: Color(0xFFFFF3E0),
-          borderColor: Color(0xFFFFE0B2),
+          textColor: const Color(0xFFE65100),
+          backgroundColor: const Color(0xFFFFF3E0),
+          borderColor: const Color(0xFFFFE0B2),
           icon: Icons.priority_high_rounded,
         );
       case 'medium':
         return UrgencyBadgeConfig(
           label: 'Medium Urgency',
           textColor: colors.warning,
-          backgroundColor: Color(0xFFFFFDE7),
-          borderColor: Color(0xFFFFF9C4),
+          backgroundColor: const Color(0xFFFFFDE7),
+          borderColor: const Color(0xFFFFF9C4),
           icon: Icons.schedule_rounded,
         );
       case 'low':
@@ -125,6 +128,14 @@ class EmergencyRequestsScreen extends StatefulWidget {
           backgroundColor: colors.successContainer,
           borderColor: colors.successContainer,
           icon: Icons.check_circle_outline_rounded,
+        );
+      case 'normal':
+        return UrgencyBadgeConfig(
+          label: 'Normal Urgency',
+          textColor: colors.textPrimary,
+          backgroundColor: colors.primary.withValues(alpha: 0.08),
+          borderColor: colors.primary.withValues(alpha: 0.2),
+          icon: Icons.info_outline_rounded,
         );
       default:
         final displayLabel = rawUrgency != null && rawUrgency.toString().trim().isNotEmpty

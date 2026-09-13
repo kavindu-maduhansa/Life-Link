@@ -83,6 +83,14 @@ class BloodRequestDetailsScreen extends StatefulWidget {
           borderColor: colors.successContainer,
           icon: Icons.check_circle_outline_rounded,
         );
+      case 'normal':
+        return UrgencyBadgeConfig(
+          label: 'Normal Urgency',
+          textColor: colors.textPrimary,
+          backgroundColor: colors.primary.withValues(alpha: 0.08),
+          borderColor: colors.primary.withValues(alpha: 0.2),
+          icon: Icons.info_outline_rounded,
+        );
       default:
         final displayLabel = rawUrgency != null && rawUrgency.toString().trim().isNotEmpty
             ? rawUrgency.toString().trim()
@@ -349,7 +357,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     final rawContact = data['contactNumber'] as String?;
     final contactNumber = (rawContact != null && rawContact.trim().isNotEmpty) ? rawContact.trim() : 'Not specified';
 
-    final rawDescription = data['description'] as String?;
+    final rawDescription = (data['notes'] ?? data['description']) as String?;
     final description = (rawDescription != null && rawDescription.trim().isNotEmpty)
         ? rawDescription.trim()
         : 'No additional clinical notes or description provided.';
