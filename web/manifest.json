@@ -3,13 +3,8 @@
     "short_name": "LifeLink",
     "start_url": ".",
     "display": "standalone",
-<<<<<<< HEAD
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-=======
     "background_color": "#FAF7F6",
     "theme_color": "#8F1838",
->>>>>>> 007f699433e60d6cc9636722a2234e5dc278c857
     "description": "Blood donation coordination for hospitals, blood banks and donors.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
