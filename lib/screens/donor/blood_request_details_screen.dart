@@ -129,17 +129,16 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         return;
       }
 
-      final querySnapshot = await FirebaseFirestore.instance
+      final docSnapshot = await FirebaseFirestore.instance
           .collection('requests')
           .doc(widget.requestId)
           .collection('responses')
-          .where('donorId', isEqualTo: user.uid)
-          .limit(1)
+          .doc(user.uid)
           .get();
 
       if (mounted) {
         setState(() {
-          _hasAlreadyResponded = querySnapshot.docs.isNotEmpty;
+          _hasAlreadyResponded = docSnapshot.exists;
           _isCheckingResponse = false;
         });
       }
@@ -170,16 +169,16 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Step 1: Check duplicate response before writing
-      final existingResponse = await FirebaseFirestore.instance
+      // Step 1: Check duplicate response before writing using direct doc lookup
+      final responseRef = FirebaseFirestore.instance
           .collection('requests')
           .doc(widget.requestId)
           .collection('responses')
-          .where('donorId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
+          .doc(user.uid);
 
-      if (existingResponse.docs.isNotEmpty) {
+      final existingResponse = await responseRef.get();
+
+      if (existingResponse.exists) {
         if (mounted) {
           setState(() {
             _hasAlreadyResponded = true;
@@ -187,7 +186,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('You have already responded to this blood request.'),
+              content: const Text('You have already responded to this blood request.'),
               backgroundColor: colors.warning,
               behavior: SnackBarBehavior.floating,
             ),
@@ -223,7 +222,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           ? user.email!.trim()
           : 'Not specified';
 
-      // Step 3: Save donor response to canonical requests/{requestId}/responses subcollection
+      // Step 3: Save donor response to canonical requests/{requestId}/responses/{user.uid}
       final requestHospital =
           ((widget.requestData['hospitalName'] ?? widget.requestData['organizationName']) as String?)?.trim() ??
           'Unknown Hospital';
@@ -231,11 +230,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       final requestUrgency =
           ((widget.requestData['urgency'] ?? widget.requestData['urgencyLevel']) as String?)?.trim() ?? 'Standard';
 
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .doc(widget.requestId)
-          .collection('responses')
-          .add({
+      await responseRef.set({
         'requestId': widget.requestId,
         'donorId': user.uid,
         'donorName': donorName,
@@ -264,6 +259,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         _showSuccessDialog();
       }
     } catch (e) {
+      debugPrint('Failed to submit response: $e');
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
