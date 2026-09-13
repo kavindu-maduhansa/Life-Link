@@ -106479,7 +106479,7 @@ A.arP.prototype={}
 A.Wf.prototype={
 t(a){return A.h_($.tq(),new A.apU(),null)}}
 A.apU.prototype={
-$2(a,b){return new A.vt(B.aQ2,"Blood Donation HCI",$.bav(),$.bau(),$.tq().a,!1,null)},
+$2(a,b){return new A.vt(B.aQ2,"LifeLink",$.bav(),$.bau(),$.tq().a,!1,null)},
 $S:641}
 A.f4.prototype={
 gzM(){var s=this.e-this.f
