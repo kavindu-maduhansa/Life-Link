@@ -31,35 +31,13 @@ class MyApp extends StatelessWidget {
       builder: (context, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Blood Donation HCI',
+          title: 'LifeLink',
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: ThemeController.instance.mode,
           home: const OnboardingGate(),
         );
       },
-    );
-  }
-}
-
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Blood Donation HCI'),
-      ),
-      body: const Center(
-        child: Text(
-          'Firebase Connected Successfully',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
     );
   }
 }
