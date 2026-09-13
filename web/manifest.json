@@ -1,11 +1,11 @@
 {
-    "name": "hci",
-    "short_name": "hci",
+    "name": "LifeLink",
+    "short_name": "LifeLink",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Blood donation coordination for hospitals, blood banks and donors.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
