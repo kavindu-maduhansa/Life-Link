@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'blood_request_details_screen.dart';
 
 import '../../theme/app_colors.dart';
+import '../../utils/request_status.dart';
 
 /// Screen displaying active emergency blood requests for donors in real time.
 class EmergencyRequestsScreen extends StatefulWidget {
@@ -157,6 +159,30 @@ class EmergencyRequestsScreen extends StatefulWidget {
 
 class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
   int _streamKey = 0;
+  String? _donorBloodGroup;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDonorBloodGroup();
+  }
+
+  Future<void> _loadDonorBloodGroup() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (mounted && doc.exists) {
+          final bg = doc.data()?['bloodGroup'] as String?;
+          if (bg != null && bg.isNotEmpty) {
+            setState(() {
+              _donorBloodGroup = bg;
+            });
+          }
+        }
+      }
+    } catch (_) {}
+  }
 
   void _retryLoading() {
     setState(() {
@@ -370,9 +396,17 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                     : 'Units: Not specified';
 
                 final rawStatus = data['status'] as String?;
+                final isVerified = (rawStatus != null && rawStatus.trim().toLowerCase() == 'verified') ||
+                    data['verified'] == true ||
+                    (data['verifiedBy'] != null && data['verifiedBy'].toString().trim().isNotEmpty);
                 final statusDisplay = (rawStatus != null && rawStatus.trim().isNotEmpty)
                     ? rawStatus.trim()[0].toUpperCase() + rawStatus.trim().substring(1).toLowerCase()
                     : 'Active';
+
+                final compatibleGroups = BloodCompatibility.compatibleDonorGroups(bloodGroup);
+                final donorBloodUpper = _donorBloodGroup?.trim().toUpperCase();
+                final isCompatible = donorBloodUpper != null &&
+                    compatibleGroups.map((g) => g.toUpperCase()).contains(donorBloodUpper);
 
                 return Card(
                   elevation: 0,
@@ -381,7 +415,7 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(color: colors.border),
                   ),
-                  color: Colors.white,
+                  color: colors.surface,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () => _navigateToDetails(context, data, requestId),
@@ -394,34 +428,65 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: colors.primary,
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: colors.primary.withValues(alpha: 0.25),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: colors.primary,
+                                      borderRadius: BorderRadius.circular(10),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: colors.primary.withValues(alpha: 0.25),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      bloodGroup,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          bloodGroup,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isCompatible) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: colors.successContainer,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: colors.success.withValues(alpha: 0.3)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.check_circle_rounded, size: 12, color: colors.success),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Compatible',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: colors.success,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
-                                ),
+                                ],
                               ),
                               // Urgency badge
                               Container(
@@ -512,17 +577,44 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: colors.successContainer,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: colors.successContainer),
-                                ),
-                                child: Text(
-                                  statusDisplay,
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.success),
-                                ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: colors.successContainer,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: colors.successContainer),
+                                    ),
+                                    child: Text(
+                                      statusDisplay,
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.success),
+                                    ),
+                                  ),
+                                  if (isVerified) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: colors.primary.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.verified_rounded, size: 12, color: colors.primary),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            'Verified',
+                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.primary),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -586,6 +678,30 @@ class EmergencyRequestsTab extends StatefulWidget {
 
 class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
   int _streamKey = 0;
+  String? _donorBloodGroup;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDonorBloodGroup();
+  }
+
+  Future<void> _loadDonorBloodGroup() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (mounted && doc.exists) {
+          final bg = doc.data()?['bloodGroup'] as String?;
+          if (bg != null && bg.isNotEmpty) {
+            setState(() {
+              _donorBloodGroup = bg;
+            });
+          }
+        }
+      }
+    } catch (_) {}
+  }
 
   void _retryLoading() => setState(() => _streamKey++);
 
@@ -774,9 +890,17 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                   : 'Units: Not specified';
 
               final rawStatus = data['status'] as String?;
+              final isVerified = (rawStatus != null && rawStatus.trim().toLowerCase() == 'verified') ||
+                  data['verified'] == true ||
+                  (data['verifiedBy'] != null && data['verifiedBy'].toString().trim().isNotEmpty);
               final statusDisplay = (rawStatus != null && rawStatus.trim().isNotEmpty)
                   ? rawStatus.trim()[0].toUpperCase() + rawStatus.trim().substring(1).toLowerCase()
                   : 'Active';
+
+              final compatibleGroups = BloodCompatibility.compatibleDonorGroups(bloodGroup);
+              final donorBloodUpper = _donorBloodGroup?.trim().toUpperCase();
+              final isCompatible = donorBloodUpper != null &&
+                  compatibleGroups.map((g) => g.toUpperCase()).contains(donorBloodUpper);
 
               return Card(
                 elevation: 0,
@@ -798,30 +922,61 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: colors.primary,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colors.primary.withValues(alpha: 0.25),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: colors.primary,
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: colors.primary.withValues(alpha: 0.25),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        bloodGroup,
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isCompatible) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: colors.successContainer,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: colors.success.withValues(alpha: 0.3)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle_rounded, size: 12, color: colors.success),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Compatible',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: colors.success,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    bloodGroup,
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                                  ),
-                                ],
-                              ),
+                              ],
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -899,16 +1054,43 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: colors.successContainer,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                statusDisplay,
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.success),
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: colors.successContainer,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    statusDisplay,
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.success),
+                                  ),
+                                ),
+                                if (isVerified) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: colors.primary.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.verified_rounded, size: 12, color: colors.primary),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'Verified',
+                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.primary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             Row(
                               mainAxisSize: MainAxisSize.min,

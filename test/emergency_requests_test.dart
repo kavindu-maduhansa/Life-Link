@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hci/screens/donor/emergency_requests_screen.dart';
+import 'package:hci/utils/request_status.dart';
 
 void main() {
   group('EmergencyRequestsScreen Helper Unit Tests', () {
@@ -37,6 +38,12 @@ void main() {
       expect(EmergencyRequestsScreen.isActiveStatus('cancelled'), isFalse);
       expect(EmergencyRequestsScreen.isActiveStatus(null), isFalse);
       expect(EmergencyRequestsScreen.isActiveStatus(''), isFalse);
+    });
+
+    test('BloodCompatibility correctly maps compatible donors for emergency blood requests', () {
+      expect(BloodCompatibility.compatibleDonorGroups('O-'), contains('O-'));
+      expect(BloodCompatibility.compatibleDonorGroups('O+'), containsAll(['O+', 'O-']));
+      expect(BloodCompatibility.compatibleDonorGroups('AB+'), containsAll(['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']));
     });
   });
 

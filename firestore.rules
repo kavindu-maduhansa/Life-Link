@@ -48,9 +48,9 @@ service cloud.firestore {
     // afterwards - otherwise any Donor could promote themselves to Hospital
     // and inherit the whole blood-bank surface.
     function roleUnchanged() {
-      return !('role' in request.resource.data)
-        || !('role' in resource.data)
-        || request.resource.data.role == resource.data.role;
+      return (!('role' in request.resource.data))
+        || ('role' in resource.data && request.resource.data.role == resource.data.role)
+        || (!('role' in resource.data) && request.resource.data.role in ['Donor', 'Recipient']);
     }
 
     // --- users -----------------------------------------------------
@@ -108,13 +108,14 @@ service cloud.firestore {
       // FR10 accept / decline needs from the donor side.
       match /responses/{responseId} {
         allow read: if isStaff()
-          || (isSignedIn() && (responseId == request.auth.uid || resource == null || resource.data.donorId == request.auth.uid));
+          || (isSignedIn() && (resource == null || resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
 
         allow create: if isStaff()
-          || (isSignedIn() && (responseId == request.auth.uid || request.resource.data.donorId == request.auth.uid));
+          || (isSignedIn() && request.resource.data.donorId == request.auth.uid);
 
         allow update: if isStaff()
-          || (isSignedIn() && (responseId == request.auth.uid || resource.data.donorId == request.auth.uid));
+          || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid)
+              && (!('donorId' in request.resource.data) || request.resource.data.donorId == resource.data.donorId));
 
         allow delete: if isStaff();
       }
@@ -125,13 +126,14 @@ service cloud.firestore {
     // so donors can track their responses in the My Responses screen.
     match /{path=**}/responses/{responseId} {
       allow read: if isStaff()
-        || (isSignedIn() && (responseId == request.auth.uid || resource == null || resource.data.donorId == request.auth.uid));
+        || (isSignedIn() && (resource == null || resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
 
       allow create: if isStaff()
-        || (isSignedIn() && (responseId == request.auth.uid || request.resource.data.donorId == request.auth.uid));
+        || (isSignedIn() && request.resource.data.donorId == request.auth.uid);
 
       allow update: if isStaff()
-        || (isSignedIn() && (responseId == request.auth.uid || resource.data.donorId == request.auth.uid));
+        || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid)
+            && (!('donorId' in request.resource.data) || request.resource.data.donorId == resource.data.donorId));
 
       allow delete: if isStaff();
     }

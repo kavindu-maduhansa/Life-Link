@@ -66,5 +66,30 @@ void main() {
     expect(find.text('Kasun Perera'), findsOneWidget);
     expect(find.text('+94771234567'), findsOneWidget);
     expect(find.text('Urgent requirement for surgical patient.'), findsOneWidget);
+    expect(find.text('Blood-Group Compatibility'), findsOneWidget);
+    expect(find.text('Compatible donor types: O+, O-'), findsOneWidget);
+  });
+
+  testWidgets('BloodRequestDetailsScreen displays verification and compatibility information', (WidgetTester tester) async {
+    final sampleData = <String, dynamic>{
+      'bloodGroup': 'A+',
+      'hospitalName': 'Colombo Central Hospital',
+      'location': 'Colombo 07',
+      'urgency': 'high',
+      'requiredUnits': 2,
+      'status': 'verified',
+      'verifiedBy': 'Dr. Silva',
+      'createdAt': '2026-08-31T10:00:00.000',
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BloodRequestDetailsScreen(requestId: 'test_request_456', requestData: sampleData),
+      ),
+    );
+
+    expect(find.text('Verified by Dr. Silva'), findsOneWidget);
+    expect(find.text('Blood-Group Compatibility'), findsOneWidget);
+    expect(find.text('Compatible donor types: A+, A-, O+, O-'), findsOneWidget);
   });
 }

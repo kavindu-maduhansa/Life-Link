@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../theme/app_colors.dart';
+import '../../utils/request_status.dart';
 
 /// Screen displaying the full details of a blood request, allowing a donor
 /// to submit a response ("I Can Donate") while preventing duplicate responses.
@@ -113,6 +114,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
   bool _isCheckingResponse = true;
   bool _hasAlreadyResponded = false;
   bool _isSubmitting = false;
+  String? _donorBloodGroup;
 
   @override
   void initState() {
@@ -120,7 +122,8 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     _checkExistingResponse();
   }
 
-  /// Checks Firestore `requests/{requestId}/responses` to verify if current donor already responded.
+  /// Checks Firestore `requests/{requestId}/responses` to verify if current donor already responded
+  /// and fetches the donor's blood group to evaluate compatibility.
   Future<void> _checkExistingResponse() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -129,15 +132,26 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         return;
       }
 
-      final docSnapshot = await FirebaseFirestore.instance
+      final docFuture = FirebaseFirestore.instance
           .collection('requests')
           .doc(widget.requestId)
           .collection('responses')
           .doc(user.uid)
           .get();
 
+      final userFuture = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final results = await Future.wait([docFuture, userFuture]);
+      final docSnapshot = results[0];
+      final userSnapshot = results[1];
+      final rawBlood = userSnapshot.data()?['bloodGroup'] as String?;
+
       if (mounted) {
         setState(() {
+          _donorBloodGroup = (rawBlood != null && rawBlood.trim().isNotEmpty) ? rawBlood.trim() : null;
           _hasAlreadyResponded = docSnapshot.exists;
           _isCheckingResponse = false;
         });
@@ -363,6 +377,20 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         ? rawStatus.trim()[0].toUpperCase() + rawStatus.trim().substring(1).toLowerCase()
         : 'Active';
 
+    final isVerified = (rawStatus?.toLowerCase() == 'verified') ||
+        (rawStatus?.toLowerCase() == 'matched') ||
+        data['verified'] == true ||
+        (data['verifiedBy'] as String?)?.trim().isNotEmpty == true;
+    final verifiedBy = (data['verifiedBy'] as String?)?.trim();
+    final verificationLabel = isVerified
+        ? (verifiedBy != null && verifiedBy.isNotEmpty ? 'Verified by $verifiedBy' : 'Hospital Verified')
+        : 'Pending Staff Verification';
+
+    final compatibleGroups = BloodCompatibility.compatibleDonorGroups(bloodGroup);
+    final donorBloodUpper = _donorBloodGroup?.trim().toUpperCase();
+    final isDonorCompatible = donorBloodUpper != null &&
+        compatibleGroups.map((g) => g.toUpperCase()).contains(donorBloodUpper);
+
     final createdDateStr = BloodRequestDetailsScreen.formatRequestDate(data['createdAt']);
 
     return Scaffold(
@@ -526,11 +554,81 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                         ),
                         Divider(height: 1, indent: 52, color: colors.border),
                         _DetailRow(
+                          icon: isVerified ? Icons.verified_rounded : Icons.pending_actions_rounded,
+                          iconColor: isVerified ? colors.success : colors.warning,
+                          label: 'Hospital Verification',
+                          value: verificationLabel,
+                          valueColor: isVerified ? colors.success : colors.warning,
+                        ),
+                        Divider(height: 1, indent: 52, color: colors.border),
+                        _DetailRow(
                           icon: Icons.calendar_today_outlined,
                           iconColor: colors.textSecondary,
                           label: 'Request Date & Time',
                           value: createdDateStr,
                         ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // 3. Blood Compatibility Card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDonorCompatible ? colors.successContainer.withValues(alpha: 0.3) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDonorCompatible ? colors.successContainer : colors.border,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isDonorCompatible ? Icons.check_circle_rounded : Icons.bloodtype_outlined,
+                              size: 18,
+                              color: isDonorCompatible ? colors.success : colors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Blood-Group Compatibility',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isDonorCompatible ? colors.success : colors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Compatible donor types: ${compatibleGroups.join(', ')}',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                        ),
+                        if (_donorBloodGroup != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            isDonorCompatible
+                                ? 'Your blood group ($_donorBloodGroup) is compatible with this request.'
+                                : 'Your blood group ($_donorBloodGroup) is not compatible with this request.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDonorCompatible ? colors.success : colors.critical,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
