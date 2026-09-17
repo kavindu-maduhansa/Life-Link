@@ -50,6 +50,13 @@ class AuthGate extends StatelessWidget {
 
             // Document does not exist in users/{uid}
             if (doc == null || !doc.exists) {
+              // If the user was created very recently, the profile document write
+              // in RegisterScreen may still be completing. Show loading rather than error.
+              final isRecentUser = user.metadata.creationTime != null &&
+                  DateTime.now().difference(user.metadata.creationTime!).inSeconds < 15;
+              if (isRecentUser) {
+                return const _AuthLoadingView(message: 'Setting up your account profile...');
+              }
               return const _AuthErrorView(
                 message: 'Account profile document not found in database.',
               );
@@ -73,11 +80,22 @@ class AuthGate extends StatelessWidget {
                 return const DonorShell();
               case 'recipient':
                 return const RecipientHomeScreen();
+              case 'doctor':
               case 'hospital':
+              case 'bloodbank':
+              case 'blood_bank':
+              case 'doctor / blood bank':
+              case 'doctor/blood bank':
+              case 'doctor / bloodbank':
+              case 'doctor_blood_bank':
                 return const HospitalHomeScreen();
-              case 'organisation':
               case 'organization':
+              case 'organisation':
               case 'coordinator':
+              case 'organization coordinator':
+              case 'organisation coordinator':
+              case 'organization_coordinator':
+              case 'organisation_coordinator':
                 return const OrganisationHomeScreen();
               default:
                 return _AuthErrorView(

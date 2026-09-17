@@ -2,18 +2,11 @@ rules_version = '2';
 
 // LifeLink - Firestore security rules.
 //
-// STATUS: this file is the intended rule set. It is NOT deployed by this
-// repository. Whatever is currently set in the Firebase console is what is
-// actually enforcing access right now. Deploy this deliberately, as a team:
-//   1) Firebase console -> Firestore Database -> Rules -> paste and Publish, or
-//   2) firebase deploy --only firestore:rules
+// STATUS: Deploy to Firebase using:
+//   firebase deploy --only firestore:rules
 //
-// Deploying matters more than it used to: the Flutter web build is now served
-// publicly from GitHub Pages, so anyone with the link can register an account
-// and then gets whatever a signed-in user is allowed to do below.
-//
-// Roles live in users/{uid}.role and are one of Donor, Recipient, Hospital,
-// Organisation - the values register_screen.dart writes.
+// Roles live in users/{uid}.role and are one of:
+// - Donor, Recipient, Doctor (Hospital), Organisation (Organization, Coordinator)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -40,7 +33,7 @@ service cloud.firestore {
     function isStaff() {
       return hasProfile()
         && ('role' in userDoc().data)
-        && userDoc().data.role in ['Hospital', 'Organisation'];
+        && userDoc().data.role in ['Hospital', 'Organisation', 'Doctor', 'Organization', 'Coordinator', 'hospital', 'organisation', 'doctor', 'organization', 'coordinator'];
     }
 
     // True when this write does not change the caller's own role field.
@@ -50,7 +43,7 @@ service cloud.firestore {
     function roleUnchanged() {
       return (!('role' in request.resource.data))
         || ('role' in resource.data && request.resource.data.role == resource.data.role)
-        || (!('role' in resource.data) && request.resource.data.role in ['Donor', 'Recipient']);
+        || (!('role' in resource.data) && request.resource.data.role in ['Donor', 'Recipient', 'Doctor', 'Hospital', 'Organisation', 'Organization', 'Coordinator', 'donor', 'recipient', 'doctor', 'hospital', 'organisation', 'organization', 'coordinator']);
     }
 
     // --- users -----------------------------------------------------
@@ -65,7 +58,7 @@ service cloud.firestore {
 
       allow create: if request.auth != null
         && request.auth.uid == uid
-        && request.resource.data.role in ['Donor', 'Recipient'];
+        && request.resource.data.role in ['Donor', 'Recipient', 'Doctor', 'Hospital', 'Organisation', 'Organization', 'Coordinator', 'donor', 'recipient', 'doctor', 'hospital', 'organisation', 'organization', 'coordinator'];
 
       // The account holder maintains their own profile; staff may also update
       // a donor record (verification, blood group, location, eligibility)

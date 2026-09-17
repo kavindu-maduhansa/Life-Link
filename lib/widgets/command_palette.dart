@@ -87,7 +87,7 @@ class _CommandPaletteDialogState extends State<_CommandPaletteDialog> {
   void initState() {
     super.initState();
     _requestsStream = FirebaseFirestore.instance.collection('requests').snapshots();
-    _donorsStream = FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'Donor').snapshots();
+    _donorsStream = FirebaseFirestore.instance.collection('users').where('role', whereIn: ['Donor', 'donor']).snapshots();
     WidgetsBinding.instance.addPostFrameCallback((_) => _focusNode.requestFocus());
   }
 

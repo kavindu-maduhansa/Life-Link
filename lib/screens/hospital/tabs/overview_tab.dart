@@ -47,7 +47,7 @@ class OverviewTab extends StatelessWidget {
         final allRequests = requestSnap.data!.docs.map(BloodRequest.fromDoc).toList();
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'Donor').snapshots(),
+          stream: FirebaseFirestore.instance.collection('users').where('role', whereIn: ['Donor', 'donor']).snapshots(),
           builder: (context, donorSnap) {
             final donorDocs = donorSnap.data?.docs ?? [];
 

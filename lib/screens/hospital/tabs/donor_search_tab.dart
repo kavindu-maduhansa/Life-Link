@@ -88,7 +88,7 @@ class _DonorSearchTabState extends State<DonorSearchTab> {
     super.initState();
     if (!widget.selectMode) _sortMode = _SortMode.recentlyAvailable;
     _reliabilityStream = FirebaseFirestore.instance.collectionGroup('responses').snapshots();
-    _donorsStream = FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'Donor').snapshots();
+    _donorsStream = FirebaseFirestore.instance.collection('users').where('role', whereIn: ['Donor', 'donor']).snapshots();
   }
 
   @override
