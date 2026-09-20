@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import '../donor/donor_home_screen.dart';
-import '../recipient/recipient_home_screen.dart';
+import '../recipient/recipient_main_screen.dart';
 import '../hospital/hospital_home_screen.dart';
 import '../coordinator/organisation_home_screen.dart';
 
@@ -36,7 +36,9 @@ class AuthGate extends StatelessWidget {
               .snapshots(),
           builder: (context, userDocSnapshot) {
             if (userDocSnapshot.connectionState == ConnectionState.waiting) {
-              return const _AuthLoadingView(message: 'Loading account information...');
+              return const _AuthLoadingView(
+                message: 'Loading account information...',
+              );
             }
 
             if (userDocSnapshot.hasError) {
@@ -72,7 +74,7 @@ class AuthGate extends StatelessWidget {
               case 'donor':
                 return const DonorHomeScreen();
               case 'recipient':
-                return const RecipientHomeScreen();
+                return const RecipientMainScreen();
               case 'hospital':
                 return const HospitalHomeScreen();
               case 'organisation':
@@ -137,10 +139,7 @@ class _AuthLoadingView extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               message,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF6B7280),
-              ),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
             ),
           ],
         ),
@@ -154,10 +153,7 @@ class _AuthErrorView extends StatelessWidget {
   final String message;
   final String? details;
 
-  const _AuthErrorView({
-    required this.message,
-    this.details,
-  });
+  const _AuthErrorView({required this.message, this.details});
 
   Future<void> _handleSignOut() async {
     await FirebaseAuth.instance.signOut();
