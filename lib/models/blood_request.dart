@@ -8,9 +8,8 @@ class BloodRequest {
   final String patientName;
   final int patientAge;
   final String relationship;
-  final String patientMobileNumber;
+  final String patientId;
   final String bloodGroup;
-  final String bloodComponent;
   final int unitsNeeded;
   final String reason;
   final DateTime requiredBefore;
@@ -21,7 +20,8 @@ class BloodRequest {
   final String bloodNeededBy;
   final String contactNumber;
   final String preferredUpdateMethod; // 'sms', 'email', 'app'
-  final String status; // 'pending', 'verified', 'matched', 'completed', 'cancelled'
+  final String
+  status; // 'pending', 'verified', 'matched', 'completed', 'cancelled'
   final int verifiedDonorsCount;
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -34,9 +34,8 @@ class BloodRequest {
     required this.patientName,
     required this.patientAge,
     required this.relationship,
-    required this.patientMobileNumber,
+    required this.patientId,
     required this.bloodGroup,
-    required this.bloodComponent,
     required this.unitsNeeded,
     required this.reason,
     required this.requiredBefore,
@@ -65,9 +64,8 @@ class BloodRequest {
       patientName: data['patientName'] as String,
       patientAge: data['patientAge'] as int,
       relationship: data['relationship'] as String,
-      patientMobileNumber: data['patientMobileNumber'] as String,
+      patientId: data['patientId'] as String,
       bloodGroup: data['bloodGroup'] as String,
-      bloodComponent: data['bloodComponent'] as String,
       unitsNeeded: data['unitsNeeded'] as int,
       reason: data['reason'] as String,
       requiredBefore: (data['requiredBefore'] as Timestamp).toDate(),
@@ -95,9 +93,8 @@ class BloodRequest {
       'patientName': patientName,
       'patientAge': patientAge,
       'relationship': relationship,
-      'patientMobileNumber': patientMobileNumber,
+      'patientId': patientId,
       'bloodGroup': bloodGroup,
-      'bloodComponent': bloodComponent,
       'unitsNeeded': unitsNeeded,
       'reason': reason,
       'requiredBefore': Timestamp.fromDate(requiredBefore),
@@ -123,9 +120,8 @@ class BloodRequest {
     String? patientName,
     int? patientAge,
     String? relationship,
-    String? patientMobileNumber,
+    String? patientId,
     String? bloodGroup,
-    String? bloodComponent,
     int? unitsNeeded,
     String? reason,
     DateTime? requiredBefore,
@@ -149,9 +145,8 @@ class BloodRequest {
       patientName: patientName ?? this.patientName,
       patientAge: patientAge ?? this.patientAge,
       relationship: relationship ?? this.relationship,
-      patientMobileNumber: patientMobileNumber ?? this.patientMobileNumber,
+      patientId: patientId ?? this.patientId,
       bloodGroup: bloodGroup ?? this.bloodGroup,
-      bloodComponent: bloodComponent ?? this.bloodComponent,
       unitsNeeded: unitsNeeded ?? this.unitsNeeded,
       reason: reason ?? this.reason,
       requiredBefore: requiredBefore ?? this.requiredBefore,
@@ -161,7 +156,8 @@ class BloodRequest {
       urgency: urgency ?? this.urgency,
       bloodNeededBy: bloodNeededBy ?? this.bloodNeededBy,
       contactNumber: contactNumber ?? this.contactNumber,
-      preferredUpdateMethod: preferredUpdateMethod ?? this.preferredUpdateMethod,
+      preferredUpdateMethod:
+          preferredUpdateMethod ?? this.preferredUpdateMethod,
       status: status ?? this.status,
       verifiedDonorsCount: verifiedDonorsCount ?? this.verifiedDonorsCount,
       createdAt: createdAt ?? this.createdAt,

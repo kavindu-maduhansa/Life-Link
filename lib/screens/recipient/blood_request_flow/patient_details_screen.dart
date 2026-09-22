@@ -5,10 +5,7 @@ import 'blood_details_screen.dart';
 class PatientDetailsScreen extends StatefulWidget {
   final bool isEmergency;
 
-  const PatientDetailsScreen({
-    super.key,
-    required this.isEmergency,
-  });
+  const PatientDetailsScreen({super.key, required this.isEmergency});
 
   @override
   State<PatientDetailsScreen> createState() => _PatientDetailsScreenState();
@@ -18,7 +15,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _patientNameController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _mobileNumberController = TextEditingController();
+  final TextEditingController _patientIdController = TextEditingController();
 
   String? _requestingFor;
   String? _relationship;
@@ -38,7 +35,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   void dispose() {
     _patientNameController.dispose();
     _ageController.dispose();
-    _mobileNumberController.dispose();
+    _patientIdController.dispose();
     super.dispose();
   }
 
@@ -53,7 +50,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             patientName: _patientNameController.text.trim(),
             patientAge: int.parse(_ageController.text.trim()),
             relationship: _relationship ?? 'Self',
-            patientMobileNumber: _mobileNumberController.text.trim(),
+            patientId: _patientIdController.text.trim(),
           ),
         ),
       );
@@ -86,10 +83,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
               const SizedBox(height: 8),
               Text(
                 'Step 1 of 4',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 24),
 
@@ -129,7 +123,9 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                                 : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isSelected ? primaryColor : Colors.grey.shade300,
+                              color: isSelected
+                                  ? primaryColor
+                                  : Colors.grey.shade300,
                               width: isSelected ? 2 : 1,
                             ),
                           ),
@@ -138,8 +134,12 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                               option,
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? primaryColor : const Color(0xFF374151),
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? primaryColor
+                                    : const Color(0xFF374151),
                               ),
                             ),
                           ),
@@ -150,57 +150,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 24),
-
-              // Patient Name
-              TextFormField(
-                controller: _patientNameController,
-                keyboardType: TextInputType.name,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  labelText: 'Patient Name',
-                  hintText: 'Enter patient name',
-                  prefixIcon: const Icon(Icons.person_outline_rounded),
-                  filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter patient name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Age
-              TextFormField(
-                controller: _ageController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Age',
-                  hintText: 'Enter age',
-                  prefixIcon: const Icon(Icons.cake_rounded),
-                  filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter age';
-                  }
-                  final age = int.tryParse(value.trim());
-                  if (age == null || age < 0 || age > 120) {
-                    return 'Please enter a valid age';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
 
               // Relationship (only show if requesting for other)
               if (_requestingFor == 'Other') ...[
@@ -245,14 +194,19 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // Mobile Number
+              // Patient Name
               TextFormField(
-                controller: _mobileNumberController,
-                keyboardType: TextInputType.phone,
+                controller: _patientNameController,
+                keyboardType: TextInputType.name,
+                textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  labelText: 'Patient Mobile Number',
-                  hintText: 'Enter mobile number',
-                  prefixIcon: const Icon(Icons.phone_rounded),
+                  labelText: _requestingFor == 'Self'
+                      ? 'Your Name'
+                      : 'Patient\'s Full Name',
+                  hintText: _requestingFor == 'Self'
+                      ? 'Enter your name'
+                      : 'Enter patient\'s full name',
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
                   filled: true,
                   fillColor: const Color(0xFFF9FAFB),
                   border: OutlineInputBorder(
@@ -261,10 +215,61 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter mobile number';
+                    return 'Please enter name';
                   }
-                  if (value.trim().length < 10) {
-                    return 'Please enter a valid mobile number';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Age
+              TextFormField(
+                controller: _ageController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: _requestingFor == 'Self'
+                      ? 'Your Age'
+                      : 'Patient\'s Age',
+                  hintText: _requestingFor == 'Self'
+                      ? 'Enter your age'
+                      : 'Enter patient\'s age',
+                  prefixIcon: const Icon(Icons.cake_rounded),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter age';
+                  }
+                  final age = int.tryParse(value.trim());
+                  if (age == null || age < 0 || age > 120) {
+                    return 'Please enter a valid age';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Patient ID / Hospital Number
+              TextFormField(
+                controller: _patientIdController,
+                keyboardType: TextInputType.text,
+                decoration: InputDecoration(
+                  labelText: 'Patient ID / Hospital Number',
+                  hintText: 'Enter patient ID or hospital number',
+                  prefixIcon: const Icon(Icons.badge_rounded),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter patient ID / hospital number';
                   }
                   return null;
                 },
@@ -286,10 +291,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                   ),
                   child: const Text(
                     'Continue',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

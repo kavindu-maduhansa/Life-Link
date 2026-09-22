@@ -8,9 +8,8 @@ class UrgencyContactScreen extends StatefulWidget {
   final String patientName;
   final int patientAge;
   final String relationship;
-  final String patientMobileNumber;
+  final String patientId;
   final String bloodGroup;
-  final String bloodComponent;
   final int unitsNeeded;
   final String reason;
   final DateTime requiredBefore;
@@ -25,9 +24,8 @@ class UrgencyContactScreen extends StatefulWidget {
     required this.patientName,
     required this.patientAge,
     required this.relationship,
-    required this.patientMobileNumber,
+    required this.patientId,
     required this.bloodGroup,
-    required this.bloodComponent,
     required this.unitsNeeded,
     required this.reason,
     required this.requiredBefore,
@@ -91,9 +89,8 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
             patientName: widget.patientName,
             patientAge: widget.patientAge,
             relationship: widget.relationship,
-            patientMobileNumber: widget.patientMobileNumber,
+            patientId: widget.patientId,
             bloodGroup: widget.bloodGroup,
-            bloodComponent: widget.bloodComponent,
             unitsNeeded: widget.unitsNeeded,
             reason: widget.reason,
             requiredBefore: widget.requiredBefore,

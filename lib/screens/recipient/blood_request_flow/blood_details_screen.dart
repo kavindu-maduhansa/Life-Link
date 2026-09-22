@@ -8,7 +8,7 @@ class BloodDetailsScreen extends StatefulWidget {
   final String patientName;
   final int patientAge;
   final String relationship;
-  final String patientMobileNumber;
+  final String patientId;
 
   const BloodDetailsScreen({
     super.key,
@@ -17,7 +17,7 @@ class BloodDetailsScreen extends StatefulWidget {
     required this.patientName,
     required this.patientAge,
     required this.relationship,
-    required this.patientMobileNumber,
+    required this.patientId,
   });
 
   @override
@@ -28,10 +28,10 @@ class _BloodDetailsScreenState extends State<BloodDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _unitsController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
-  final TextEditingController _requiredBeforeController = TextEditingController();
+  final TextEditingController _requiredBeforeController =
+      TextEditingController();
 
   String? _bloodGroup;
-  String? _bloodComponent;
 
   final List<String> _bloodGroups = [
     'A+',
@@ -42,13 +42,6 @@ class _BloodDetailsScreenState extends State<BloodDetailsScreen> {
     'AB-',
     'O+',
     'O-',
-  ];
-
-  final List<String> _bloodComponents = [
-    'Whole Blood',
-    'Red Blood Cells',
-    'Platelets',
-    'Plasma',
   ];
 
   DateTime? _selectedDate;
@@ -80,7 +73,6 @@ class _BloodDetailsScreenState extends State<BloodDetailsScreen> {
   void _handleContinue() {
     if (_formKey.currentState!.validate() &&
         _bloodGroup != null &&
-        _bloodComponent != null &&
         _selectedDate != null) {
       Navigator.push(
         context,
@@ -91,9 +83,8 @@ class _BloodDetailsScreenState extends State<BloodDetailsScreen> {
             patientName: widget.patientName,
             patientAge: widget.patientAge,
             relationship: widget.relationship,
-            patientMobileNumber: widget.patientMobileNumber,
+            patientId: widget.patientId,
             bloodGroup: _bloodGroup!,
-            bloodComponent: _bloodComponent!,
             unitsNeeded: int.parse(_unitsController.text.trim()),
             reason: _reasonController.text.trim(),
             requiredBefore: _selectedDate!,
@@ -129,10 +120,7 @@ class _BloodDetailsScreenState extends State<BloodDetailsScreen> {
               const SizedBox(height: 8),
               Text(
                 'Step 2 of 4',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 24),
 
@@ -168,12 +156,12 @@ class _BloodDetailsScreenState extends State<BloodDetailsScreen> {
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? primaryColor
-                            : Colors.white,
+                        color: isSelected ? primaryColor : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSelected ? primaryColor : Colors.grey.shade300,
+                          color: isSelected
+                              ? primaryColor
+                              : Colors.grey.shade300,
                           width: isSelected ? 2 : 1,
                         ),
                       ),
@@ -183,7 +171,9 @@ class _BloodDetailsScreenState extends State<BloodDetailsScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : const Color(0xFF374151),
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xFF374151),
                           ),
                         ),
                       ),
@@ -192,47 +182,6 @@ class _BloodDetailsScreenState extends State<BloodDetailsScreen> {
                 },
               ),
               const SizedBox(height: 24),
-
-              // Blood Component
-              const Text(
-                'Blood Component',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
-                ),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _bloodComponent,
-                decoration: InputDecoration(
-                  hintText: 'Select blood component',
-                  prefixIcon: const Icon(Icons.bloodtype_rounded),
-                  filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: _bloodComponents.map((component) {
-                  return DropdownMenuItem(
-                    value: component,
-                    child: Text(component),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _bloodComponent = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Please select blood component';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
 
               // Units Needed
               TextFormField(
@@ -324,10 +273,7 @@ class _BloodDetailsScreenState extends State<BloodDetailsScreen> {
                   ),
                   child: const Text(
                     'Continue',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

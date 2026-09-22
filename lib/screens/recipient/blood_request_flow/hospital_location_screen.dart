@@ -9,9 +9,8 @@ class HospitalLocationScreen extends StatefulWidget {
   final String patientName;
   final int patientAge;
   final String relationship;
-  final String patientMobileNumber;
+  final String patientId;
   final String bloodGroup;
-  final String bloodComponent;
   final int unitsNeeded;
   final String reason;
   final DateTime requiredBefore;
@@ -23,9 +22,8 @@ class HospitalLocationScreen extends StatefulWidget {
     required this.patientName,
     required this.patientAge,
     required this.relationship,
-    required this.patientMobileNumber,
+    required this.patientId,
     required this.bloodGroup,
-    required this.bloodComponent,
     required this.unitsNeeded,
     required this.reason,
     required this.requiredBefore,
@@ -104,9 +102,8 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
             patientName: widget.patientName,
             patientAge: widget.patientAge,
             relationship: widget.relationship,
-            patientMobileNumber: widget.patientMobileNumber,
+            patientId: widget.patientId,
             bloodGroup: widget.bloodGroup,
-            bloodComponent: widget.bloodComponent,
             unitsNeeded: widget.unitsNeeded,
             reason: widget.reason,
             requiredBefore: widget.requiredBefore,
@@ -145,10 +142,7 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
               const SizedBox(height: 8),
               Text(
                 'Step 3 of 4',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 24),
 
@@ -171,8 +165,11 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       children: [
-                        Icon(Icons.local_hospital_rounded,
-                            size: 48, color: Colors.grey.shade400),
+                        Icon(
+                          Icons.local_hospital_rounded,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
                         const SizedBox(height: 8),
                         const Text(
                           'No hospitals available',
@@ -210,7 +207,9 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
                                 : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isSelected ? primaryColor : Colors.grey.shade300,
+                              color: isSelected
+                                  ? primaryColor
+                                  : Colors.grey.shade300,
                               width: isSelected ? 2 : 1,
                             ),
                           ),
@@ -287,7 +286,9 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _selectedHospitalId != null ? _handleContinue : null,
+                  onPressed: _selectedHospitalId != null
+                      ? _handleContinue
+                      : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
@@ -298,10 +299,7 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
                   ),
                   child: const Text(
                     'Continue',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

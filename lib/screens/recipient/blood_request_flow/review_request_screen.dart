@@ -11,9 +11,8 @@ class ReviewRequestScreen extends StatelessWidget {
   final String patientName;
   final int patientAge;
   final String relationship;
-  final String patientMobileNumber;
+  final String patientId;
   final String bloodGroup;
-  final String bloodComponent;
   final int unitsNeeded;
   final String reason;
   final DateTime requiredBefore;
@@ -32,9 +31,8 @@ class ReviewRequestScreen extends StatelessWidget {
     required this.patientName,
     required this.patientAge,
     required this.relationship,
-    required this.patientMobileNumber,
+    required this.patientId,
     required this.bloodGroup,
-    required this.bloodComponent,
     required this.unitsNeeded,
     required this.reason,
     required this.requiredBefore,
@@ -59,9 +57,8 @@ class ReviewRequestScreen extends StatelessWidget {
         patientName: patientName,
         patientAge: patientAge,
         relationship: relationship,
-        patientMobileNumber: patientMobileNumber,
+        patientId: patientId,
         bloodGroup: bloodGroup,
-        bloodComponent: bloodComponent,
         unitsNeeded: unitsNeeded,
         reason: reason,
         requiredBefore: requiredBefore,
@@ -162,18 +159,20 @@ class ReviewRequestScreen extends StatelessWidget {
             _buildDetailRow('Requesting For', requestingFor),
             _buildDetailRow('Patient Name', patientName),
             _buildDetailRow('Age', '$patientAge years'),
-            if (requestingFor == 'Other') _buildDetailRow('Relationship', relationship),
-            _buildDetailRow('Mobile Number', patientMobileNumber),
+            if (requestingFor == 'Other')
+              _buildDetailRow('Relationship', relationship),
+            _buildDetailRow('Patient ID / Hospital Number', patientId),
             const SizedBox(height: 16),
 
             // Blood Details Section
             _buildSectionHeader('Blood Details'),
             _buildDetailRow('Blood Group', bloodGroup),
-            _buildDetailRow('Component', bloodComponent),
             _buildDetailRow('Units Needed', '$unitsNeeded'),
             _buildDetailRow('Reason', reason),
-            _buildDetailRow('Required Before',
-                '${requiredBefore.day}/${requiredBefore.month}/${requiredBefore.year}'),
+            _buildDetailRow(
+              'Required Before',
+              '${requiredBefore.day}/${requiredBefore.month}/${requiredBefore.year}',
+            ),
             const SizedBox(height: 16),
 
             // Hospital Details Section
@@ -205,10 +204,7 @@ class ReviewRequestScreen extends StatelessWidget {
                 ),
                 child: const Text(
                   'Submit Request',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -229,10 +225,7 @@ class ReviewRequestScreen extends StatelessWidget {
                 ),
                 child: const Text(
                   'Edit Details',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -266,10 +259,7 @@ class ReviewRequestScreen extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF6B7280),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
             ),
           ),
           Expanded(
