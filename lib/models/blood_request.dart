@@ -16,6 +16,8 @@ class BloodRequest {
   final String hospitalId;
   final String hospitalName;
   final String hospitalLocation;
+  final String wardUnit;
+  final String doctorClinic;
   final String urgency; // e.g., 'within 3 hours'
   final String bloodNeededBy;
   final String contactNumber;
@@ -42,6 +44,8 @@ class BloodRequest {
     required this.hospitalId,
     required this.hospitalName,
     required this.hospitalLocation,
+    required this.wardUnit,
+    required this.doctorClinic,
     required this.urgency,
     required this.bloodNeededBy,
     required this.contactNumber,
@@ -72,6 +76,8 @@ class BloodRequest {
       hospitalId: data['hospitalId'] as String,
       hospitalName: data['hospitalName'] as String,
       hospitalLocation: data['hospitalLocation'] as String,
+      wardUnit: data['wardUnit'] as String? ?? '',
+      doctorClinic: data['doctorClinic'] as String? ?? '',
       urgency: data['urgency'] as String,
       bloodNeededBy: data['bloodNeededBy'] as String,
       contactNumber: data['contactNumber'] as String,
@@ -101,6 +107,8 @@ class BloodRequest {
       'hospitalId': hospitalId,
       'hospitalName': hospitalName,
       'hospitalLocation': hospitalLocation,
+      'wardUnit': wardUnit,
+      'doctorClinic': doctorClinic,
       'urgency': urgency,
       'bloodNeededBy': bloodNeededBy,
       'contactNumber': contactNumber,
@@ -128,6 +136,8 @@ class BloodRequest {
     String? hospitalId,
     String? hospitalName,
     String? hospitalLocation,
+    String? wardUnit,
+    String? doctorClinic,
     String? urgency,
     String? bloodNeededBy,
     String? contactNumber,
@@ -153,6 +163,8 @@ class BloodRequest {
       hospitalId: hospitalId ?? this.hospitalId,
       hospitalName: hospitalName ?? this.hospitalName,
       hospitalLocation: hospitalLocation ?? this.hospitalLocation,
+      wardUnit: wardUnit ?? this.wardUnit,
+      doctorClinic: doctorClinic ?? this.doctorClinic,
       urgency: urgency ?? this.urgency,
       bloodNeededBy: bloodNeededBy ?? this.bloodNeededBy,
       contactNumber: contactNumber ?? this.contactNumber,

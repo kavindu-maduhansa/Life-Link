@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'urgency_contact_screen.dart';
 
 /// Hospital & location selection screen (HF 05)
@@ -35,64 +34,20 @@ class HospitalLocationScreen extends StatefulWidget {
 
 class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _locationController = TextEditingController();
-
-  String? _selectedHospitalId;
-  String? _selectedHospitalName;
-  String? _selectedHospitalLocation;
-
-  List<Map<String, dynamic>> _hospitals = [];
-  bool _isLoadingHospitals = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchHospitals();
-  }
+  final TextEditingController _hospitalController = TextEditingController();
+  final TextEditingController _wardUnitController = TextEditingController();
+  final TextEditingController _doctorClinicController = TextEditingController();
 
   @override
   void dispose() {
-    _locationController.dispose();
+    _hospitalController.dispose();
+    _wardUnitController.dispose();
+    _doctorClinicController.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchHospitals() async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'Hospital')
-          .get();
-
-      if (mounted) {
-        setState(() {
-          _hospitals = snapshot.docs.map((doc) {
-            final data = doc.data();
-            return {
-              'id': doc.id,
-              'name': data['fullName'] as String? ?? 'Unknown Hospital',
-              'location': data['location'] as String? ?? 'Unknown Location',
-            };
-          }).toList();
-          _isLoadingHospitals = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingHospitals = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading hospitals: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   void _handleContinue() {
-    if (_formKey.currentState!.validate() && _selectedHospitalId != null) {
+    if (_formKey.currentState!.validate()) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -107,9 +62,11 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
             unitsNeeded: widget.unitsNeeded,
             reason: widget.reason,
             requiredBefore: widget.requiredBefore,
-            hospitalId: _selectedHospitalId!,
-            hospitalName: _selectedHospitalName!,
-            hospitalLocation: _selectedHospitalLocation!,
+            hospitalId: '',
+            hospitalName: _hospitalController.text.trim(),
+            hospitalLocation: '',
+            wardUnit: _wardUnitController.text.trim(),
+            doctorClinic: _doctorClinicController.text.trim(),
           ),
         ),
       );
@@ -146,149 +103,83 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Hospital Selection
-              const Text(
-                'Select Hospital',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
+              // Hospital Field
+              TextFormField(
+                controller: _hospitalController,
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: 'Hospital',
+                  hintText: 'Enter hospital name',
+                  prefixIcon: const Icon(Icons.local_hospital_rounded),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter hospital name';
+                  }
+                  return null;
+                },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
-              if (_isLoadingHospitals)
-                const Center(child: CircularProgressIndicator())
-              else if (_hospitals.isEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.local_hospital_rounded,
-                          size: 48,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'No hospitals available',
-                          style: TextStyle(color: Color(0xFF6B7280)),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _hospitals.length,
-                  itemBuilder: (context, index) {
-                    final hospital = _hospitals[index];
-                    final isSelected = _selectedHospitalId == hospital['id'];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            _selectedHospitalId = hospital['id'];
-                            _selectedHospitalName = hospital['name'];
-                            _selectedHospitalLocation = hospital['location'];
-                            _locationController.text = hospital['location'];
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? primaryColor.withValues(alpha: 0.1)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? primaryColor
-                                  : Colors.grey.shade300,
-                              width: isSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: primaryColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.local_hospital_rounded,
-                                  color: primaryColor,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      hospital['name'],
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF1F2937),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      hospital['location'],
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Color(0xFF6B7280),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (isSelected)
-                                const Icon(
-                                  Icons.check_circle_rounded,
-                                  color: primaryColor,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              const SizedBox(height: 24),
-
-              // Location Display (auto-filled from hospital)
-              if (_selectedHospitalLocation != null) ...[
-                TextFormField(
-                  controller: _locationController,
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: 'Hospital Location',
-                    prefixIcon: const Icon(Icons.location_on_rounded),
-                    filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+              // Ward/Unit
+              TextFormField(
+                controller: _wardUnitController,
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: 'Ward / Unit',
+                  hintText: 'Enter ward or unit number',
+                  prefixIcon: const Icon(Icons.meeting_room_rounded),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(height: 32),
-              ],
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter ward/unit';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Doctor or Clinic
+              TextFormField(
+                controller: _doctorClinicController,
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: 'Doctor or Clinic',
+                  hintText: 'Enter doctor name or clinic name',
+                  prefixIcon: const Icon(Icons.person_search_rounded),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter doctor or clinic name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 32),
 
               // Continue Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _selectedHospitalId != null
-                      ? _handleContinue
-                      : null,
+                  onPressed: _handleContinue,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,

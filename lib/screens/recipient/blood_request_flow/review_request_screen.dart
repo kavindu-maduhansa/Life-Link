@@ -19,6 +19,8 @@ class ReviewRequestScreen extends StatelessWidget {
   final String hospitalId;
   final String hospitalName;
   final String hospitalLocation;
+  final String wardUnit;
+  final String doctorClinic;
   final String urgency;
   final String bloodNeededBy;
   final String contactNumber;
@@ -39,6 +41,8 @@ class ReviewRequestScreen extends StatelessWidget {
     required this.hospitalId,
     required this.hospitalName,
     required this.hospitalLocation,
+    required this.wardUnit,
+    required this.doctorClinic,
     required this.urgency,
     required this.bloodNeededBy,
     required this.contactNumber,
@@ -47,7 +51,17 @@ class ReviewRequestScreen extends StatelessWidget {
 
   Future<void> _submitRequest(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You must be logged in to submit a request'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
     try {
       final bloodRequest = BloodRequest(
@@ -62,9 +76,13 @@ class ReviewRequestScreen extends StatelessWidget {
         unitsNeeded: unitsNeeded,
         reason: reason,
         requiredBefore: requiredBefore,
-        hospitalId: hospitalId,
+        hospitalId: hospitalId.isNotEmpty ? hospitalId : 'manual-entry',
         hospitalName: hospitalName,
-        hospitalLocation: hospitalLocation,
+        hospitalLocation: hospitalLocation.isNotEmpty
+            ? hospitalLocation
+            : 'Not specified',
+        wardUnit: wardUnit,
+        doctorClinic: doctorClinic,
         urgency: urgency,
         bloodNeededBy: bloodNeededBy,
         contactNumber: contactNumber,
@@ -78,6 +96,9 @@ class ReviewRequestScreen extends StatelessWidget {
           .collection('requests')
           .add(bloodRequest.toFirestore());
 
+      print('Request submitted with ID: ${docRef.id}');
+      print('Request createdBy: ${user.uid}');
+
       if (context.mounted) {
         Navigator.pushReplacement(
           context,
@@ -90,6 +111,7 @@ class ReviewRequestScreen extends StatelessWidget {
         );
       }
     } catch (e) {
+      print('Error submitting request: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -179,6 +201,8 @@ class ReviewRequestScreen extends StatelessWidget {
             _buildSectionHeader('Hospital Details'),
             _buildDetailRow('Hospital', hospitalName),
             _buildDetailRow('Location', hospitalLocation),
+            _buildDetailRow('Ward / Unit', wardUnit),
+            _buildDetailRow('Doctor / Clinic', doctorClinic),
             const SizedBox(height: 16),
 
             // Urgency & Contact Section

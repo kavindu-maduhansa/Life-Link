@@ -16,6 +16,8 @@ class UrgencyContactScreen extends StatefulWidget {
   final String hospitalId;
   final String hospitalName;
   final String hospitalLocation;
+  final String wardUnit;
+  final String doctorClinic;
 
   const UrgencyContactScreen({
     super.key,
@@ -32,6 +34,8 @@ class UrgencyContactScreen extends StatefulWidget {
     required this.hospitalId,
     required this.hospitalName,
     required this.hospitalLocation,
+    required this.wardUnit,
+    required this.doctorClinic,
   });
 
   @override
@@ -97,6 +101,8 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
             hospitalId: widget.hospitalId,
             hospitalName: widget.hospitalName,
             hospitalLocation: widget.hospitalLocation,
+            wardUnit: widget.wardUnit,
+            doctorClinic: widget.doctorClinic,
             urgency: _urgency!,
             bloodNeededBy: _bloodNeededBy!,
             contactNumber: _contactNumberController.text.trim(),
