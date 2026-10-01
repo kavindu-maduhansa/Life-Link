@@ -1,0 +1,182 @@
+rules_version = '2';
+
+// LifeLink - Firestore security rules.
+//
+// STATUS: Deploy to Firebase using:
+//   firebase deploy --only firestore:rules
+//
+// Roles live in users/{uid}.role and are one of:
+// - Donor, Recipient, Doctor (Hospital), Organisation (Organization, Coordinator)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- helpers ---------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // Null-safe: a signed-in user with no users/{uid} document (mid-signup,
+    // or a console-created account) would otherwise make every rule that
+    // reads a role error out rather than simply deny.
+    function hasProfile() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+
+    function isStaff() {
+      return hasProfile()
+        && ('role' in userDoc().data)
+        && userDoc().data.role in ['Hospital', 'Organisation', 'Doctor', 'Organization', 'Coordinator', 'hospital', 'organisation', 'doctor', 'organization', 'coordinator'];
+    }
+
+    // True when this write does not change the caller's own role field.
+    // Role is assigned once at registration and is never client-editable
+    // afterwards - otherwise any Donor could promote themselves to Hospital
+    // and inherit the whole blood-bank surface.
+    function roleUnchanged() {
+      return (!('role' in request.resource.data))
+        || ('role' in resource.data && request.resource.data.role == resource.data.role)
+        || (!('role' in resource.data) && request.resource.data.role in ['Donor', 'Recipient', 'Doctor', 'Hospital', 'Organisation', 'Organization', 'Coordinator', 'donor', 'recipient', 'doctor', 'hospital', 'organisation', 'organization', 'coordinator']);
+    }
+
+    // --- users -----------------------------------------------------
+    // Donor records carry names, phone numbers, blood groups and locations.
+    // donor_privacy.dart masks phone numbers in the UI, but that is a
+    // presentation choice, not a security control - the masking is gone the
+    // moment someone queries the collection directly. So the collection is
+    // readable by the person it describes and by blood-bank staff, who need
+    // it for FR09 donor search, and by nobody else.
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
+
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.role in ['Donor', 'Recipient', 'Doctor', 'Hospital', 'Organisation', 'Organization', 'Coordinator', 'donor', 'recipient', 'doctor', 'hospital', 'organisation', 'organization', 'coordinator'];
+
+      // The account holder maintains their own profile; staff may also update
+      // a donor record (verification, blood group, location, eligibility)
+      // from the Doctor dashboard. Neither may change the role field.
+      allow update: if isSignedIn()
+        && (request.auth.uid == uid || isStaff())
+        && roleUnchanged();
+
+      allow delete: if false;
+    }
+
+    // --- requests --------------------------------------------------
+    // Donors browse open emergency requests to respond to them, so this stays
+    // readable by any signed-in user. That does expose ward and patient
+    // reference alongside the blood group. The clean fix is structural rather
+    // than a rule change: move patient-identifying fields into a
+    // requests/{id}/clinical subcollection that only staff can read, and
+    // leave the parent document carrying just what a donor needs to decide
+    // (blood group, component, units, urgency, facility). The rule for that
+    // subcollection is already written below so the change is a data move,
+    // not a rules rewrite.
+    match /requests/{requestId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid;
+
+      allow update: if isStaff()
+        || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+
+      allow delete: if false;
+
+      // Staff-only clinical detail (see note above).
+      match /clinical/{docId} {
+        allow read, write: if isStaff();
+      }
+
+      // Donor responses to a request. Staff coordinate them; a donor may
+      // create their own response and update only their own, which is what
+      // FR10 accept / decline needs from the donor side.
+      match /responses/{responseId} {
+        allow read: if isStaff()
+          || (isSignedIn() && (resource == null || resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
+
+        allow create: if isStaff()
+          || (isSignedIn() && request.resource.data.donorId == request.auth.uid);
+
+        allow update: if isStaff()
+          || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid)
+              && (!('donorId' in request.resource.data) || request.resource.data.donorId == resource.data.donorId));
+
+        allow delete: if isStaff();
+      }
+    }
+
+    // --- responses (Collection Group query rule) --------------------
+    // Authorizes collectionGroup('responses') queries across all requests
+    // so donors can track their responses in the My Responses screen.
+    match /{path=**}/responses/{responseId} {
+      allow read: if isStaff()
+        || (isSignedIn() && (resource == null || resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
+
+      allow create: if isStaff()
+        || (isSignedIn() && request.resource.data.donorId == request.auth.uid);
+
+      allow update: if isStaff()
+        || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid)
+            && (!('donorId' in request.resource.data) || request.resource.data.donorId == resource.data.donorId));
+
+      allow delete: if isStaff();
+    }
+
+    // --- bloodInventory --------------------------------------------
+    // Blood stock levels, read and written by the Blood Stock Readiness
+    // screen (request_service.inventoryStream / upsertInventoryLine).
+    // Operational data, staff only.
+    match /bloodInventory/{lineId} {
+      allow read: if isStaff();
+      allow create, update: if isStaff();
+      allow delete: if false;
+    }
+
+    // --- staffPresence ---------------------------------------------
+    // Who is on shift, for handover (presence_service.dart). Staff read the
+    // whole collection; each staff member writes only their own entry.
+    match /staffPresence/{uid} {
+      allow read: if isStaff();
+      allow create, update: if isStaff() && request.auth.uid == uid;
+      allow delete: if isStaff() && request.auth.uid == uid;
+    }
+
+    // --- auditLogs (append-only, staff only) ------------------------
+    match /auditLogs/{entryId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+
+    // --- alerts (staff only) ----------------------------------------
+    match /alerts/{alertId} {
+      allow read: if isStaff();
+      allow create, update: if isStaff();
+      allow delete: if false;
+    }
+
+    // --- donation_history ------------------------------------------
+    // When Hospital staff completes a donation, one document is recorded
+    // in donation_history. Donors read only their own donation history.
+    match /donation_history/{historyId} {
+      allow read: if isStaff()
+        || (isSignedIn() && resource.data.donorId == request.auth.uid);
+
+      allow create, update: if isStaff();
+      allow delete: if false;
+    }
+
+    // Anything not matched above is denied by default. When a new collection
+    // is added to the app, add its rule here or every read and write to it
+    // will fail with permission-denied.
+  }
+}
