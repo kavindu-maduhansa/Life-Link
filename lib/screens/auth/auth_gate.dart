@@ -36,7 +36,9 @@ class AuthGate extends StatelessWidget {
               .snapshots(),
           builder: (context, userDocSnapshot) {
             if (userDocSnapshot.connectionState == ConnectionState.waiting) {
-              return const _AuthLoadingView(message: 'Loading account information...');
+              return const _AuthLoadingView(
+                message: 'Loading account information...',
+              );
             }
 
             if (userDocSnapshot.hasError) {
@@ -155,10 +157,7 @@ class _AuthLoadingView extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               message,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF6B7280),
-              ),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
             ),
           ],
         ),
@@ -172,10 +171,7 @@ class _AuthErrorView extends StatelessWidget {
   final String message;
   final String? details;
 
-  const _AuthErrorView({
-    required this.message,
-    this.details,
-  });
+  const _AuthErrorView({required this.message, this.details});
 
   Future<void> _handleSignOut() async {
     await FirebaseAuth.instance.signOut();
