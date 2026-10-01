@@ -66,22 +66,34 @@ class ReviewRequestScreen extends StatelessWidget {
     try {
       final bloodRequest = BloodRequest(
         createdBy: user.uid,
+        createdByName: (user.displayName?.trim().isNotEmpty == true)
+            ? user.displayName!.trim()
+            : (user.email != null && user.email!.contains('@')
+                ? user.email!.split('@').first
+                : 'Recipient'),
         requestType: isEmergency ? 'emergency' : 'non-emergency',
         requestingFor: requestingFor.toLowerCase(),
         patientName: patientName,
         patientAge: patientAge,
         relationship: relationship,
         patientId: patientId,
+        patientReference: patientId,
         bloodGroup: bloodGroup,
         unitsNeeded: unitsNeeded,
         reason: reason,
+        notes: reason,
         requiredBefore: requiredBefore,
+        requiredAt: requiredBefore,
         hospitalId: hospitalId.isNotEmpty ? hospitalId : 'manual-entry',
         hospitalName: hospitalName,
         hospitalLocation: hospitalLocation.isNotEmpty
             ? hospitalLocation
             : 'Not specified',
+        location: hospitalLocation.isNotEmpty
+            ? hospitalLocation
+            : 'Not specified',
         wardUnit: wardUnit,
+        ward: wardUnit,
         doctorClinic: doctorClinic,
         urgency: urgency,
         bloodNeededBy: bloodNeededBy,
@@ -96,8 +108,8 @@ class ReviewRequestScreen extends StatelessWidget {
           .collection('requests')
           .add(bloodRequest.toFirestore());
 
-      print('Request submitted with ID: ${docRef.id}');
-      print('Request createdBy: ${user.uid}');
+      debugPrint('Request submitted with ID: ${docRef.id}');
+      debugPrint('Request createdBy: ${user.uid}');
 
       if (context.mounted) {
         Navigator.pushReplacement(
@@ -111,7 +123,7 @@ class ReviewRequestScreen extends StatelessWidget {
         );
       }
     } catch (e) {
-      print('Error submitting request: $e');
+      debugPrint('Error submitting request: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

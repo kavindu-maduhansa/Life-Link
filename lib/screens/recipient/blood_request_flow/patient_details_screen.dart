@@ -163,7 +163,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _relationship,
+                  initialValue: _relationship,
                   decoration: InputDecoration(
                     hintText: 'Select relationship',
                     prefixIcon: const Icon(Icons.people_outline_rounded),

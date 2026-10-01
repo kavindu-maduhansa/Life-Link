@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'blood_request_flow/patient_details_screen.dart';
-import 'blood_request_flow/my_requests_screen.dart';
 import 'blood_request_flow/notifications_screen.dart';
 
 import '../../theme/app_colors.dart';
@@ -32,11 +30,10 @@ class RecipientHomeScreen extends StatelessWidget {
   }
 
   void _handleCreateRequestTap(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Emergency request form will be available next.'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 3),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PatientDetailsScreen(isEmergency: true),
       ),
     );
   }
@@ -217,7 +214,7 @@ class RecipientHomeScreen extends StatelessWidget {
                                 children: [
                                   Flexible(
                                     child: Text(
-                                      'Welcome, $displayName',
+                                      '${_getGreeting()}, $displayName',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
@@ -514,19 +511,10 @@ class RecipientHomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      description,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF)),
-            ],
+            ),
           ),
         ),
       ),

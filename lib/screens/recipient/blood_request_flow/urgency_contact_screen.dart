@@ -154,7 +154,7 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _urgency,
+                initialValue: _urgency,
                 decoration: InputDecoration(
                   hintText: 'Select urgency level',
                   prefixIcon: const Icon(Icons.speed_rounded),
@@ -192,7 +192,7 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _bloodNeededBy,
+                initialValue: _bloodNeededBy,
                 decoration: InputDecoration(
                   hintText: 'Select when blood is needed',
                   prefixIcon: const Icon(Icons.access_time_rounded),
@@ -256,7 +256,7 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _preferredUpdateMethod,
+                initialValue: _preferredUpdateMethod,
                 decoration: InputDecoration(
                   hintText: 'Select update method',
                   prefixIcon: const Icon(Icons.notifications_active_rounded),
