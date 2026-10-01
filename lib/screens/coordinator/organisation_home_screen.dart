@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'organisation_requests_screen.dart';
+import 'organisation_find_match_donors_screen.dart';
 
 class OrganisationHomeScreen extends StatefulWidget {
   const OrganisationHomeScreen({super.key});
@@ -45,9 +46,15 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
                   _selectedIndex = 0;
                 });
               },
+              onFindDonors: () {
+                setState(() {
+                  _selectedIndex = 2;
+                });
+              },
             ),
 
-            _buildDonorsScreen(),
+            const OrganisationFindMatchDonorsScreen(),
+
             _buildAlertsScreen(),
           ],
         ),

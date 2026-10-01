@@ -11,6 +11,10 @@ class OrganisationRequestsDetailsScreen extends StatelessWidget {
   final String neededBy;
   final String verificationSource;
 
+  /// Called when the user taps "Find Suitable Donors".
+  /// The caller should switch the parent tab to the donors tab.
+  final VoidCallback? onFindDonors;
+
   const OrganisationRequestsDetailsScreen({
     super.key,
     required this.requestId,
@@ -22,6 +26,7 @@ class OrganisationRequestsDetailsScreen extends StatelessWidget {
     required this.urgency,
     required this.neededBy,
     required this.verificationSource,
+    this.onFindDonors,
   });
 
   // ============================================================
@@ -327,14 +332,12 @@ class OrganisationRequestsDetailsScreen extends StatelessWidget {
       height: 52,
       child: ElevatedButton(
         onPressed: () {
-          // Find & Match Donors screen will be connected here next.
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Find & Match Donors screen will be connected next.',
-              ),
-            ),
-          );
+          if (onFindDonors != null) {
+            // Pop back to the requests screen, then switch the
+            // parent IndexedStack to the donors tab.
+            Navigator.pop(context);
+            onFindDonors!();
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryMaroon,

@@ -4,9 +4,14 @@ import 'organisation_requests_details_screen.dart';
 class OrganisationRequestsScreen extends StatefulWidget {
   final VoidCallback? onBack;
 
+  /// Called when the user wants to jump to the donors tab from
+  /// inside a request detail screen.
+  final VoidCallback? onFindDonors;
+
   const OrganisationRequestsScreen({
     super.key,
     this.onBack,
+    this.onFindDonors,
   });
 
   @override
@@ -303,6 +308,7 @@ class _OrganisationRequestsScreenState
                     ? '8:30 PM'
                     : request['remaining']!,
                 verificationSource: 'Blood Bank Officer',
+                onFindDonors: widget.onFindDonors,
               );
             },
           ),
