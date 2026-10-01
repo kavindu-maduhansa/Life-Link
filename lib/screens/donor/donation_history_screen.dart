@@ -113,6 +113,329 @@ class DonationHistoryScreen extends StatefulWidget {
     }
   }
 
+  /// Dialog to manually log a past donation (CREATE operation).
+  static Future<void> showAddDonationDialog(BuildContext context, String uid) async {
+    final colors = context.colors;
+    final centerController = TextEditingController();
+    final noteController = TextEditingController();
+    String selectedBloodGroup = 'O+';
+    int units = 1;
+    DateTime selectedDate = DateTime.now();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Log Blood Donation',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(modalCtx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: centerController,
+                      decoration: InputDecoration(
+                        labelText: 'Hospital or Blood Bank Name *',
+                        hintText: 'e.g. National Blood Transfusion Service',
+                        prefixIcon: const Icon(Icons.local_hospital_outlined, size: 20),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedBloodGroup,
+                            decoration: InputDecoration(
+                              labelText: 'Blood Group',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+                                .map((bg) => DropdownMenuItem(value: bg, child: Text(bg)))
+                                .toList(),
+                            onChanged: (val) => setModalState(() => selectedBloodGroup = val ?? 'O+'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            initialValue: units,
+                            decoration: InputDecoration(
+                              labelText: 'Units Donated',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            items: [1, 2, 3]
+                                .map((u) => DropdownMenuItem(value: u, child: Text('$u Unit${u > 1 ? 's' : ''}')))
+                                .toList(),
+                            onChanged: (val) => setModalState(() => units = val ?? 1),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: colors.border),
+                      ),
+                      leading: Icon(Icons.calendar_today_rounded, color: colors.primary, size: 20),
+                      title: Text(
+                        'Donation Date: ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                        style: TextStyle(fontSize: 14, color: colors.textPrimary),
+                      ),
+                      trailing: const Icon(Icons.edit_calendar_rounded, size: 20),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: modalCtx,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setModalState(() => selectedDate = picked);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: 'Remarks / Notes (Optional)',
+                        hintText: 'e.g. Voluntary blood drive donation',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton(
+                      onPressed: () async {
+                        final hospitalName = centerController.text.trim();
+                        if (hospitalName.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Please enter the hospital or donation center name.'),
+                              backgroundColor: colors.critical,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
+
+                        try {
+                          await FirebaseFirestore.instance.collection('donation_history').add({
+                            'donorId': uid,
+                            'hospitalName': hospitalName,
+                            'bloodGroup': selectedBloodGroup,
+                            'unitsDonated': units,
+                            'donationDate': Timestamp.fromDate(selectedDate),
+                            'status': 'Completed',
+                            'clinicalNote': noteController.text.trim(),
+                            'isSelfLogged': true,
+                            'createdAt': FieldValue.serverTimestamp(),
+                          });
+
+                          await FirebaseFirestore.instance.collection('users').doc(uid).set({
+                            'lastDonationDate': Timestamp.fromDate(selectedDate),
+                          }, SetOptions(merge: true));
+
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Donation record added successfully.'),
+                                backgroundColor: colors.success,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } catch (_) {
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Failed to save donation record.'),
+                                backgroundColor: colors.critical,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Save Donation Record', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Dialog to edit donation notes (UPDATE operation).
+  static Future<void> showEditDonationDialog(BuildContext context, DocumentSnapshot<Map<String, dynamic>> doc) async {
+    final colors = context.colors;
+    final data = doc.data() ?? {};
+    final centerController = TextEditingController(text: (data['hospitalName'] ?? '') as String);
+    final noteController = TextEditingController(text: (data['clinicalNote'] ?? data['notes'] ?? '') as String);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Edit Donation Record', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                  IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: centerController,
+                decoration: InputDecoration(
+                  labelText: 'Hospital or Blood Bank Name',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: noteController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'Remarks / Notes',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: () async {
+                  try {
+                    await doc.reference.update({
+                      'hospitalName': centerController.text.trim(),
+                      'clinicalNote': noteController.text.trim(),
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: const Text('Donation record updated.'), backgroundColor: colors.success, behavior: SnackBarBehavior.floating),
+                      );
+                    }
+                  } catch (_) {
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: const Text('Failed to update donation record.'), backgroundColor: colors.critical, behavior: SnackBarBehavior.floating),
+                      );
+                    }
+                  }
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Dialog to delete donation record (DELETE operation).
+  static Future<void> showDeleteDonationDialog(BuildContext context, DocumentSnapshot<Map<String, dynamic>> doc) async {
+    final colors = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.delete_outline_rounded, color: colors.critical),
+            const SizedBox(width: 8),
+            const Text('Delete Record', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text('Are you sure you want to delete this donation record? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: Text('Cancel', style: TextStyle(color: colors.textSecondary))),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style: FilledButton.styleFrom(backgroundColor: colors.critical),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await doc.reference.delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text('Donation record deleted.'), backgroundColor: colors.success, behavior: SnackBarBehavior.floating),
+          );
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text('Failed to delete donation record.'), backgroundColor: colors.critical, behavior: SnackBarBehavior.floating),
+          );
+        }
+      }
+    }
+  }
+
   @override
   State<DonationHistoryScreen> createState() => _DonationHistoryScreenState();
 }
@@ -206,6 +529,20 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Log Past Donation',
+            onPressed: () => DonationHistoryScreen.showAddDonationDialog(context, currentUser.uid),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => DonationHistoryScreen.showAddDonationDialog(context, currentUser.uid),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Log Donation'),
+        backgroundColor: colors.primary,
+        foregroundColor: Colors.white,
       ),
       body: KeyedSubtree(
         key: ValueKey(_streamKey),
@@ -536,6 +873,34 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
                               ),
                             ),
                           ],
+                          const SizedBox(height: 8),
+                          Divider(height: 1, color: colors.border),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () => DonationHistoryScreen.showEditDonationDialog(context, doc),
+                                icon: const Icon(Icons.edit_outlined, size: 14),
+                                label: const Text('Edit Note'),
+                                style: OutlinedButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton.icon(
+                                onPressed: () => DonationHistoryScreen.showDeleteDonationDialog(context, doc),
+                                icon: Icon(Icons.delete_outline_rounded, size: 15, color: colors.critical),
+                                label: Text('Delete', style: TextStyle(color: colors.critical, fontSize: 13, fontWeight: FontWeight.w600)),
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -846,8 +1211,26 @@ class _DonationHistoryTabState extends State<DonationHistoryTab> {
               if (index == 0) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
-                  child: _buildSummaryCard(context,
-                      totalDonations: totalDonations, lastDonationDate: lastDonationDate),
+                  child: Column(
+                    children: [
+                      _buildSummaryCard(context,
+                          totalDonations: totalDonations, lastDonationDate: lastDonationDate),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => DonationHistoryScreen.showAddDonationDialog(context, currentUser.uid),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Log Blood Donation', style: TextStyle(fontWeight: FontWeight.bold)),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: colors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               }
 
@@ -1011,6 +1394,34 @@ class _DonationHistoryTabState extends State<DonationHistoryTab> {
                             ),
                           ),
                         ],
+                        const SizedBox(height: 8),
+                        Divider(height: 1, color: colors.border),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => DonationHistoryScreen.showEditDonationDialog(context, doc),
+                              icon: const Icon(Icons.edit_outlined, size: 14),
+                              label: const Text('Edit Note'),
+                              style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () => DonationHistoryScreen.showDeleteDonationDialog(context, doc),
+                              icon: Icon(Icons.delete_outline_rounded, size: 15, color: colors.critical),
+                              label: Text('Delete', style: TextStyle(color: colors.critical, fontSize: 13, fontWeight: FontWeight.w600)),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),

@@ -287,6 +287,225 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     }
   }
 
+  Future<void> _handleWithdrawResponse() async {
+    final colors = context.colors;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: colors.critical),
+            const SizedBox(width: 8),
+            const Text('Withdraw Response', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to withdraw your donation offer for this request?',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: colors.critical),
+            child: const Text('Withdraw'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isSubmitting = true);
+      try {
+        final ref = FirebaseFirestore.instance
+            .collection('requests')
+            .doc(widget.requestId)
+            .collection('responses')
+            .doc(user.uid);
+        try {
+          await ref.delete();
+        } catch (_) {
+          await ref.update({'status': 'withdrawn', 'withdrawnAt': FieldValue.serverTimestamp()});
+        }
+        if (mounted) {
+          setState(() {
+            _hasAlreadyResponded = false;
+            _isSubmitting = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Donation offer withdrawn.'),
+              backgroundColor: colors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() => _isSubmitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Failed to withdraw offer. Please try again.'),
+              backgroundColor: colors.critical,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleUpdateResponse() async {
+    final colors = context.colors;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final ref = FirebaseFirestore.instance
+        .collection('requests')
+        .doc(widget.requestId)
+        .collection('responses')
+        .doc(user.uid);
+
+    final snap = await ref.get();
+    final data = snap.data() ?? {};
+    int units = (data['unitsPledged'] as num?)?.toInt() ?? 1;
+    final noteController = TextEditingController(text: (data['note'] ?? data['notes'] ?? '') as String);
+    final phoneController = TextEditingController(text: (data['phoneNumber'] ?? data['donorPhone'] ?? '') as String);
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Update Donation Offer',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(modalCtx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Units Pledged', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [1, 2, 3].map((u) {
+                      final selected = units == u;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: ChoiceChip(
+                          label: Text('$u Unit${u > 1 ? 's' : ''}'),
+                          selected: selected,
+                          selectedColor: colors.primary,
+                          labelStyle: TextStyle(
+                            color: selected ? Colors.white : colors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          onSelected: (_) => setModalState(() => units = u),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Contact Phone',
+                      prefixIcon: const Icon(Icons.phone_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Arrival or availability note',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () async {
+                      try {
+                        await ref.update({
+                          'unitsPledged': units,
+                          'phoneNumber': phoneController.text.trim(),
+                          'donorPhone': phoneController.text.trim(),
+                          'note': noteController.text.trim(),
+                          'notes': noteController.text.trim(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        });
+                        if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Donation offer updated successfully.'),
+                              backgroundColor: colors.success,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Failed to update donation offer.'),
+                              backgroundColor: colors.critical,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Save Update', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   /// Displays a friendly confirmation dialog after response submission.
   void _showSuccessDialog() {
     final colors = context.colors;
@@ -718,24 +937,58 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     }
 
     if (_hasAlreadyResponded) {
-      return Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: colors.successContainer,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.successContainer),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle_rounded, color: colors.success, size: 22),
-            SizedBox(width: 8),
-            Text(
-              'Response Already Submitted',
-              style: TextStyle(color: colors.success, fontSize: 15, fontWeight: FontWeight.bold),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: colors.successContainer,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colors.successContainer),
             ),
-          ],
-        ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_rounded, color: colors.success, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Offer Submitted - Pledged',
+                  style: TextStyle(color: colors.success, fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSubmitting ? null : _handleUpdateResponse,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Update Offer'),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSubmitting ? null : _handleWithdrawResponse,
+                  icon: Icon(Icons.delete_outline_rounded, size: 16, color: colors.critical),
+                  label: Text('Withdraw', style: TextStyle(color: colors.critical)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: colors.critical.withValues(alpha: 0.5)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       );
     }
 

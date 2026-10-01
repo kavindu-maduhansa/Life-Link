@@ -160,28 +160,69 @@ class EmergencyRequestsScreen extends StatefulWidget {
 class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
   int _streamKey = 0;
   String? _donorBloodGroup;
+  Set<String> _savedRequestIds = {};
+  bool _showSavedOnly = false;
 
   @override
   void initState() {
     super.initState();
-    _loadDonorBloodGroup();
+    _loadDonorData();
   }
 
-  Future<void> _loadDonorBloodGroup() async {
+  Future<void> _loadDonorData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         if (mounted && doc.exists) {
-          final bg = doc.data()?['bloodGroup'] as String?;
-          if (bg != null && bg.isNotEmpty) {
-            setState(() {
-              _donorBloodGroup = bg;
-            });
-          }
+          final data = doc.data() ?? {};
+          final bg = data['bloodGroup'] as String?;
+          final savedList = List<String>.from(data['savedRequests'] ?? []);
+          setState(() {
+            if (bg != null && bg.isNotEmpty) _donorBloodGroup = bg;
+            _savedRequestIds = savedList.toSet();
+          });
         }
       }
     } catch (_) {}
+  }
+
+  Future<void> _toggleBookmark(String requestId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final isSaved = _savedRequestIds.contains(requestId);
+    setState(() {
+      if (isSaved) {
+        _savedRequestIds.remove(requestId);
+      } else {
+        _savedRequestIds.add(requestId);
+      }
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'savedRequests': isSaved
+            ? FieldValue.arrayRemove([requestId])
+            : FieldValue.arrayUnion([requestId]),
+      }, SetOptions(merge: true));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isSaved ? 'Request removed from bookmarks.' : 'Request saved to bookmarks.'),
+          backgroundColor: isSaved ? context.colors.textSecondary : context.colors.success,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      setState(() {
+        if (isSaved) {
+          _savedRequestIds.add(requestId);
+        } else {
+          _savedRequestIds.remove(requestId);
+        }
+      });
+    }
   }
 
   void _retryLoading() {
@@ -310,10 +351,14 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
             final allDocs = snapshot.data?.docs ?? [];
 
             // 3. Filter for active/open/pending requests only
-            final activeDocs = allDocs.where((doc) {
+            var activeDocs = allDocs.where((doc) {
               final data = doc.data();
               return EmergencyRequestsScreen.isActiveStatus(data['status']);
             }).toList();
+
+            if (_showSavedOnly) {
+              activeDocs = activeDocs.where((doc) => _savedRequestIds.contains(doc.id)).toList();
+            }
 
             // 4. Sort by createdAt descending (newest first, nulls at the end)
             activeDocs.sort((a, b) {
@@ -326,46 +371,77 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
               return dateB.compareTo(dateA);
             });
 
-            // 5. Empty State
-            if (activeDocs.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          color: colors.primary.withValues(alpha: 0.08),
-                          shape: BoxShape.circle,
+                      ChoiceChip(
+                        label: const Text('All Requests'),
+                        selected: !_showSavedOnly,
+                        onSelected: (val) {
+                          if (val) setState(() => _showSavedOnly = false);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        avatar: Icon(
+                          _showSavedOnly ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                          size: 16,
+                          color: _showSavedOnly ? Colors.white : colors.primary,
                         ),
-                        child: Icon(Icons.volunteer_activism_outlined, size: 56, color: colors.primary),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'No Emergency Requests',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'There are currently no active blood requests. Please check again later.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+                        label: Text('Saved (${_savedRequestIds.length})'),
+                        selected: _showSavedOnly,
+                        selectedColor: colors.primary,
+                        labelStyle: TextStyle(
+                          color: _showSavedOnly ? Colors.white : colors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        onSelected: (val) => setState(() => _showSavedOnly = val),
                       ),
                     ],
                   ),
                 ),
-              );
-            }
-
-            // 6. Request List View
-            return ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-              itemCount: activeDocs.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
+                Expanded(
+                  child: activeDocs.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(22),
+                                  decoration: BoxDecoration(
+                                    color: colors.primary.withValues(alpha: 0.08),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(Icons.bookmark_outline_rounded, size: 56, color: colors.primary),
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  _showSavedOnly ? 'No Saved Requests' : 'No Emergency Requests',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _showSavedOnly
+                                      ? 'You have not saved any requests yet. Tap the bookmark icon on any request card to save it.'
+                                      : 'There are currently no active blood requests. Please check again later.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                          itemCount: activeDocs.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
                 final doc = activeDocs[index];
                 final data = doc.data();
                 final requestId = doc.id;
@@ -488,29 +564,52 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                                   ],
                                 ],
                               ),
-                              // Urgency badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: urgencyConfig.backgroundColor,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: urgencyConfig.borderColor),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(urgencyConfig.icon, size: 14, color: urgencyConfig.textColor),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      urgencyConfig.label,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: urgencyConfig.textColor,
-                                      ),
+                              // Urgency badge & Bookmark
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: urgencyConfig.backgroundColor,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: urgencyConfig.borderColor),
                                     ),
-                                  ],
-                                ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(urgencyConfig.icon, size: 14, color: urgencyConfig.textColor),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          urgencyConfig.label,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: urgencyConfig.textColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: Icon(
+                                      _savedRequestIds.contains(requestId)
+                                          ? Icons.bookmark_rounded
+                                          : Icons.bookmark_outline_rounded,
+                                      size: 20,
+                                      color: _savedRequestIds.contains(requestId)
+                                          ? colors.primary
+                                          : colors.textSecondary,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                    tooltip: _savedRequestIds.contains(requestId)
+                                        ? 'Remove Bookmark'
+                                        : 'Save Request',
+                                    onPressed: () => _toggleBookmark(requestId),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -635,10 +734,13 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                   ),
                 );
               },
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        ],
+      );
+    },
+  ),
+),
     );
   }
 }
@@ -679,28 +781,69 @@ class EmergencyRequestsTab extends StatefulWidget {
 class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
   int _streamKey = 0;
   String? _donorBloodGroup;
+  Set<String> _savedRequestIds = {};
+  bool _showSavedOnly = false;
 
   @override
   void initState() {
     super.initState();
-    _loadDonorBloodGroup();
+    _loadDonorData();
   }
 
-  Future<void> _loadDonorBloodGroup() async {
+  Future<void> _loadDonorData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         if (mounted && doc.exists) {
-          final bg = doc.data()?['bloodGroup'] as String?;
-          if (bg != null && bg.isNotEmpty) {
-            setState(() {
-              _donorBloodGroup = bg;
-            });
-          }
+          final data = doc.data() ?? {};
+          final bg = data['bloodGroup'] as String?;
+          final savedList = List<String>.from(data['savedRequests'] ?? []);
+          setState(() {
+            if (bg != null && bg.isNotEmpty) _donorBloodGroup = bg;
+            _savedRequestIds = savedList.toSet();
+          });
         }
       }
     } catch (_) {}
+  }
+
+  Future<void> _toggleBookmark(String requestId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final isSaved = _savedRequestIds.contains(requestId);
+    setState(() {
+      if (isSaved) {
+        _savedRequestIds.remove(requestId);
+      } else {
+        _savedRequestIds.add(requestId);
+      }
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'savedRequests': isSaved
+            ? FieldValue.arrayRemove([requestId])
+            : FieldValue.arrayUnion([requestId]),
+      }, SetOptions(merge: true));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isSaved ? 'Request removed from bookmarks.' : 'Request saved to bookmarks.'),
+          backgroundColor: isSaved ? context.colors.textSecondary : context.colors.success,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      setState(() {
+        if (isSaved) {
+          _savedRequestIds.add(requestId);
+        } else {
+          _savedRequestIds.remove(requestId);
+        }
+      });
+    }
   }
 
   void _retryLoading() => setState(() => _streamKey++);
@@ -805,10 +948,14 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
           final allDocs = snapshot.data?.docs ?? [];
 
           // 3. Filter active/open/pending only
-          final activeDocs = allDocs.where((doc) {
+          var activeDocs = allDocs.where((doc) {
             final data = doc.data();
             return EmergencyRequestsScreen.isActiveStatus(data['status']);
           }).toList();
+
+          if (_showSavedOnly) {
+            activeDocs = activeDocs.where((doc) => _savedRequestIds.contains(doc.id)).toList();
+          }
 
           // 4. Sort by createdAt descending (newest first)
           activeDocs.sort((a, b) {
@@ -820,46 +967,77 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
             return dateB.compareTo(dateA);
           });
 
-          // 5. Empty state
-          if (activeDocs.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(22),
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.08),
-                        shape: BoxShape.circle,
+                    ChoiceChip(
+                      label: const Text('All Requests'),
+                      selected: !_showSavedOnly,
+                      onSelected: (val) {
+                        if (val) setState(() => _showSavedOnly = false);
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      avatar: Icon(
+                        _showSavedOnly ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                        size: 16,
+                        color: _showSavedOnly ? Colors.white : colors.primary,
                       ),
-                      child: Icon(Icons.volunteer_activism_outlined, size: 56, color: colors.primary),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'No Emergency Requests',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'There are currently no active blood requests. Please check again later.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+                      label: Text('Saved (${_savedRequestIds.length})'),
+                      selected: _showSavedOnly,
+                      selectedColor: colors.primary,
+                      labelStyle: TextStyle(
+                        color: _showSavedOnly ? Colors.white : colors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      onSelected: (val) => setState(() => _showSavedOnly = val),
                     ),
                   ],
                 ),
               ),
-            );
-          }
-
-          // 6. Request list
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-            itemCount: activeDocs.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
+              Expanded(
+                child: activeDocs.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(22),
+                                decoration: BoxDecoration(
+                                  color: colors.primary.withValues(alpha: 0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.bookmark_outline_rounded, size: 56, color: colors.primary),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                _showSavedOnly ? 'No Saved Requests' : 'No Emergency Requests',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _showSavedOnly
+                                    ? 'You have not saved any requests yet. Tap the bookmark icon on any request card to save it.'
+                                    : 'There are currently no active blood requests. Please check again later.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                        itemCount: activeDocs.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
               final doc = activeDocs[index];
               final data = doc.data();
               final requestId = doc.id;
@@ -978,28 +1156,52 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                                 ],
                               ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: urgencyConfig.backgroundColor,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: urgencyConfig.borderColor),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(urgencyConfig.icon, size: 14, color: urgencyConfig.textColor),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    urgencyConfig.label,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: urgencyConfig.textColor,
-                                    ),
+                            // Urgency badge & Bookmark
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: urgencyConfig.backgroundColor,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: urgencyConfig.borderColor),
                                   ),
-                                ],
-                              ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(urgencyConfig.icon, size: 14, color: urgencyConfig.textColor),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        urgencyConfig.label,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: urgencyConfig.textColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: Icon(
+                                    _savedRequestIds.contains(requestId)
+                                        ? Icons.bookmark_rounded
+                                        : Icons.bookmark_outline_rounded,
+                                    size: 20,
+                                    color: _savedRequestIds.contains(requestId)
+                                        ? colors.primary
+                                        : colors.textSecondary,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                  tooltip: _savedRequestIds.contains(requestId)
+                                      ? 'Remove Bookmark'
+                                      : 'Save Request',
+                                  onPressed: () => _toggleBookmark(requestId),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1111,9 +1313,12 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                 ),
               );
             },
-          );
-        },
-      ),
+          ),
+        ),
+      ],
+    );
+  },
+),
     );
   }
 }

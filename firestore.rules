@@ -110,7 +110,8 @@ service cloud.firestore {
           || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid)
               && (!('donorId' in request.resource.data) || request.resource.data.donorId == resource.data.donorId));
 
-        allow delete: if isStaff();
+        allow delete: if isStaff()
+          || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
       }
     }
 
@@ -128,7 +129,8 @@ service cloud.firestore {
         || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid)
             && (!('donorId' in request.resource.data) || request.resource.data.donorId == resource.data.donorId));
 
-      allow delete: if isStaff();
+      allow delete: if isStaff()
+        || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
     }
 
     // --- bloodInventory --------------------------------------------
@@ -171,8 +173,11 @@ service cloud.firestore {
       allow read: if isStaff()
         || (isSignedIn() && resource.data.donorId == request.auth.uid);
 
-      allow create, update: if isStaff();
-      allow delete: if false;
+      allow create: if isStaff()
+        || (isSignedIn() && request.resource.data.donorId == request.auth.uid);
+
+      allow update, delete: if isStaff()
+        || (isSignedIn() && resource.data.donorId == request.auth.uid);
     }
 
     // Anything not matched above is denied by default. When a new collection
