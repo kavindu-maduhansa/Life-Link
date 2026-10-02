@@ -253,6 +253,36 @@ class DonorHomeTab extends StatelessWidget {
   /// Availability is a *donor* state, so it uses the shared success and
   /// warning tones - not critical red. Being unavailable is not an
   /// emergency, and colouring it red was overstating it.
+  Future<void> _toggleAvailability(BuildContext context, bool currentStatus) async {
+    final user = _currentUser;
+    if (user == null) return;
+    final newStatus = !currentStatus;
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'isAvailable': newStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(newStatus ? 'Availability set to Available' : 'Availability set to Unavailable'),
+          backgroundColor: newStatus ? context.colors.success : context.colors.warning,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to update availability. Please try again.'),
+          backgroundColor: context.colors.critical,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Widget _buildAvailabilityCard(BuildContext context, bool isAvailable) {
     final colors = context.colors;
     final tone = isAvailable ? LLTone.success : LLTone.warning;
@@ -296,6 +326,12 @@ class DonorHomeTab extends StatelessWidget {
                 Text(subtitle, style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.3)),
               ],
             ),
+          ),
+          const SizedBox(width: 8),
+          Switch.adaptive(
+            value: isAvailable,
+            activeTrackColor: fg,
+            onChanged: (_) => _toggleAvailability(context, isAvailable),
           ),
         ],
       ),

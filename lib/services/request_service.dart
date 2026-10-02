@@ -72,8 +72,65 @@ class RequestService {
   }
 
   // ---------------------------------------------------------------
-  // FR08 - verification workflow
+  // Request creation & FR08 - verification workflow
   // ---------------------------------------------------------------
+  Future<String> createEmergencyRequest({
+    required String patientName,
+    required String bloodGroup,
+    required int unitsNeeded,
+    required String urgency,
+    required String hospitalName,
+    required String location,
+    String notes = '',
+    String contactNumber = '',
+    required String doctorId,
+    required String doctorName,
+    String status = RequestStatus.pending,
+  }) async {
+    final docRef = await _requests.add({
+      'patientName': patientName.trim(),
+      'bloodGroup': bloodGroup.trim(),
+      'unitsNeeded': unitsNeeded,
+      'requiredUnits': unitsNeeded,
+      'urgency': urgency.trim(),
+      'urgencyLevel': urgency.trim(),
+      'hospitalName': hospitalName.trim(),
+      'location': location.trim(),
+      'notes': notes.trim(),
+      'description': notes.trim(),
+      'contactNumber': contactNumber.trim(),
+      'status': status,
+      'createdBy': doctorId,
+      'createdByName': doctorName,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      if (status == RequestStatus.verified) ...{
+        'verifiedBy': doctorName,
+        'verifiedAt': FieldValue.serverTimestamp(),
+      },
+      'unitsConfirmed': 0,
+      'donorsNotifiedCount': 0,
+      'donorsAcceptedCount': 0,
+      'pinnedBy': <String>[],
+    });
+
+    await logAudit(
+      action: status == RequestStatus.verified ? 'emergency_request_created_and_verified' : 'emergency_request_created',
+      requestId: docRef.id,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {
+        'patientName': patientName,
+        'bloodGroup': bloodGroup,
+        'unitsNeeded': unitsNeeded,
+        'urgency': urgency,
+        'status': status,
+      },
+    );
+
+    return docRef.id;
+  }
+
   // #two-person-verification - Critical urgency requests require a
   // second, different staff member to co-sign before the request
   // actually transitions to `verified`. Every other urgency level
@@ -218,6 +275,44 @@ class RequestService {
 
     if (status == 'completed') {
       await _db.collection('users').doc(donorId).update({'lastDonationDate': FieldValue.serverTimestamp()});
+
+      // Write exactly one donation history record for the completed donation
+      final historyId = '${requestId}_$responseId';
+      final historyRef = _db.collection('donation_history').doc(historyId);
+      final existingHistory = await historyRef.get();
+
+      if (!existingHistory.exists) {
+        final respDoc = await requestRef(requestId).collection('responses').doc(responseId).get();
+        final reqDoc = await requestRef(requestId).get();
+        final respData = respDoc.data() ?? {};
+        final reqData = reqDoc.data() ?? {};
+
+        final bloodGroup = (respData['bloodGroup'] as String?)?.trim().isNotEmpty == true
+            ? respData['bloodGroup']
+            : (reqData['bloodGroup'] as String?) ?? '-';
+        final hospitalName = (reqData['hospitalName'] as String?)?.trim().isNotEmpty == true
+            ? reqData['hospitalName']
+            : (respData['hospitalName'] as String?) ?? 'Hospital';
+        final location = (reqData['location'] as String?)?.trim().isNotEmpty == true
+            ? reqData['location']
+            : 'Hospital';
+
+        await historyRef.set({
+          'donorId': donorId,
+          'donorName': donorName,
+          'bloodGroup': bloodGroup,
+          'hospitalName': hospitalName,
+          'location': location,
+          'donationDate': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'status': 'completed',
+          'requestId': requestId,
+          'responseId': responseId,
+          'verifiedBy': doctorName,
+          'unitsDonated': (respData['unitsPledged'] as num?)?.toInt() ?? 1,
+          'notes': 'Donation verified and completed by hospital staff.',
+        });
+      }
     }
 
     await _recomputeCounts(requestId);
@@ -383,6 +478,7 @@ class RequestService {
       'location': location,
       'role': 'Donor',
       'verified': true, // staff verified them in person at registration time
+      'isAvailable': true,
       'availableNow': true,
       'isActive': true,
       'source': 'walk-in',

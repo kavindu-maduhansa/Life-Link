@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../theme/app_colors.dart';
+import '../../utils/request_status.dart';
 
 /// Donor Profile Screen displaying personal and donation details
 /// fetched from Firestore `users/{uid}` with edit capabilities.
@@ -143,6 +144,21 @@ class DonorProfileScreen extends StatelessWidget {
 
           final isAvailable = (data['isAvailable'] as bool?) ?? false;
           final lastDonationDisplay = _formatLastDonationDate(data['lastDonationDate']);
+
+          DateTime? lastDonationDate;
+          final rawDonation = data['lastDonationDate'];
+          if (rawDonation is Timestamp) {
+            lastDonationDate = rawDonation.toDate();
+          } else if (rawDonation is DateTime) {
+            lastDonationDate = rawDonation;
+          } else if (rawDonation is String) {
+            lastDonationDate = DateTime.tryParse(rawDonation);
+          }
+          final isEligible = DonorEligibility.isEligible(lastDonationDate);
+          final daysUntil = DonorEligibility.daysUntilEligible(lastDonationDate);
+          final eligibilityDisplay = isEligible
+              ? 'Eligible to Donate'
+              : 'Eligible in ${daysUntil ?? 0} days (90-day cooldown)';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
@@ -300,6 +316,14 @@ class DonorProfileScreen extends StatelessWidget {
                         icon: Icons.calendar_month_outlined,
                         label: 'Last Donation Date',
                         value: lastDonationDisplay,
+                      ),
+                      const Divider(height: 1, indent: 56, endIndent: 16),
+                      _ProfileInfoTile(
+                        icon: Icons.health_and_safety_outlined,
+                        label: 'Donation Eligibility',
+                        value: eligibilityDisplay,
+                        valueColor: isEligible ? colors.success : colors.warning,
+                        valueBold: true,
                       ),
                     ],
                   ),
@@ -828,6 +852,21 @@ class DonorProfileTab extends StatelessWidget {
         final isAvailable = (data['isAvailable'] as bool?) ?? false;
         final lastDonationDisplay = _formatLastDonationDate(data['lastDonationDate']);
 
+        DateTime? lastDonationDate;
+        final rawDonation = data['lastDonationDate'];
+        if (rawDonation is Timestamp) {
+          lastDonationDate = rawDonation.toDate();
+        } else if (rawDonation is DateTime) {
+          lastDonationDate = rawDonation;
+        } else if (rawDonation is String) {
+          lastDonationDate = DateTime.tryParse(rawDonation);
+        }
+        final isEligible = DonorEligibility.isEligible(lastDonationDate);
+        final daysUntil = DonorEligibility.daysUntilEligible(lastDonationDate);
+        final eligibilityDisplay = isEligible
+            ? 'Eligible to Donate'
+            : 'Eligible in ${daysUntil ?? 0} days (90-day cooldown)';
+
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
           child: Column(
@@ -983,6 +1022,14 @@ class DonorProfileTab extends StatelessWidget {
                       icon: Icons.calendar_month_outlined,
                       label: 'Last Donation Date',
                       value: lastDonationDisplay,
+                    ),
+                    const Divider(height: 1, indent: 56, endIndent: 16),
+                    _ProfileInfoTile(
+                      icon: Icons.health_and_safety_outlined,
+                      label: 'Donation Eligibility',
+                      value: eligibilityDisplay,
+                      valueColor: isEligible ? colors.success : colors.warning,
+                      valueBold: true,
                     ),
                   ],
                 ),

@@ -85,6 +85,16 @@ class MyResponsesScreen extends StatefulWidget {
           description:
               'This request has already been fulfilled or cannot proceed at this time. Thank you for your willingness to help.',
         );
+      case 'withdrawn':
+      case 'cancelled':
+        return StatusBadgeConfig(
+          label: 'Withdrawn',
+          textColor: colors.textSecondary,
+          backgroundColor: colors.border.withValues(alpha: 0.3),
+          borderColor: colors.border,
+          icon: Icons.remove_circle_outline_rounded,
+          description: 'You have withdrawn your donation offer for this emergency request.',
+        );
       case 'pending':
       default:
         return StatusBadgeConfig(
@@ -95,6 +105,220 @@ class MyResponsesScreen extends StatefulWidget {
           icon: Icons.hourglass_empty_rounded,
           description: 'Your response has been sent to the hospital and is awaiting review by the medical team.',
         );
+    }
+  }
+
+  /// Dialog to edit pledged units and donor notes (UPDATE operation).
+  static Future<void> showEditResponseDialog(
+    BuildContext context,
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final colors = context.colors;
+    final data = doc.data() ?? {};
+    int units = (data['unitsPledged'] as num?)?.toInt() ?? 1;
+    final phoneController = TextEditingController(text: (data['phoneNumber'] ?? data['donorPhone'] ?? '') as String);
+    final noteController = TextEditingController(text: (data['note'] ?? data['notes'] ?? '') as String);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Edit Donation Response',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(modalCtx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Units Pledged', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [1, 2, 3].map((u) {
+                      final selected = units == u;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: ChoiceChip(
+                          label: Text('$u Unit${u > 1 ? 's' : ''}'),
+                          selected: selected,
+                          selectedColor: colors.primary,
+                          labelStyle: TextStyle(
+                            color: selected ? Colors.white : colors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          onSelected: (_) => setModalState(() => units = u),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Contact Phone',
+                      prefixIcon: const Icon(Icons.phone_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Note for Hospital Team (Optional)',
+                      hintText: 'e.g. Can arrive by 3:00 PM',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () async {
+                      try {
+                        await doc.reference.update({
+                          'unitsPledged': units,
+                          'phoneNumber': phoneController.text.trim(),
+                          'donorPhone': phoneController.text.trim(),
+                          'note': noteController.text.trim(),
+                          'notes': noteController.text.trim(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        });
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Response updated successfully.'),
+                              backgroundColor: colors.success,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Failed to update response.'),
+                              backgroundColor: colors.critical,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Dialog to withdraw/delete response (DELETE operation).
+  static Future<void> showWithdrawConfirmDialog(
+    BuildContext context,
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final colors = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: colors.critical),
+            const SizedBox(width: 8),
+            const Text('Withdraw Response', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to withdraw your donation response? The hospital team will be notified.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text('Keep Response', style: TextStyle(color: colors.textSecondary)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style: FilledButton.styleFrom(backgroundColor: colors.critical),
+            child: const Text('Withdraw'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await doc.reference.delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Response withdrawn successfully.'),
+              backgroundColor: colors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (_) {
+        try {
+          await doc.reference.update({
+            'status': 'withdrawn',
+            'withdrawnAt': FieldValue.serverTimestamp(),
+          });
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Response marked as withdrawn.'),
+                backgroundColor: colors.success,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        } catch (_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Failed to withdraw response.'),
+                backgroundColor: colors.critical,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      }
     }
   }
 
@@ -121,7 +345,10 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
 
   Stream<QuerySnapshot<Map<String, dynamic>>>? _getResponsesStream(String uid) {
     try {
-      return FirebaseFirestore.instance.collection('donor_responses').where('donorId', isEqualTo: uid).snapshots();
+      return FirebaseFirestore.instance
+          .collectionGroup('responses')
+          .where('donorId', isEqualTo: uid)
+          .snapshots();
     } catch (_) {
       return null;
     }
@@ -347,7 +574,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                     ? rawHospital.trim()
                     : 'Emergency Blood Request';
 
-                final rawRequestId = data['requestId'] as String?;
+                final rawRequestId = data['requestId'] as String? ?? doc.reference.parent.parent?.id;
                 final requestIdDisplay = (rawRequestId != null && rawRequestId.trim().isNotEmpty)
                     ? (rawRequestId.length > 10 ? 'Ref: #${rawRequestId.substring(0, 8)}...' : 'Ref: #$rawRequestId')
                     : null;
@@ -498,6 +725,34 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                               ),
                           ],
                         ),
+                        const SizedBox(height: 8),
+                        Divider(height: 1, color: colors.border),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () => MyResponsesScreen.showEditResponseDialog(context, doc),
+                              icon: const Icon(Icons.edit_outlined, size: 14),
+                              label: const Text('Edit Details'),
+                              style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () => MyResponsesScreen.showWithdrawConfirmDialog(context, doc),
+                              icon: Icon(Icons.delete_outline_rounded, size: 15, color: colors.critical),
+                              label: Text('Withdraw', style: TextStyle(color: colors.critical, fontSize: 13, fontWeight: FontWeight.w600)),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -560,7 +815,10 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
 
   Stream<QuerySnapshot<Map<String, dynamic>>>? _getResponsesStream(String uid) {
     try {
-      return FirebaseFirestore.instance.collection('donor_responses').where('donorId', isEqualTo: uid).snapshots();
+      return FirebaseFirestore.instance
+          .collectionGroup('responses')
+          .where('donorId', isEqualTo: uid)
+          .snapshots();
     } catch (_) {
       return null;
     }
@@ -757,7 +1015,7 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
                   ? rawHospital.trim()
                   : 'Emergency Blood Request';
 
-              final rawRequestId = data['requestId'] as String?;
+              final rawRequestId = data['requestId'] as String? ?? doc.reference.parent.parent?.id;
               final requestIdDisplay = (rawRequestId != null && rawRequestId.trim().isNotEmpty)
                   ? (rawRequestId.length > 10 ? 'Ref: #${rawRequestId.substring(0, 8)}...' : 'Ref: #$rawRequestId')
                   : null;
@@ -887,6 +1145,34 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
                               requestIdDisplay,
                               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: colors.textSecondary),
                             ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Divider(height: 1, color: colors.border),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => MyResponsesScreen.showEditResponseDialog(context, doc),
+                            icon: const Icon(Icons.edit_outlined, size: 14),
+                            label: const Text('Edit Details'),
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            onPressed: () => MyResponsesScreen.showWithdrawConfirmDialog(context, doc),
+                            icon: Icon(Icons.delete_outline_rounded, size: 15, color: colors.critical),
+                            label: Text('Withdraw', style: TextStyle(color: colors.critical, fontSize: 13, fontWeight: FontWeight.w600)),
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            ),
+                          ),
                         ],
                       ),
                     ],

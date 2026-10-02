@@ -19,8 +19,8 @@ import 'my_responses_screen.dart';
 ///
 /// All Firebase logic lives in the individual Tab widgets:
 ///  - [DonorHomeTab]         → Firestore `users/{uid}` stream (dashboard)
-///  - [EmergencyRequestsTab] → Firestore `blood_requests` collection
-///  - [MyResponsesTab]       → Firestore `donor_responses` collection
+///  - [EmergencyRequestsTab] → Firestore `requests` collection
+///  - [MyResponsesTab]       → Firestore `requests/{id}/responses` collection
 ///  - [DonationHistoryTab]   → Firestore `donation_history` collection
 ///  - [DonorProfileTab]      → Firestore `users/{uid}` stream (profile)
 ///

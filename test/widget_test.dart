@@ -42,6 +42,9 @@ void main() {
     expect(find.text('Create Account'), findsOneWidget);
     expect(find.text('Select your role'), findsOneWidget);
     expect(find.text('Donor'), findsOneWidget);
+    expect(find.text('Recipient'), findsOneWidget);
+    expect(find.text('Doctor / Blood Bank'), findsOneWidget);
+    expect(find.text('Organization Coordinator'), findsOneWidget);
   });
 
   testWidgets('DonorHomeScreen smoke test', (WidgetTester tester) async {

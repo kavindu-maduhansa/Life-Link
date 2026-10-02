@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hci/screens/donor/emergency_requests_screen.dart';
+import 'package:hci/utils/request_status.dart';
 
 void main() {
   group('EmergencyRequestsScreen Helper Unit Tests', () {
@@ -17,6 +18,32 @@ void main() {
         EmergencyRequestsScreen.formatRequestDate('2026-12-25T15:45:00.000'),
         '25 Dec 2026 at 15:45',
       );
+    });
+
+    test('isActiveStatus correctly filters verified and matched requests for donors', () {
+      // Active / visible for donors
+      expect(EmergencyRequestsScreen.isActiveStatus('verified'), isTrue);
+      expect(EmergencyRequestsScreen.isActiveStatus('Verified'), isTrue);
+      expect(EmergencyRequestsScreen.isActiveStatus('matched'), isTrue);
+      expect(EmergencyRequestsScreen.isActiveStatus('active'), isTrue);
+      expect(EmergencyRequestsScreen.isActiveStatus('open'), isTrue);
+      expect(EmergencyRequestsScreen.isActiveStatus('approved'), isTrue);
+
+      // Inactive / not yet verified or closed
+      expect(EmergencyRequestsScreen.isActiveStatus('pending'), isFalse);
+      expect(EmergencyRequestsScreen.isActiveStatus('rejected'), isFalse);
+      expect(EmergencyRequestsScreen.isActiveStatus('fulfilled'), isFalse);
+      expect(EmergencyRequestsScreen.isActiveStatus('expired'), isFalse);
+      expect(EmergencyRequestsScreen.isActiveStatus('completed'), isFalse);
+      expect(EmergencyRequestsScreen.isActiveStatus('cancelled'), isFalse);
+      expect(EmergencyRequestsScreen.isActiveStatus(null), isFalse);
+      expect(EmergencyRequestsScreen.isActiveStatus(''), isFalse);
+    });
+
+    test('BloodCompatibility correctly maps compatible donors for emergency blood requests', () {
+      expect(BloodCompatibility.compatibleDonorGroups('O-'), contains('O-'));
+      expect(BloodCompatibility.compatibleDonorGroups('O+'), containsAll(['O+', 'O-']));
+      expect(BloodCompatibility.compatibleDonorGroups('AB+'), containsAll(['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']));
     });
   });
 

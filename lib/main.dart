@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'screens/auth/auth_gate.dart';
+import 'screens/onboarding/onboarding_gate.dart';
 import 'services/theme_controller.dart';
 import 'theme/app_theme.dart';
 
@@ -31,35 +31,13 @@ class MyApp extends StatelessWidget {
       builder: (context, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Blood Donation HCI',
+          title: 'LifeLink',
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: ThemeController.instance.mode,
-          home: const AuthGate(),
+          home: const OnboardingGate(),
         );
       },
-    );
-  }
-}
-
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Blood Donation HCI'),
-      ),
-      body: const Center(
-        child: Text(
-          'Firebase Connected Successfully',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
     );
   }
 }

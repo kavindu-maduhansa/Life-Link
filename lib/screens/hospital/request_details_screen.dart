@@ -511,14 +511,21 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           _runDuplicateCheck(request);
 
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _requestRef.collection('responses').orderBy('notifiedAt', descending: true).snapshots(),
+            stream: _requestRef.collection('responses').snapshots(),
             builder: (context, responseSnap) {
               // Donor responses are non-critical to the rest of this
               // screen rendering - degrade to an empty list rather
               // than blocking the whole page on a transient error.
-              final responses = responseSnap.hasError
-                  ? const <DonorResponseRecord>[]
-                  : (responseSnap.data?.docs ?? []).map(DonorResponseRecord.fromDoc).toList();
+              final rawList = (responseSnap.data?.docs ?? []).map(DonorResponseRecord.fromDoc).toList();
+              rawList.sort((a, b) {
+                final dateA = a.respondedAt ?? a.notifiedAt;
+                final dateB = b.respondedAt ?? b.notifiedAt;
+                if (dateA == null && dateB == null) return 0;
+                if (dateA == null) return 1;
+                if (dateB == null) return -1;
+                return dateB.compareTo(dateA);
+              });
+              final responses = responseSnap.hasError ? const <DonorResponseRecord>[] : rawList;
 
               var delayStep = 0;
               Widget staggered(Widget child) {
@@ -589,7 +596,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                     const SizedBox(height: 16),
                     staggered(_FindDonorsButton(onPressed: () => _openDonorSearch(request))),
                   ],
-                  if (request.status == RequestStatus.matched || request.status == RequestStatus.fulfilled) ...[
+                  if (responses.isNotEmpty || request.status == RequestStatus.matched || request.status == RequestStatus.fulfilled) ...[
                     const SizedBox(height: 16),
                     staggered(
                       _CoordinationCard(

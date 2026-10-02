@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../theme/app_colors.dart';
+import '../../utils/request_status.dart';
 
 /// Screen displaying the full details of a blood request, allowing a donor
 /// to submit a response ("I Can Donate") while preventing duplicate responses.
@@ -83,6 +84,14 @@ class BloodRequestDetailsScreen extends StatefulWidget {
           borderColor: colors.successContainer,
           icon: Icons.check_circle_outline_rounded,
         );
+      case 'normal':
+        return UrgencyBadgeConfig(
+          label: 'Normal Urgency',
+          textColor: colors.textPrimary,
+          backgroundColor: colors.primary.withValues(alpha: 0.08),
+          borderColor: colors.primary.withValues(alpha: 0.2),
+          icon: Icons.info_outline_rounded,
+        );
       default:
         final displayLabel = rawUrgency != null && rawUrgency.toString().trim().isNotEmpty
             ? rawUrgency.toString().trim()
@@ -105,6 +114,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
   bool _isCheckingResponse = true;
   bool _hasAlreadyResponded = false;
   bool _isSubmitting = false;
+  String? _donorBloodGroup;
 
   @override
   void initState() {
@@ -112,7 +122,8 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     _checkExistingResponse();
   }
 
-  /// Checks Firestore `donor_responses` to verify if current donor already responded.
+  /// Checks Firestore `requests/{requestId}/responses` to verify if current donor already responded
+  /// and fetches the donor's blood group to evaluate compatibility.
   Future<void> _checkExistingResponse() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -121,16 +132,27 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         return;
       }
 
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('donor_responses')
-          .where('requestId', isEqualTo: widget.requestId)
-          .where('donorId', isEqualTo: user.uid)
-          .limit(1)
+      final docFuture = FirebaseFirestore.instance
+          .collection('requests')
+          .doc(widget.requestId)
+          .collection('responses')
+          .doc(user.uid)
           .get();
+
+      final userFuture = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final results = await Future.wait([docFuture, userFuture]);
+      final docSnapshot = results[0];
+      final userSnapshot = results[1];
+      final rawBlood = userSnapshot.data()?['bloodGroup'] as String?;
 
       if (mounted) {
         setState(() {
-          _hasAlreadyResponded = querySnapshot.docs.isNotEmpty;
+          _donorBloodGroup = (rawBlood != null && rawBlood.trim().isNotEmpty) ? rawBlood.trim() : null;
+          _hasAlreadyResponded = docSnapshot.exists;
           _isCheckingResponse = false;
         });
       }
@@ -161,15 +183,16 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Step 1: Check duplicate response before writing
-      final existingResponse = await FirebaseFirestore.instance
-          .collection('donor_responses')
-          .where('requestId', isEqualTo: widget.requestId)
-          .where('donorId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
+      // Step 1: Check duplicate response before writing using direct doc lookup
+      final responseRef = FirebaseFirestore.instance
+          .collection('requests')
+          .doc(widget.requestId)
+          .collection('responses')
+          .doc(user.uid);
 
-      if (existingResponse.docs.isNotEmpty) {
+      final existingResponse = await responseRef.get();
+
+      if (existingResponse.exists) {
         if (mounted) {
           setState(() {
             _hasAlreadyResponded = true;
@@ -177,7 +200,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('You have already responded to this blood request.'),
+              content: const Text('You have already responded to this blood request.'),
               backgroundColor: colors.warning,
               behavior: SnackBarBehavior.floating,
             ),
@@ -213,7 +236,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           ? user.email!.trim()
           : 'Not specified';
 
-      // Step 3: Save donor response to donor_responses collection
+      // Step 3: Save donor response to canonical requests/{requestId}/responses/{user.uid}
       final requestHospital =
           ((widget.requestData['hospitalName'] ?? widget.requestData['organizationName']) as String?)?.trim() ??
           'Unknown Hospital';
@@ -221,18 +244,23 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       final requestUrgency =
           ((widget.requestData['urgency'] ?? widget.requestData['urgencyLevel']) as String?)?.trim() ?? 'Standard';
 
-      await FirebaseFirestore.instance.collection('donor_responses').add({
+      await responseRef.set({
         'requestId': widget.requestId,
         'donorId': user.uid,
         'donorName': donorName,
-        'bloodGroup': donorBloodGroup,
+        'donorPhone': donorPhone,
         'phoneNumber': donorPhone,
         'email': donorEmail,
-        'status': 'pending',
-        'respondedAt': FieldValue.serverTimestamp(),
-        'hospitalName': requestHospital,
+        'bloodGroup': donorBloodGroup,
         'requestBloodGroup': requestedBloodGroup,
+        'hospitalName': requestHospital,
         'urgency': requestUrgency,
+        'status': 'accepted',
+        'unitsPledged': 1,
+        'notifiedBy': 'Self-Registered Donor',
+        'notifiedAt': FieldValue.serverTimestamp(),
+        'respondedAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (mounted) {
@@ -245,6 +273,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         _showSuccessDialog();
       }
     } catch (e) {
+      debugPrint('Failed to submit response: $e');
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -256,6 +285,225 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         );
       }
     }
+  }
+
+  Future<void> _handleWithdrawResponse() async {
+    final colors = context.colors;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: colors.critical),
+            const SizedBox(width: 8),
+            const Text('Withdraw Response', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to withdraw your donation offer for this request?',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: colors.critical),
+            child: const Text('Withdraw'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isSubmitting = true);
+      try {
+        final ref = FirebaseFirestore.instance
+            .collection('requests')
+            .doc(widget.requestId)
+            .collection('responses')
+            .doc(user.uid);
+        try {
+          await ref.delete();
+        } catch (_) {
+          await ref.update({'status': 'withdrawn', 'withdrawnAt': FieldValue.serverTimestamp()});
+        }
+        if (mounted) {
+          setState(() {
+            _hasAlreadyResponded = false;
+            _isSubmitting = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Donation offer withdrawn.'),
+              backgroundColor: colors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() => _isSubmitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Failed to withdraw offer. Please try again.'),
+              backgroundColor: colors.critical,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleUpdateResponse() async {
+    final colors = context.colors;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final ref = FirebaseFirestore.instance
+        .collection('requests')
+        .doc(widget.requestId)
+        .collection('responses')
+        .doc(user.uid);
+
+    final snap = await ref.get();
+    final data = snap.data() ?? {};
+    int units = (data['unitsPledged'] as num?)?.toInt() ?? 1;
+    final noteController = TextEditingController(text: (data['note'] ?? data['notes'] ?? '') as String);
+    final phoneController = TextEditingController(text: (data['phoneNumber'] ?? data['donorPhone'] ?? '') as String);
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Update Donation Offer',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(modalCtx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Units Pledged', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [1, 2, 3].map((u) {
+                      final selected = units == u;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: ChoiceChip(
+                          label: Text('$u Unit${u > 1 ? 's' : ''}'),
+                          selected: selected,
+                          selectedColor: colors.primary,
+                          labelStyle: TextStyle(
+                            color: selected ? Colors.white : colors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          onSelected: (_) => setModalState(() => units = u),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Contact Phone',
+                      prefixIcon: const Icon(Icons.phone_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Arrival or availability note',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () async {
+                      try {
+                        await ref.update({
+                          'unitsPledged': units,
+                          'phoneNumber': phoneController.text.trim(),
+                          'donorPhone': phoneController.text.trim(),
+                          'note': noteController.text.trim(),
+                          'notes': noteController.text.trim(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        });
+                        if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Donation offer updated successfully.'),
+                              backgroundColor: colors.success,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Failed to update donation offer.'),
+                              backgroundColor: colors.critical,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Save Update', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   /// Displays a friendly confirmation dialog after response submission.
@@ -338,7 +586,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     final rawContact = data['contactNumber'] as String?;
     final contactNumber = (rawContact != null && rawContact.trim().isNotEmpty) ? rawContact.trim() : 'Not specified';
 
-    final rawDescription = data['description'] as String?;
+    final rawDescription = (data['notes'] ?? data['description']) as String?;
     final description = (rawDescription != null && rawDescription.trim().isNotEmpty)
         ? rawDescription.trim()
         : 'No additional clinical notes or description provided.';
@@ -347,6 +595,20 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     final statusDisplay = (rawStatus != null && rawStatus.trim().isNotEmpty)
         ? rawStatus.trim()[0].toUpperCase() + rawStatus.trim().substring(1).toLowerCase()
         : 'Active';
+
+    final isVerified = (rawStatus?.toLowerCase() == 'verified') ||
+        (rawStatus?.toLowerCase() == 'matched') ||
+        data['verified'] == true ||
+        (data['verifiedBy'] as String?)?.trim().isNotEmpty == true;
+    final verifiedBy = (data['verifiedBy'] as String?)?.trim();
+    final verificationLabel = isVerified
+        ? (verifiedBy != null && verifiedBy.isNotEmpty ? 'Verified by $verifiedBy' : 'Hospital Verified')
+        : 'Pending Staff Verification';
+
+    final compatibleGroups = BloodCompatibility.compatibleDonorGroups(bloodGroup);
+    final donorBloodUpper = _donorBloodGroup?.trim().toUpperCase();
+    final isDonorCompatible = donorBloodUpper != null &&
+        compatibleGroups.map((g) => g.toUpperCase()).contains(donorBloodUpper);
 
     final createdDateStr = BloodRequestDetailsScreen.formatRequestDate(data['createdAt']);
 
@@ -511,11 +773,81 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                         ),
                         Divider(height: 1, indent: 52, color: colors.border),
                         _DetailRow(
+                          icon: isVerified ? Icons.verified_rounded : Icons.pending_actions_rounded,
+                          iconColor: isVerified ? colors.success : colors.warning,
+                          label: 'Hospital Verification',
+                          value: verificationLabel,
+                          valueColor: isVerified ? colors.success : colors.warning,
+                        ),
+                        Divider(height: 1, indent: 52, color: colors.border),
+                        _DetailRow(
                           icon: Icons.calendar_today_outlined,
                           iconColor: colors.textSecondary,
                           label: 'Request Date & Time',
                           value: createdDateStr,
                         ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // 3. Blood Compatibility Card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDonorCompatible ? colors.successContainer.withValues(alpha: 0.3) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDonorCompatible ? colors.successContainer : colors.border,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isDonorCompatible ? Icons.check_circle_rounded : Icons.bloodtype_outlined,
+                              size: 18,
+                              color: isDonorCompatible ? colors.success : colors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Blood-Group Compatibility',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isDonorCompatible ? colors.success : colors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Compatible donor types: ${compatibleGroups.join(', ')}',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                        ),
+                        if (_donorBloodGroup != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            isDonorCompatible
+                                ? 'Your blood group ($_donorBloodGroup) is compatible with this request.'
+                                : 'Your blood group ($_donorBloodGroup) is not compatible with this request.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDonorCompatible ? colors.success : colors.critical,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -605,24 +937,58 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     }
 
     if (_hasAlreadyResponded) {
-      return Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: colors.successContainer,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.successContainer),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle_rounded, color: colors.success, size: 22),
-            SizedBox(width: 8),
-            Text(
-              'Response Already Submitted',
-              style: TextStyle(color: colors.success, fontSize: 15, fontWeight: FontWeight.bold),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: colors.successContainer,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colors.successContainer),
             ),
-          ],
-        ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_rounded, color: colors.success, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Offer Submitted - Pledged',
+                  style: TextStyle(color: colors.success, fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSubmitting ? null : _handleUpdateResponse,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Update Offer'),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSubmitting ? null : _handleWithdrawResponse,
+                  icon: Icon(Icons.delete_outline_rounded, size: 16, color: colors.critical),
+                  label: Text('Withdraw', style: TextStyle(color: colors.critical)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: colors.critical.withValues(alpha: 0.5)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       );
     }
 
