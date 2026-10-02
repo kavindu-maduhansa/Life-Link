@@ -4,6 +4,7 @@ import 'organisation_requests_screen.dart';
 import 'organisation_find_match_donors_screen.dart';
 import 'organisation_response_tracking_screen.dart';
 import 'organisation_alerts_notifications_screen.dart';
+import 'organisation_profile_screen.dart';
 
 class OrganisationHomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -200,7 +201,18 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
           ),
 
           // Profile icon
-          Container(
+          // Profile icon
+        InkWell(
+          borderRadius: BorderRadius.circular(5),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const OrganisationProfileScreen(),
+              ),
+            );
+          },
+          child: Container(
             width: 29,
             height: 29,
             decoration: BoxDecoration(
@@ -216,6 +228,7 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
               color: secondaryText,
             ),
           ),
+        ),
         ],
       ),
     );

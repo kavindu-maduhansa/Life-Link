@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'organisation_alerts_notifications_2_screen.dart'; 
 
 enum NotificationGroup { today, yesterday }
 
@@ -201,8 +202,20 @@ class _OrganisationAlertsNotificationsScreenState
   // ============================================================
 
   Widget _buildNotificationCard(DonorNotificationItem item) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 0, 6, 12),
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(6, 0, 6, 12),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrganisationAlertsNotifications2Screen(
+              donorId: item.donorId,
+            ),
+          ),
+        );
+      },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
@@ -241,9 +254,7 @@ class _OrganisationAlertsNotificationsScreenState
                       color: mainText,
                     ),
                   ),
-
                   const SizedBox(height: 4),
-
                   Text(
                     item.details,
                     style: const TextStyle(
@@ -271,8 +282,9 @@ class _OrganisationAlertsNotificationsScreenState
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ============================================================
   // EMPTY STATE

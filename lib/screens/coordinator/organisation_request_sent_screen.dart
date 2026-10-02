@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'organisation_home_screen.dart';
+import 'organisation_alerts_notifications_screen.dart';
 
 class OrganisationRequestSentScreen extends StatelessWidget {
   final String requestId;
@@ -265,13 +266,12 @@ class OrganisationRequestSentScreen extends StatelessWidget {
       height: 52,
       child: ElevatedButton(
         onPressed: () {
-          // TODO: replace with your Response Tracking screen
-          // Navigator.push(
-          //   context,
-          //   MaterialPageRoute(
-          //     builder: (_) => const OrganisationResponseTrackingScreen(),
-          //   ),
-          // );
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const OrganisationAlertsNotificationsScreen(),
+            ),
+          );
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryMaroon,
