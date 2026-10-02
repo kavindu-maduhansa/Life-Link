@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'organisation_requests_screen.dart';
 import 'organisation_find_match_donors_screen.dart';
+import 'organisation_response_tracking_screen.dart';
+import 'organisation_alerts_notifications_screen.dart';
 
 class OrganisationHomeScreen extends StatefulWidget {
-  const OrganisationHomeScreen({super.key});
+  final int initialIndex;
+
+  const OrganisationHomeScreen({super.key, this.initialIndex = 0});
 
   @override
   State<OrganisationHomeScreen> createState() =>
@@ -12,7 +16,13 @@ class OrganisationHomeScreen extends StatefulWidget {
 }
 
 class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex;
+  }
 
   // ============================================================
   // DESIGN COLORS
@@ -55,7 +65,21 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
 
             const OrganisationFindMatchDonorsScreen(),
 
-            _buildAlertsScreen(),
+            OrganisationResponseTrackingScreen(
+              onBack: () {
+                setState(() {
+                  _selectedIndex = 0;
+                });
+              },
+              onTrackResponders: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const OrganisationAlertsNotificationsScreen(),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
