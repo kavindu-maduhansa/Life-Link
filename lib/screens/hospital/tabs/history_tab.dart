@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../request_details_screen.dart';
 import '../pdf_report.dart';
 import '../csv_export.dart';
 import '../../../models/blood_request.dart';
+import '../../../services/request_service.dart';
 import '../../../utils/request_status.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/common_states.dart';
@@ -516,10 +519,116 @@ class _HistoryRequestCard extends StatelessWidget {
   final BloodRequest request;
   const _HistoryRequestCard({required this.request});
 
+  String get _doctorId => FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _doctorName => FirebaseAuth.instance.currentUser?.email ?? 'Hospital Staff';
+
+  bool _isReviewedByMe() {
+    final reviewedBy = request.raw['reviewedBy'];
+    if (reviewedBy is List) return reviewedBy.contains(_doctorId);
+    return false;
+  }
+
+  void _showHandoverNoteDialog(BuildContext context) {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Handover Note'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            maxLines: 3,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Handover note for incoming shift',
+              hintText: 'e.g. Patient transferred to ICU, family notified',
+              border: OutlineInputBorder(),
+            ),
+            validator: (v) => (v?.trim().isEmpty ?? true) ? 'Please enter a handover note.' : null,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              final note = controller.text.trim();
+              Navigator.pop(ctx);
+              RequestService.instance.addHandoverNote(
+                requestId: request.id,
+                note: note,
+                doctorId: _doctorId,
+                doctorName: _doctorName,
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Handover note added')),
+              );
+            },
+            child: const Text('Save Note'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReviewDialog(BuildContext context) {
+    final colors = context.colors;
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Acknowledge & Review'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Mark this request as reviewed. This records that you have '
+              'examined the outcome for quality assurance.',
+              style: TextStyle(fontSize: 13, color: colors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Review note (optional)',
+                hintText: 'e.g. Outcome appropriate, no follow-up needed',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final note = controller.text.trim();
+              Navigator.pop(ctx);
+              RequestService.instance.acknowledgeHistoryRequest(
+                requestId: request.id,
+                doctorId: _doctorId,
+                doctorName: _doctorName,
+                reviewNote: note.isNotEmpty ? note : null,
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Request marked as reviewed')),
+              );
+            },
+            child: const Text('Mark Reviewed'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final statusColor = RequestStatus.color(request.status);
+    final reviewed = _isReviewedByMe();
     return PressableScale(
       borderRadius: BorderRadius.circular(14),
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: request.id))),
@@ -528,32 +637,108 @@ class _HistoryRequestCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border),
+          border: Border.all(color: reviewed ? colors.success.withValues(alpha: 0.4) : colors.border),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              backgroundColor: statusColor.withValues(alpha: 0.12),
-              child: Icon(RequestStatus.icon(request.status), size: 18, color: statusColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(request.patientName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-                  const SizedBox(height: 2),
-                  Text('${request.bloodGroup} · ${request.unitsNeeded} unit(s) · ${request.hospitalName}',
-                      style: TextStyle(fontSize: 11, color: colors.textSecondary)),
-                  Text(RequestStatus.label(request.status), style: TextStyle(fontSize: 11, color: statusColor)),
-                ],
-              ),
-            ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Row(
               children: [
-                Icon(Icons.chevron_right_rounded, color: colors.textSecondary),
-                Text('View', style: TextStyle(fontSize: 9.5, color: colors.textSecondary)),
+                CircleAvatar(
+                  backgroundColor: statusColor.withValues(alpha: 0.12),
+                  child: Icon(RequestStatus.icon(request.status), size: 18, color: statusColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(request.patientName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                      const SizedBox(height: 2),
+                      Text('${request.bloodGroup} · ${request.unitsNeeded} unit(s) · ${request.hospitalName}',
+                          style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                      Row(
+                        children: [
+                          Text(RequestStatus.label(request.status), style: TextStyle(fontSize: 11, color: statusColor)),
+                          if (reviewed) ...[
+                            const SizedBox(width: 8),
+                            Icon(Icons.check_circle_outline_rounded, size: 13, color: colors.success),
+                            const SizedBox(width: 3),
+                            Text('Reviewed', style: TextStyle(fontSize: 10, color: colors.success, fontWeight: FontWeight.w600)),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.chevron_right_rounded, color: colors.textSecondary),
+                    Text('View', style: TextStyle(fontSize: 9.5, color: colors.textSecondary)),
+                  ],
+                ),
+              ],
+            ),
+            // Phase 5: Handover note (CREATE) + Review acknowledgement (UPDATE)
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _showHandoverNoteDialog(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.note_add_outlined, size: 14, color: colors.primary),
+                          const SizedBox(width: 4),
+                          Text('Handover Note', style: TextStyle(fontSize: 11, color: colors.primary, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: reviewed ? null : () => _showReviewDialog(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: reviewed ? colors.success.withValues(alpha: 0.08) : colors.elevatedSurface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: reviewed ? colors.success.withValues(alpha: 0.3) : colors.border),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            reviewed ? Icons.check_circle_rounded : Icons.rate_review_outlined,
+                            size: 14,
+                            color: reviewed ? colors.success : colors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            reviewed ? 'Reviewed' : 'Review',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: reviewed ? colors.success : colors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ],

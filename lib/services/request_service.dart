@@ -72,8 +72,65 @@ class RequestService {
   }
 
   // ---------------------------------------------------------------
-  // FR08 - verification workflow
+  // Request creation & FR08 - verification workflow
   // ---------------------------------------------------------------
+  Future<String> createEmergencyRequest({
+    required String patientName,
+    required String bloodGroup,
+    required int unitsNeeded,
+    required String urgency,
+    required String hospitalName,
+    required String location,
+    String notes = '',
+    String contactNumber = '',
+    required String doctorId,
+    required String doctorName,
+    String status = RequestStatus.pending,
+  }) async {
+    final docRef = await _requests.add({
+      'patientName': patientName.trim(),
+      'bloodGroup': bloodGroup.trim(),
+      'unitsNeeded': unitsNeeded,
+      'requiredUnits': unitsNeeded,
+      'urgency': urgency.trim(),
+      'urgencyLevel': urgency.trim(),
+      'hospitalName': hospitalName.trim(),
+      'location': location.trim(),
+      'notes': notes.trim(),
+      'description': notes.trim(),
+      'contactNumber': contactNumber.trim(),
+      'status': status,
+      'createdBy': doctorId,
+      'createdByName': doctorName,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      if (status == RequestStatus.verified) ...{
+        'verifiedBy': doctorName,
+        'verifiedAt': FieldValue.serverTimestamp(),
+      },
+      'unitsConfirmed': 0,
+      'donorsNotifiedCount': 0,
+      'donorsAcceptedCount': 0,
+      'pinnedBy': <String>[],
+    });
+
+    await logAudit(
+      action: status == RequestStatus.verified ? 'emergency_request_created_and_verified' : 'emergency_request_created',
+      requestId: docRef.id,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {
+        'patientName': patientName,
+        'bloodGroup': bloodGroup,
+        'unitsNeeded': unitsNeeded,
+        'urgency': urgency,
+        'status': status,
+      },
+    );
+
+    return docRef.id;
+  }
+
   // #two-person-verification - Critical urgency requests require a
   // second, different staff member to co-sign before the request
   // actually transitions to `verified`. Every other urgency level
@@ -799,5 +856,227 @@ class RequestService {
       'createdAt': FieldValue.serverTimestamp(),
       'readBy': <String>[],
     }, SetOptions(merge: true));
+  }
+
+  // ---------------------------------------------------------------
+  // Phase 4 — Safe request cancellation (soft-delete pattern)
+  //
+  // Moves an active request to the terminal `cancelled` status. The
+  // document stays in place (no hard delete) so the audit trail and
+  // existing response records remain queryable; a `cancellationReason`
+  // field captures why it was withdrawn.
+  // ---------------------------------------------------------------
+  Future<void> cancelRequest({
+    required BloodRequest request,
+    required String reason,
+    required String doctorId,
+    required String doctorName,
+  }) async {
+    if (!RequestStatus.isValidTransition(request.status, RequestStatus.cancelled)) {
+      throw StateError(
+        'Cannot cancel a request with status "${RequestStatus.label(request.status)}". '
+        'Only active (pending / verified / matched) requests can be cancelled.',
+      );
+    }
+    final trimmedReason = reason.trim();
+    if (trimmedReason.isEmpty) {
+      throw StateError('A cancellation reason is required.');
+    }
+
+    await requestRef(request.id).update({
+      'status': RequestStatus.cancelled,
+      'cancellationReason': trimmedReason,
+      'cancelledBy': doctorName,
+      'cancelledAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await logAudit(
+      action: 'request_cancelled',
+      requestId: request.id,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {'reason': trimmedReason, 'previousStatus': request.status},
+    );
+  }
+
+  // ---------------------------------------------------------------
+  // Alert acknowledgement — a distinct Firestore UPDATE that records
+  // *who* acknowledged the alert and *when*, separate from the
+  // existing "mark read" action (which only tracks visibility).
+  // ---------------------------------------------------------------
+  Future<void> acknowledgeAlert({
+    required String alertId,
+    required String doctorId,
+    required String doctorName,
+    String? note,
+  }) async {
+    await _alerts.doc(alertId).update({
+      'acknowledgedBy': FieldValue.arrayUnion([doctorId]),
+      'acknowledgedByName': FieldValue.arrayUnion([doctorName]),
+      'lastAcknowledgedAt': FieldValue.serverTimestamp(),
+      if (note != null && note.trim().isNotEmpty) 'acknowledgementNote': note.trim(),
+    });
+
+    // Also mark as read if not already
+    await _alerts.doc(alertId).update({
+      'readBy': FieldValue.arrayUnion([doctorId]),
+    });
+
+    final alertDoc = await _alerts.doc(alertId).get();
+    final requestId = alertDoc.data()?['requestId'] as String? ?? alertId;
+
+    await logAudit(
+      action: 'alert_acknowledged',
+      requestId: requestId,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {
+        'alertId': alertId,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------
+  // Blood stock transaction log — CREATE records tracking every
+  // stock change so the Blood Stock screen has a history of who
+  // changed what and when (distinct from the stock line itself).
+  // ---------------------------------------------------------------
+  CollectionReference<Map<String, dynamic>> get _stockTransactions => _db.collection('stockTransactions');
+
+  Future<void> createStockTransaction({
+    required String facilityId,
+    required String bloodGroup,
+    required String component,
+    required String transactionType, // 'received', 'issued', 'expired', 'adjustment'
+    required int quantity,
+    required String doctorId,
+    required String doctorName,
+    String? note,
+  }) async {
+    await _stockTransactions.add({
+      'facilityId': facilityId,
+      'bloodGroup': bloodGroup.toUpperCase(),
+      'component': component,
+      'transactionType': transactionType,
+      'quantity': quantity,
+      'recordedBy': doctorId,
+      'recordedByName': doctorName,
+      'timestamp': FieldValue.serverTimestamp(),
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    });
+
+    await logAudit(
+      action: 'stock_transaction_recorded',
+      requestId: '${facilityId}_${bloodGroup}_$component',
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {
+        'transactionType': transactionType,
+        'bloodGroup': bloodGroup,
+        'component': component,
+        'quantity': quantity,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+  }
+
+  /// Live stream of stock transactions for display in the Blood Stock screen.
+  Stream<QuerySnapshot<Map<String, dynamic>>> stockTransactionsStream({
+    String? facilityId,
+    int limit = 50,
+  }) {
+    Query<Map<String, dynamic>> query = _stockTransactions.orderBy('timestamp', descending: true);
+    if (facilityId != null && facilityId.trim().isNotEmpty) {
+      query = query.where('facilityId', isEqualTo: facilityId.trim());
+    }
+    return query.limit(limit).snapshots();
+  }
+
+  // ---------------------------------------------------------------
+  // Phase 5 — Shift handover notes (CREATE to auditLogs) and
+  // history-request review acknowledgement (UPDATE on request doc).
+  // ---------------------------------------------------------------
+
+  /// Creates a handover note attached to a specific request, written
+  /// into the append-only `auditLogs` collection so it appears on
+  /// the request timeline for the incoming shift.
+  Future<void> addHandoverNote({
+    required String requestId,
+    required String note,
+    required String doctorId,
+    required String doctorName,
+  }) async {
+    final trimmed = note.trim();
+    if (trimmed.isEmpty) return;
+    await logAudit(
+      action: 'shift_handover_note',
+      requestId: requestId,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {'note': trimmed},
+    );
+  }
+
+  /// Marks a completed/historical request as reviewed by the current
+  /// doctor (UPDATE on the request document). This records that a
+  /// staff member has looked at the outcome and acknowledged it,
+  /// useful for shift handover and quality assurance.
+  Future<void> acknowledgeHistoryRequest({
+    required String requestId,
+    required String doctorId,
+    required String doctorName,
+    String? reviewNote,
+  }) async {
+    await requestRef(requestId).update({
+      'reviewedBy': FieldValue.arrayUnion([doctorId]),
+      'reviewedByNames': FieldValue.arrayUnion([doctorName]),
+      'lastReviewedAt': FieldValue.serverTimestamp(),
+      if (reviewNote != null && reviewNote.trim().isNotEmpty) 'reviewNote': reviewNote.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await logAudit(
+      action: 'history_request_reviewed',
+      requestId: requestId,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {
+        if (reviewNote != null && reviewNote.trim().isNotEmpty) 'note': reviewNote.trim(),
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------
+  // Phase 7 — Follow-up reminder (CREATE an alert for a request)
+  //
+  // Creates a scheduled follow-up alert so staff remember to check
+  // back on a request after a delay. The alert appears in the Alert
+  // Center like any other alert.
+  // ---------------------------------------------------------------
+  Future<void> createFollowUpReminder({
+    required String requestId,
+    required String message,
+    required String doctorId,
+    required String doctorName,
+  }) async {
+    final id = 'followup_${requestId}_${DateTime.now().millisecondsSinceEpoch}';
+    await _alerts.doc(id).set({
+      'type': 'follow_up_reminder',
+      'requestId': requestId,
+      'message': message.trim().isEmpty ? 'Follow-up reminder for request $requestId' : message.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'readBy': <String>[],
+      'createdByName': doctorName,
+    });
+
+    await logAudit(
+      action: 'follow_up_reminder_created',
+      requestId: requestId,
+      performedBy: doctorId,
+      performedByName: doctorName,
+      details: {'message': message.trim()},
+    );
   }
 }

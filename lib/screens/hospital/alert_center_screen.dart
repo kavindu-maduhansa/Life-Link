@@ -242,6 +242,20 @@ class _AlertCenterScreenState extends State<AlertCenterScreen> {
                                               requestId: data['requestId'] as String?,
                                               referenceMissing: _referencesMissingRequest(type, data),
                                             ),
+                                            // Phase 5 — Acknowledge button
+                                            // (distinct from mark-read: records
+                                            // who reviewed the alert and when,
+                                            // via a Firestore UPDATE on the
+                                            // alert document).
+                                            const SizedBox(height: 6),
+                                            _AcknowledgeButton(
+                                              alertId: doc.id,
+                                              acknowledgedBy: (data['acknowledgedBy'] as List?)
+                                                      ?.map((e) => e.toString())
+                                                      .toList() ??
+                                                  const [],
+                                              uid: uid,
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -421,6 +435,96 @@ class _CategoryChip extends StatelessWidget {
             color: selected ? colors.primary : colors.textSecondary,
             fontWeight: selected ? FontWeight.bold : FontWeight.w500,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Acknowledge button for an alert card. This is a Firestore UPDATE
+/// distinct from mark-read: it records the doctor's uid in the
+/// `acknowledgedBy` array (via [RequestService.acknowledgeAlert]),
+/// so the team knows someone has reviewed and taken responsibility
+/// for an alert, not just glanced at it.
+class _AcknowledgeButton extends StatefulWidget {
+  const _AcknowledgeButton({
+    required this.alertId,
+    required this.acknowledgedBy,
+    required this.uid,
+  });
+
+  final String alertId;
+  final List<String> acknowledgedBy;
+  final String uid;
+
+  @override
+  State<_AcknowledgeButton> createState() => _AcknowledgeButtonState();
+}
+
+class _AcknowledgeButtonState extends State<_AcknowledgeButton> {
+  bool _busy = false;
+
+  bool get _alreadyAcknowledged => widget.acknowledgedBy.contains(widget.uid);
+
+  Future<void> _acknowledge() async {
+    if (_alreadyAcknowledged || _busy) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _busy = true);
+    try {
+      await RequestService.instance.acknowledgeAlert(
+        alertId: widget.alertId,
+        doctorId: user.uid,
+        doctorName: user.displayName ?? user.email ?? 'Staff',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not acknowledge: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    if (_alreadyAcknowledged) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle_rounded, size: 13, color: colors.success),
+          const SizedBox(width: 4),
+          Text(
+            'Acknowledged${widget.acknowledgedBy.length > 1 ? ' by ${widget.acknowledgedBy.length}' : ''}',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.success),
+          ),
+        ],
+      );
+    }
+
+    return SizedBox(
+      height: 28,
+      child: OutlinedButton.icon(
+        onPressed: _busy ? null : _acknowledge,
+        icon: _busy
+            ? SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(strokeWidth: 1.5, color: colors.primary),
+              )
+            : Icon(Icons.done_all_rounded, size: 14, color: colors.primary),
+        label: Text(
+          'Acknowledge',
+          style: TextStyle(fontSize: 11, color: colors.primary),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          side: BorderSide(color: colors.primary.withValues(alpha: 0.4)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     );

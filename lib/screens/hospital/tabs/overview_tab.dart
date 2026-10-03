@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../hospital_home_screen.dart';
 import '../../../models/blood_request.dart';
+import '../../../services/request_service.dart';
 import '../../../utils/donor_availability.dart';
 import '../../../utils/request_status.dart';
 import '../../../theme/app_colors.dart';
@@ -47,7 +48,7 @@ class OverviewTab extends StatelessWidget {
         final allRequests = requestSnap.data!.docs.map(BloodRequest.fromDoc).toList();
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'Donor').snapshots(),
+          stream: FirebaseFirestore.instance.collection('users').where('role', whereIn: ['Donor', 'donor']).snapshots(),
           builder: (context, donorSnap) {
             final donorDocs = donorSnap.data?.docs ?? [];
 
@@ -793,6 +794,12 @@ class _CommandCard extends StatelessWidget {
                 style: TextStyle(fontSize: 11.5, color: RequestStatus.color(request.status), fontWeight: FontWeight.w600),
               ),
               const Spacer(),
+              // Phase 3 — Quick-action claim/release UPDATE buttons
+              // so the doctor can take ownership of an urgent request
+              // directly from the dashboard without opening the detail
+              // screen first.
+              _ClaimReleaseButton(request: request),
+              const SizedBox(width: 4),
               TextButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: request.id))),
                 child: Text(
@@ -805,6 +812,102 @@ class _CommandCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Quick claim/release button for the dashboard command cards.
+///
+/// Uses [RequestService.claimRequest] and [RequestService.releaseRequest]
+/// which perform Firestore transactions (UPDATE) with ownership guards.
+class _ClaimReleaseButton extends StatefulWidget {
+  const _ClaimReleaseButton({required this.request});
+  final BloodRequest request;
+
+  @override
+  State<_ClaimReleaseButton> createState() => _ClaimReleaseButtonState();
+}
+
+class _ClaimReleaseButtonState extends State<_ClaimReleaseButton> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
+    final isMine = widget.request.assignedDoctorId == uid;
+    final isAssigned = widget.request.assignedDoctorId != null &&
+        widget.request.assignedDoctorId!.isNotEmpty;
+
+    // If assigned to someone else, don't show claim/release
+    if (isAssigned && !isMine) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 30,
+      child: TextButton.icon(
+        onPressed: _busy ? null : () => isMine ? _release() : _claim(),
+        icon: _busy
+            ? SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(strokeWidth: 1.5, color: colors.primary),
+              )
+            : Icon(
+                isMine ? Icons.person_remove_rounded : Icons.person_add_rounded,
+                size: 14,
+                color: isMine ? colors.warning : colors.success,
+              ),
+        label: Text(
+          isMine ? 'Release' : 'Claim',
+          style: TextStyle(
+            fontSize: 11,
+            color: isMine ? colors.warning : colors.success,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _claim() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    setState(() => _busy = true);
+    try {
+      await RequestService.instance.claimRequest(
+        requestId: widget.request.id,
+        doctorId: user.uid,
+        doctorName: user.displayName ?? user.email ?? 'Staff',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not claim: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _release() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    setState(() => _busy = true);
+    try {
+      await RequestService.instance.releaseRequest(
+        requestId: widget.request.id,
+        doctorId: user.uid,
+        doctorName: user.displayName ?? user.email ?? 'Staff',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not release: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 }
 
