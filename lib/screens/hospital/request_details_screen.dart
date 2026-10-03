@@ -237,6 +237,109 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
   }
 
+  // Phase 4 — cancellation dialog (soft-delete pattern)
+  void _showCancelDialog(BloodRequest request) {
+    final colors = context.colors;
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Request'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will permanently move the request to a cancelled state. '
+                'The request record and its audit trail will be preserved.',
+                style: TextStyle(fontSize: 13, color: colors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: controller,
+                maxLines: 3,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Reason for cancellation',
+                  hintText: 'e.g. Duplicate request / Patient transferred',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  final v = value?.trim() ?? '';
+                  if (v.isEmpty) return 'A cancellation reason is required.';
+                  if (v.length < 10) return 'Please provide a more specific reason (at least 10 characters).';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Keep Request')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: colors.critical, foregroundColor: Colors.white),
+            onPressed: () {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              final reason = controller.text.trim();
+              Navigator.pop(context);
+              _safeRun(
+                () => _service.cancelRequest(request: request, reason: reason, doctorId: _doctorId, doctorName: _doctorName),
+                errorMessage: 'Could not cancel this request. Please try again.',
+              );
+            },
+            child: const Text('Cancel Request'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Phase 7 — follow-up reminder dialog
+  void _showFollowUpDialog(BloodRequest request) {
+    final controller = TextEditingController(text: 'Follow up on ${request.bloodGroup} request for ${request.patientName}');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Set Follow-Up Reminder'),
+        content: TextField(
+          controller: controller,
+          maxLines: 2,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Reminder message',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final message = controller.text.trim();
+              Navigator.pop(context);
+              _safeRun(
+                () => _service.createFollowUpReminder(
+                  requestId: request.id,
+                  message: message,
+                  doctorId: _doctorId,
+                  doctorName: _doctorName,
+                ),
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  const SnackBar(content: Text('Follow-up reminder created')),
+                );
+              }
+            },
+            child: const Text('Create Reminder'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------
   // Ownership
   //
@@ -614,6 +717,24 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                             doctorName: _doctorName,
                           ),
                         ),
+                      ),
+                    ),
+                  ],
+                  // Phase 4 — Safe cancellation for any active request
+                  if (RequestStatus.activeStatuses.contains(request.status)) ...[
+                    const SizedBox(height: 16),
+                    staggered(
+                      _CancelRequestButton(
+                        onCancel: () => _showCancelDialog(request),
+                      ),
+                    ),
+                  ],
+                  // Phase 7 — Follow-up reminder
+                  if (RequestStatus.activeStatuses.contains(request.status)) ...[
+                    const SizedBox(height: 8),
+                    staggered(
+                      _FollowUpReminderButton(
+                        onPressed: () => _showFollowUpDialog(request),
                       ),
                     ),
                   ],
@@ -1880,6 +2001,49 @@ class _PdfReportButton extends StatelessWidget {
           side: BorderSide(color: colors.primary),
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
+      ),
+    );
+  }
+}
+
+/// Phase 4 — Cancel Request button. Styled as a destructive action
+/// with prominent warning color so staff don't trigger it accidentally.
+class _CancelRequestButton extends StatelessWidget {
+  final VoidCallback onCancel;
+  const _CancelRequestButton({required this.onCancel});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onCancel,
+        icon: Icon(Icons.block_rounded, color: colors.critical),
+        label: Text('Cancel Request', style: TextStyle(color: colors.critical)),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: colors.critical.withValues(alpha: 0.5)),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+      ),
+    );
+  }
+}
+
+/// Phase 7 — Follow-up reminder button.
+class _FollowUpReminderButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _FollowUpReminderButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(Icons.alarm_add_rounded, size: 18, color: colors.primary),
+        label: Text('Set Follow-Up Reminder', style: TextStyle(color: colors.primary, fontSize: 13)),
       ),
     );
   }

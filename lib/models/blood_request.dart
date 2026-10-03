@@ -124,6 +124,14 @@ class BloodRequest {
   final String? preferredUpdateMethod;
   final int verifiedDonorsCount;
 
+  // Phase 4 — cancellation fields (additive, backward compatible)
+  final String? cancellationReason;
+  final String? cancelledBy;
+  final DateTime? cancelledAt;
+
+  // Phase 5 — review/acknowledgement fields (additive, backward compatible)
+  final List<String> reviewedBy;
+
   const BloodRequest({
     this.id = '',
     required this.patientName,
@@ -179,6 +187,10 @@ class BloodRequest {
     this.contactNumber,
     this.preferredUpdateMethod,
     this.verifiedDonorsCount = 0,
+    this.cancellationReason,
+    this.cancelledBy,
+    this.cancelledAt,
+    this.reviewedBy = const [],
   });
 
   int get unitsRemaining => (unitsNeeded - unitsConfirmed).clamp(0, unitsNeeded);
@@ -266,6 +278,10 @@ class BloodRequest {
       contactNumber: _text(data['contactNumber']) ?? _text(data['contactExtension']),
       preferredUpdateMethod: _text(data['preferredUpdateMethod']),
       verifiedDonorsCount: (data['verifiedDonorsCount'] as num?)?.toInt() ?? 0,
+      cancellationReason: data['cancellationReason'] as String?,
+      cancelledBy: data['cancelledBy'] as String?,
+      cancelledAt: _toDate(data['cancelledAt']),
+      reviewedBy: (data['reviewedBy'] as List?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
 
@@ -379,6 +395,10 @@ class BloodRequest {
     String? contactNumber,
     String? preferredUpdateMethod,
     int? verifiedDonorsCount,
+    String? cancellationReason,
+    String? cancelledBy,
+    DateTime? cancelledAt,
+    List<String>? reviewedBy,
   }) {
     return BloodRequest(
       id: id ?? this.id,
@@ -435,6 +455,10 @@ class BloodRequest {
       contactNumber: contactNumber ?? this.contactNumber,
       preferredUpdateMethod: preferredUpdateMethod ?? this.preferredUpdateMethod,
       verifiedDonorsCount: verifiedDonorsCount ?? this.verifiedDonorsCount,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
+      cancelledBy: cancelledBy ?? this.cancelledBy,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
+      reviewedBy: reviewedBy ?? this.reviewedBy,
     );
   }
 
