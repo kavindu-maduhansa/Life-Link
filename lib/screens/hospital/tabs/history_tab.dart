@@ -523,9 +523,7 @@ class _HistoryRequestCard extends StatelessWidget {
   String get _doctorName => FirebaseAuth.instance.currentUser?.email ?? 'Hospital Staff';
 
   bool _isReviewedByMe() {
-    final reviewedBy = request.raw['reviewedBy'];
-    if (reviewedBy is List) return reviewedBy.contains(_doctorId);
-    return false;
+    return request.reviewedBy.contains(_doctorId);
   }
 
   void _showHandoverNoteDialog(BuildContext context) {

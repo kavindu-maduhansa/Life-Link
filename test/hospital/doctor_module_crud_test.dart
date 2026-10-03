@@ -213,7 +213,8 @@ void main() {
         ..['unitsConfirmed'] = 'not-a-number';
       final request = BloodRequest.fromMap('bad-types', doc);
 
-      expect(request.unitsNeeded, 0); // null defaults to 0
+      expect(request.unitsNeeded, 1); // null defaults to safe fallback 1
+      expect(request.unitsConfirmed, 0); // invalid type defaults to 0
     });
   });
 

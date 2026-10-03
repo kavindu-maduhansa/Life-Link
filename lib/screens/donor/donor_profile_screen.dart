@@ -169,7 +169,7 @@ class DonorProfileScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: colors.surface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: colors.border),
                     boxShadow: [
@@ -196,7 +196,7 @@ class DonorProfileScreen extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: colors.primary,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white, width: 2),
+                                border: Border.all(color: colors.surface, width: 2),
                               ),
                               child: Text(
                                 bloodGroup,
@@ -270,7 +270,7 @@ class DonorProfileScreen extends StatelessWidget {
                 // Information Details Card
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: colors.surface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: colors.border),
                     boxShadow: [
@@ -546,9 +546,9 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
     return Container(
       margin: const EdgeInsets.only(top: 48),
       padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         top: false,
@@ -657,34 +657,37 @@ class _EditDonorProfileBottomSheetState extends State<_EditDonorProfileBottomShe
                 const SizedBox(height: 16),
 
                 // Availability Status Toggle Card
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: colors.background,
+                Material(
+                  color: colors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.border),
+                    side: BorderSide(color: colors.border),
                   ),
-                  child: SwitchListTile(
-                    value: _isAvailable,
-                    activeThumbColor: colors.primary,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Available to Donate Blood',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: SwitchListTile(
+                      value: _isAvailable,
+                      activeThumbColor: colors.primary,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        'Available to Donate Blood',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                      ),
+                      subtitle: Text(
+                        _isAvailable
+                            ? 'Other users can contact you for blood donation requests.'
+                            : 'You will appear unavailable for urgent donation requests.',
+                        style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                      ),
+                      onChanged: _isSaving
+                          ? null
+                          : (val) {
+                              setState(() {
+                                _isAvailable = val;
+                              });
+                            },
                     ),
-                    subtitle: Text(
-                      _isAvailable
-                          ? 'Other users can contact you for blood donation requests.'
-                          : 'You will appear unavailable for urgent donation requests.',
-                      style: TextStyle(fontSize: 12, color: colors.textSecondary),
-                    ),
-                    onChanged: _isSaving
-                        ? null
-                        : (val) {
-                            setState(() {
-                              _isAvailable = val;
-                            });
-                          },
                   ),
                 ),
                 const SizedBox(height: 24),
