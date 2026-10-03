@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import '../donor/donor_shell.dart';
-import '../recipient/recipient_home_screen.dart';
+import '../recipient/recipient_shell.dart';
 import '../hospital/hospital_home_screen.dart';
 import '../coordinator/organisation_home_screen.dart';
 
@@ -54,10 +54,16 @@ class AuthGate extends StatelessWidget {
             if (doc == null || !doc.exists) {
               // If the user was created very recently, the profile document write
               // in RegisterScreen may still be completing. Show loading rather than error.
-              final isRecentUser = user.metadata.creationTime != null &&
-                  DateTime.now().difference(user.metadata.creationTime!).inSeconds < 15;
+              final isRecentUser =
+                  user.metadata.creationTime != null &&
+                  DateTime.now()
+                          .difference(user.metadata.creationTime!)
+                          .inSeconds <
+                      15;
               if (isRecentUser) {
-                return const _AuthLoadingView(message: 'Setting up your account profile...');
+                return const _AuthLoadingView(
+                  message: 'Setting up your account profile...',
+                );
               }
               return const _AuthErrorView(
                 message: 'Account profile document not found in database.',
@@ -81,7 +87,7 @@ class AuthGate extends StatelessWidget {
               case 'donor':
                 return const DonorShell();
               case 'recipient':
-                return const RecipientHomeScreen();
+                return const RecipientShell();
               case 'doctor':
               case 'hospital':
               case 'bloodbank':
