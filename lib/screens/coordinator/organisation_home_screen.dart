@@ -63,7 +63,7 @@ class OrganisationHomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    user?.email ?? 'Logged in as Organisation',
+                    user?.email ?? 'Logged in as Organization Coordinator',
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF6B7280),
@@ -71,7 +71,7 @@ class OrganisationHomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Welcome to Blood Donation HCI.\nOrganisation dashboard features will be implemented in upcoming steps.',
+                    'Welcome to LifeLink.\nOrganization coordinator features for blood drives and donation campaigns.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,

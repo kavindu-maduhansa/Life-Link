@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'blood_request_flow/patient_details_screen.dart';
+import 'blood_request_flow/notifications_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/lifelink_design.dart';
@@ -28,11 +30,10 @@ class RecipientHomeScreen extends StatelessWidget {
   }
 
   void _handleCreateRequestTap(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Emergency request form will be available next.'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 3),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PatientDetailsScreen(isEmergency: true),
       ),
     );
   }
@@ -96,6 +97,13 @@ class RecipientHomeScreen extends StatelessWidget {
     }
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -151,6 +159,18 @@ class RecipientHomeScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
+            tooltip: 'Notifications',
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
             tooltip: 'Sign Out',
             icon: const Icon(Icons.logout_rounded),
             color: colors.textSecondary,
@@ -194,7 +214,7 @@ class RecipientHomeScreen extends StatelessWidget {
                                 children: [
                                   Flexible(
                                     child: Text(
-                                      'Welcome, $displayName',
+                                      '${_getGreeting()}, $displayName',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(

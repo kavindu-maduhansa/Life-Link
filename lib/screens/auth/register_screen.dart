@@ -26,16 +26,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final List<Map<String, dynamic>> _roles = [
     {
-      'id': 'Donor',
+      'id': 'donor',
       'label': 'Donor',
       'icon': Icons.volunteer_activism_rounded,
       'description': 'Donate blood to save lives',
     },
     {
-      'id': 'Recipient',
+      'id': 'recipient',
       'label': 'Recipient',
       'icon': Icons.healing_rounded,
       'description': 'Request & receive blood',
+    },
+    {
+      'id': 'doctor',
+      'label': 'Doctor / Blood Bank',
+      'icon': Icons.local_hospital_rounded,
+      'description': 'Manage requests & blood stock',
+    },
+    {
+      'id': 'organization',
+      'label': 'Organization Coordinator',
+      'icon': Icons.corporate_fare_rounded,
+      'description': 'Coordinate donation drives',
     },
   ];
 
@@ -49,18 +61,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   /// Maps Firebase authentication exception codes to user-friendly messages.
-  String _getRegisterErrorMessage(String code) {
+  String _getRegisterErrorMessage(String code, [String? message]) {
     switch (code) {
       case 'email-already-in-use':
-        return 'An account already exists with this email.';
+        return 'An account already exists with this email address. Please sign in instead.';
       case 'invalid-email':
         return 'Please enter a valid email address.';
       case 'weak-password':
         return 'Password is too weak. Please use at least 6 characters.';
       case 'network-request-failed':
-        return 'Please check your internet connection.';
+        return 'Network error. Please check your internet connection.';
+      case 'operation-not-allowed':
+        return 'Email/Password sign-up is not enabled in Firebase Console. Please enable it in Authentication > Sign-in method.';
+      case 'too-many-requests':
+        return 'Too many registration attempts. Please wait a few moments and try again.';
+      case 'user-disabled':
+        return 'This account has been disabled. Please contact support.';
       default:
-        return 'Registration failed. Please check your details and try again.';
+        if (message != null && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+        return 'Registration failed ($code). Please check your details and try again.';
     }
   }
 
@@ -93,19 +114,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final password = _passwordController.text;
     final role = _selectedRole!;
 
+    debugPrint('[LifeLink Register] Initiating registration for email: $email, role: $role');
+
     setState(() {
       _isLoading = true;
     });
 
+    UserCredential? userCredential;
+
     try {
-      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       final user = userCredential.user;
       if (user != null) {
+        debugPrint('[LifeLink Register] FirebaseAuth user created with UID: ${user.uid}');
+
+        try {
+          await user.updateDisplayName(fullName);
+        } catch (e) {
+          debugPrint('[LifeLink Register] Could not update displayName: $e');
+        }
+
+        debugPrint('[LifeLink Register] Writing user document to Firestore users/${user.uid} with role: $role');
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
           'fullName': fullName,
           'email': email,
           'role': role,
@@ -113,6 +148,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'isActive': true,
           'createdAt': FieldValue.serverTimestamp(),
         });
+        debugPrint('[LifeLink Register] Firestore user profile written successfully.');
       }
 
       if (!mounted) return;
@@ -125,37 +161,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
 
-      // Navigate back to Login Screen after successful registration
-      Navigator.pop(context);
+      // Navigate back to root where AuthGate will direct the user to their role home
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } on FirebaseAuthException catch (e) {
+      debugPrint('[LifeLink Register] FirebaseAuthException (${e.code}): ${e.message}');
       if (!mounted) return;
 
-      final errorMessage = _getRegisterErrorMessage(e.code);
+      final errorMessage = _getRegisterErrorMessage(e.code, e.message);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
           backgroundColor: const Color(0xFFD32F2F),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
     } on FirebaseException catch (e) {
+      debugPrint('[LifeLink Register] FirebaseException (${e.code}): ${e.message}');
+      // If Firestore profile creation failed, remove the incomplete auth user to prevent orphaned account
+      if (userCredential?.user != null) {
+        try {
+          await userCredential!.user!.delete();
+          debugPrint('[LifeLink Register] Incomplete auth user deleted after Firestore failure.');
+        } catch (_) {}
+      }
+
+      if (!mounted) return;
+
+      final errorMessage = e.code == 'permission-denied'
+          ? 'Database permission denied: Missing or insufficient permissions to create profile.'
+          : (e.message ?? 'A database error occurred (${e.code}). Please try again.');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: const Color(0xFFD32F2F),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('[LifeLink Register] Unexpected error during registration: $e\n$stackTrace');
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.message ?? 'A database error occurred. Please try again.'),
+          content: Text('Registration error: $e'),
           backgroundColor: const Color(0xFFD32F2F),
           behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('An unexpected error occurred. Please try again.'),
-          backgroundColor: Color(0xFFD32F2F),
-          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
     } finally {
@@ -345,7 +401,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 return 'Please enter your email';
                               }
                               final emailRegex = RegExp(
-                                r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$',
+                                r'^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$',
                               );
                               if (!emailRegex.hasMatch(value.trim())) {
                                 return 'Please enter a valid email address';
@@ -497,7 +553,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               crossAxisCount: 2,
                               crossAxisSpacing: 10,
                               mainAxisSpacing: 10,
-                              childAspectRatio: 2.1,
+                              mainAxisExtent: 82,
                             ),
                             itemBuilder: (context, index) {
                               final role = _roles[index];
@@ -515,7 +571,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? primaryColor.withValues(alpha: 0.08)
@@ -530,36 +586,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       width: isSelected ? 1.8 : 1.0,
                                     ),
                                   ),
-                                  child: Row(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Icon(
-                                        role['icon'] as IconData,
-                                        size: 24,
-                                        color: isSelected
-                                            ? primaryColor
-                                            : const Color(0xFF6B7280),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          role['label'] as String,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: isSelected
-                                                ? FontWeight.bold
-                                                : FontWeight.w500,
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Icon(
+                                            role['icon'] as IconData,
+                                            size: 22,
                                             color: isSelected
                                                 ? primaryColor
-                                                : const Color(0xFF374151),
+                                                : const Color(0xFF6B7280),
+                                          ),
+                                          if (isSelected)
+                                            const Icon(
+                                              Icons.check_circle_rounded,
+                                              size: 16,
+                                              color: primaryColor,
+                                            )
+                                          else
+                                            const SizedBox(width: 16, height: 16),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Expanded(
+                                        child: Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            role['label'] as String,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.w600,
+                                              color: isSelected
+                                                  ? primaryColor
+                                                  : const Color(0xFF374151),
+                                              height: 1.15,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                      if (isSelected)
-                                        const Icon(
-                                          Icons.check_circle_rounded,
-                                          size: 16,
-                                          color: primaryColor,
-                                        ),
                                     ],
                                   ),
                                 ),

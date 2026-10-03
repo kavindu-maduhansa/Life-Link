@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../request_details_screen.dart';
 import '../../../models/blood_request.dart';
+import '../../../services/request_service.dart';
 import '../../../utils/request_assignment.dart';
 import '../../../utils/request_search.dart';
 import '../../../utils/request_status.dart';
@@ -171,6 +172,173 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
     _SavedVerifyFilter(name: 'High Priority', urgency: UrgencyLevel.high, icon: Icons.priority_high_rounded),
   ];
 
+  Future<void> _showCreateRequestDialog(BuildContext context) async {
+    final colors = context.colors;
+    final patientController = TextEditingController();
+    final hospitalController = TextEditingController(text: 'General Hospital');
+    final locationController = TextEditingController(text: 'Colombo');
+    final unitsController = TextEditingController(text: '1');
+    final notesController = TextEditingController();
+    final contactController = TextEditingController();
+    String selectedGroup = 'O+';
+    String selectedUrgency = 'High';
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.emergency_rounded, color: colors.critical, size: 24),
+              const SizedBox(width: 8),
+              const Text('New Blood Request', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: patientController,
+                    decoration: const InputDecoration(labelText: 'Patient Name *', hintText: 'e.g. Kasun Perera'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: selectedGroup,
+                          decoration: const InputDecoration(labelText: 'Blood Group'),
+                          items: _groups.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                          onChanged: (v) => setDlgState(() => selectedGroup = v ?? 'O+'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: selectedUrgency,
+                          decoration: const InputDecoration(labelText: 'Urgency'),
+                          items: const [
+                            DropdownMenuItem(value: 'Critical', child: Text('Critical')),
+                            DropdownMenuItem(value: 'High', child: Text('High')),
+                            DropdownMenuItem(value: 'Normal', child: Text('Normal')),
+                          ],
+                          onChanged: (v) => setDlgState(() => selectedUrgency = v ?? 'High'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: unitsController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Units Needed *', hintText: 'e.g. 2'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: locationController,
+                          decoration: const InputDecoration(labelText: 'Location', hintText: 'e.g. Colombo'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: hospitalController,
+                    decoration: const InputDecoration(labelText: 'Hospital Name', hintText: 'e.g. National Hospital'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: contactController,
+                    decoration: const InputDecoration(labelText: 'Contact Number', hintText: 'e.g. 077 123 4567'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(labelText: 'Clinical Notes', hintText: 'e.g. Emergency surgery'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            OutlinedButton(
+              onPressed: () async {
+                final patient = patientController.text.trim();
+                final messenger = ScaffoldMessenger.of(context);
+                if (patient.isEmpty) {
+                  messenger.showSnackBar(const SnackBar(content: Text('Please enter patient name.')));
+                  return;
+                }
+                final user = FirebaseAuth.instance.currentUser;
+                final units = int.tryParse(unitsController.text.trim()) ?? 1;
+                await RequestService.instance.createEmergencyRequest(
+                  patientName: patient,
+                  bloodGroup: selectedGroup,
+                  unitsNeeded: units,
+                  urgency: selectedUrgency,
+                  hospitalName: hospitalController.text.trim().isNotEmpty ? hospitalController.text.trim() : 'Hospital',
+                  location: locationController.text.trim().isNotEmpty ? locationController.text.trim() : 'Colombo',
+                  notes: notesController.text.trim(),
+                  contactNumber: contactController.text.trim(),
+                  doctorId: user?.uid ?? 'staff',
+                  doctorName: user?.email ?? 'Hospital Staff',
+                  status: RequestStatus.pending,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+                messenger.showSnackBar(const SnackBar(content: Text('Request created and added to pending verification.')));
+              },
+              child: const Text('Save as Pending'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: colors.primary, foregroundColor: Colors.white),
+              onPressed: () async {
+                final patient = patientController.text.trim();
+                final messenger = ScaffoldMessenger.of(context);
+                if (patient.isEmpty) {
+                  messenger.showSnackBar(const SnackBar(content: Text('Please enter patient name.')));
+                  return;
+                }
+                final user = FirebaseAuth.instance.currentUser;
+                final units = int.tryParse(unitsController.text.trim()) ?? 1;
+                await RequestService.instance.createEmergencyRequest(
+                  patientName: patient,
+                  bloodGroup: selectedGroup,
+                  unitsNeeded: units,
+                  urgency: selectedUrgency,
+                  hospitalName: hospitalController.text.trim().isNotEmpty ? hospitalController.text.trim() : 'Hospital',
+                  location: locationController.text.trim().isNotEmpty ? locationController.text.trim() : 'Colombo',
+                  notes: notesController.text.trim(),
+                  contactNumber: contactController.text.trim(),
+                  doctorId: user?.uid ?? 'staff',
+                  doctorName: user?.email ?? 'Hospital Staff',
+                  status: RequestStatus.verified,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+                messenger.showSnackBar(const SnackBar(content: Text('Request verified and published for donors!')));
+              },
+              child: const Text('Verify & Publish'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) => _buildBody(context, constraints.maxWidth >= _kTableBreakpoint));
@@ -227,6 +395,23 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
                         borderSide: BorderSide(color: colors.accent, width: 1.8),
                       ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: 'Create Blood Request',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _showCreateRequestDialog(context),
+                    child: Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: colors.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.add_rounded, color: Colors.white),
                     ),
                   ),
                 ),
@@ -417,14 +602,24 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
                           // not that the request does not exist.
                           : (query.isEmpty ? 'No pending requests match these filters.' : RequestSearch.noMatchMessage),
                     ),
-                    // #visibility - when the queue is genuinely empty
-                    // there is nothing to demonstrate the critical/
-                    // emergency handling on. Rather than leave staff
-                    // wondering whether that behaviour exists at all,
-                    // show what it looks like the moment a critical
-                    // request lands - clearly labelled as a preview,
-                    // never as fabricated live data.
-                    if (noFiltersActive) const _CriticalHandlingPreview(),
+                    if (noFiltersActive) ...[
+                      const SizedBox(height: 16),
+                      Center(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showCreateRequestDialog(context),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Create Emergency Request'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const _CriticalHandlingPreview(),
+                    ],
                   ],
                 );
               }

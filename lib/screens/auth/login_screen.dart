@@ -27,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   /// Maps Firebase authentication exception codes to user-friendly messages.
-  String _getAuthErrorMessage(String code) {
+  String _getAuthErrorMessage(String code, [String? message]) {
     switch (code) {
       case 'invalid-email':
         return 'The email address is badly formatted.';
@@ -43,8 +43,13 @@ class _LoginScreenState extends State<LoginScreen> {
         return 'Too many failed login attempts. Please try again later.';
       case 'network-request-failed':
         return 'Network error. Please check your internet connection.';
+      case 'operation-not-allowed':
+        return 'Email/Password sign-in is not enabled in Firebase Console. Please enable it under Authentication > Sign-in method.';
       default:
-        return 'Authentication failed. Please check your credentials and try again.';
+        if (message != null && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+        return 'Authentication failed ($code). Please check your credentials and try again.';
     }
   }
 
@@ -75,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      debugPrint('[LifeLink Login] Attempting signInWithEmailAndPassword for $email');
       final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -85,6 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (user != null) {
+        debugPrint('[LifeLink Login] Login successful for UID: ${user.uid}');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Login successful'),
@@ -94,24 +101,28 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
+      debugPrint('[LifeLink Login] FirebaseAuthException (${e.code}): ${e.message}');
       if (!mounted) return;
 
-      final errorMessage = _getAuthErrorMessage(e.code);
+      final errorMessage = _getAuthErrorMessage(e.code, e.message);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
           backgroundColor: const Color(0xFFD32F2F),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
-    } catch (_) {
+    } catch (e, stackTrace) {
+      debugPrint('[LifeLink Login] Unexpected login error: $e\n$stackTrace');
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('An unexpected error occurred. Please try again.'),
-          backgroundColor: Color(0xFFD32F2F),
+        SnackBar(
+          content: Text('Login error: $e'),
+          backgroundColor: const Color(0xFFD32F2F),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
         ),
       );
     } finally {
@@ -274,7 +285,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 return 'Please enter your email';
                               }
                               final emailRegex = RegExp(
-                                r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$',
+                                r'^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$',
                               );
                               if (!emailRegex.hasMatch(value.trim())) {
                                 return 'Please enter a valid email address';
