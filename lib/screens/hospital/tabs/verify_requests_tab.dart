@@ -1200,7 +1200,7 @@ class _PendingRequestCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: request.id))),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           // #critical-visibility - critical-urgency requests get a
           // visibly different card (tinted fill + thicker colored left
@@ -1208,110 +1208,123 @@ class _PendingRequestCard extends StatelessWidget {
           // to miss while scanning the queue.
           color: isCritical ? urgencyColor.withValues(alpha: 0.05) : colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border(
-            top: BorderSide(color: urgencyColor.withValues(alpha: isCritical ? 0.6 : 0.4)),
-            right: BorderSide(color: urgencyColor.withValues(alpha: isCritical ? 0.6 : 0.4)),
-            bottom: BorderSide(color: urgencyColor.withValues(alpha: isCritical ? 0.6 : 0.4)),
-            left: BorderSide(color: urgencyColor, width: isCritical ? 4 : 1),
+          border: Border.all(
+            color: urgencyColor.withValues(alpha: isCritical ? 0.6 : 0.35),
+            width: isCritical ? 1.5 : 1,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Row(
-              children: [
-                if (isCritical) ...[LivePulseDot(color: urgencyColor), const SizedBox(width: 8)],
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: urgencyColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
-                  child: Text(
-                    request.urgency,
-                    style: TextStyle(color: urgencyColor, fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: RequestHealthBadge(request: request, showWaitingTime: true),
-                  ),
-                ),
-              ],
-            ),
-            // #two-person-verification - a critical request with one
-            // co-sign already on it needs a visibly different signal in
-            // the queue, so staff know one tap here finishes the second
-            // approval instead of starting from zero.
-            if (request.awaitingSecondApproval) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.gpp_maybe_outlined, size: 12, color: colors.warning),
-                    const SizedBox(width: 4),
-                    Text(
-                      '1st approval by ${request.firstApproverName ?? 'staff'} - needs 2nd',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: colors.warning),
-                    ),
-                  ],
-                ),
+            if (isCritical)
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 4,
+                child: Container(color: urgencyColor),
               ),
-            ],
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Hero(
-                  tag: 'bloodgroup-avatar-${request.id}',
-                  child: CircleAvatar(
-                    radius: 22,
-                    backgroundColor: colors.critical.withValues(alpha: 0.1),
-                    child: Text(
-                      request.bloodGroup,
-                      style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        request.patientName,
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      if (isCritical) ...[LivePulseDot(color: urgencyColor), const SizedBox(width: 8)],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: urgencyColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
+                        child: Text(
+                          request.urgency,
+                          style: TextStyle(color: urgencyColor, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${request.unitsNeeded} unit(s) · ${request.hospitalName}',
-                        style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: RequestHealthBadge(request: request, showWaitingTime: true),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // #visibility - an explicit, unmistakable CTA so staff know
-            // tapping the card opens the full Patient Case Summary
-            // (patient info, blood requirement, checklist, matching,
-            // timeline) - not just a plain tappable row.
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 9),
-              decoration: BoxDecoration(color: colors.elevatedSurface, borderRadius: BorderRadius.circular(10)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.badge_outlined, size: 15, color: colors.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    'View Patient Details & Verify',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.primary),
+                  // #two-person-verification - a critical request with one
+                  // co-sign already on it needs a visibly different signal in
+                  // the queue, so staff know one tap here finishes the second
+                  // approval instead of starting from zero.
+                  if (request.awaitingSecondApproval) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.gpp_maybe_outlined, size: 12, color: colors.warning),
+                          const SizedBox(width: 4),
+                          Text(
+                            '1st approval by ${request.firstApproverName ?? 'staff'} - needs 2nd',
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: colors.warning),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Hero(
+                        tag: 'bloodgroup-avatar-${request.id}',
+                        child: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: colors.critical.withValues(alpha: 0.1),
+                          child: Text(
+                            request.bloodGroup,
+                            style: TextStyle(color: colors.critical, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              request.patientName,
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${request.unitsNeeded} unit(s) · ${request.hospitalName}',
+                              style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.chevron_right_rounded, size: 16, color: colors.primary),
+                  const SizedBox(height: 12),
+                  // #visibility - an explicit, unmistakable CTA so staff know
+                  // tapping the card opens the full Patient Case Summary
+                  // (patient info, blood requirement, checklist, matching,
+                  // timeline) - not just a plain tappable row.
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(color: colors.elevatedSurface, borderRadius: BorderRadius.circular(10)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.badge_outlined, size: 15, color: colors.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          'View Patient Details & Verify',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.primary),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.chevron_right_rounded, size: 16, color: colors.primary),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
