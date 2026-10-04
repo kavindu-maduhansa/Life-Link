@@ -111,6 +111,8 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                             _requestingFor = option;
                             if (option == 'Self') {
                               _relationship = 'Self';
+                            } else if (_relationship == 'Self') {
+                              _relationship = null;
                             }
                           });
                         },
@@ -163,7 +165,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  initialValue: _relationship,
+                  initialValue: _relationshipOptions.contains(_relationship) ? _relationship : null,
                   decoration: InputDecoration(
                     hintText: 'Select relationship',
                     prefixIcon: const Icon(Icons.people_outline_rounded),
