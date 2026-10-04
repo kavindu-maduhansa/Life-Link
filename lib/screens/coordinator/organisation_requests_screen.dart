@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../models/blood_request.dart';
+import '../../services/coordinator_service.dart';
 import 'organisation_requests_details_screen.dart';
 
 class OrganisationRequestsScreen extends StatefulWidget {
@@ -6,7 +9,7 @@ class OrganisationRequestsScreen extends StatefulWidget {
 
   /// Called when the user wants to jump to the donors tab from
   /// inside a request detail screen.
-  final VoidCallback? onFindDonors;
+  final ValueChanged<BloodRequest>? onFindDonors;
 
   const OrganisationRequestsScreen({
     super.key,
@@ -34,64 +37,38 @@ class _OrganisationRequestsScreenState
   static const Color borderColor = Color(0xFFE6DADD);
 
   // ============================================================
+  // DATA (live from Firestore)
+  // ============================================================
+
+  final CoordinatorService _service = CoordinatorService();
+
+  // Created once so the stream is not re-subscribed on every rebuild.
+  late final Stream<List<BloodRequest>> _requestsStream =
+      _service.verifiedRequests();
+
+  // ============================================================
   // SEARCH
   // ============================================================
 
   String searchQuery = '';
 
-  // ============================================================
-  // TEMPORARY SAMPLE REQUESTS
-  // Later we will replace these with Firestore data.
-  // ============================================================
-
-  final List<Map<String, String>> requests = [
-    {
-      'urgency': 'URGENT',
-      'bloodType': 'A+',
-      'units': '4 units',
-      'hospital': 'District General Hospital',
-      'distance': '6.2 km',
-      'requestId': 'REQ-1048',
-      'remaining': '12 min',
-      'urgencyType': 'urgent',
-    },
-    {
-      'urgency': 'HIGH',
-      'bloodType': 'O-',
-      'units': '2 units',
-      'hospital': 'Teaching Hospital',
-      'distance': '8.4 km',
-      'requestId': 'REQ-1049',
-      'remaining': '1 hr',
-      'urgencyType': 'high',
-    },
-    {
-      'urgency': 'NORMAL',
-      'bloodType': 'B+',
-      'units': '3 units',
-      'hospital': 'Base Hospital',
-      'distance': '11 km',
-      'requestId': 'REQ-1050',
-      'remaining': 'Today',
-      'urgencyType': 'normal',
-    },
-  ];
-
-  // ============================================================
-  // FILTER REQUESTS
-  // ============================================================
-
-  List<Map<String, String>> get filteredRequests {
+  List<BloodRequest> _filter(List<BloodRequest> requests) {
     final query = searchQuery.trim().toLowerCase();
 
     if (query.isEmpty) {
       return requests;
     }
 
-    return requests.where((request) {
-      return request.values.any(
-        (value) => value.toLowerCase().contains(query),
-      );
+    return requests.where((r) {
+      final fields = <String>[
+        r.bloodGroup,
+        r.hospitalName,
+        r.location,
+        r.urgency,
+        r.ward ?? '',
+        _shortId(r.id),
+      ];
+      return fields.any((value) => value.toLowerCase().contains(query));
     }).toList();
   }
 
@@ -104,45 +81,78 @@ class _OrganisationRequestsScreenState
     return Column(
       children: [
         _buildHeader(),
-
         Expanded(
           child: Container(
             color: backgroundColor,
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(6, 39, 6, 25),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSearchBox(),
+            child: StreamBuilder<List<BloodRequest>>(
+              stream: _requestsStream,
+              builder: (context, snapshot) {
+                final all = snapshot.data ?? const <BloodRequest>[];
+                final hasError = snapshot.hasError;
+                final loading = !snapshot.hasData && !hasError;
+                final filtered = _filter(all);
 
-                  const SizedBox(height: 25),
-
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14),
-                    child: Text(
-                      'Active',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: mainText,
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(6, 39, 6, 25),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSearchBox(),
+                      const SizedBox(height: 25),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 14),
+                        child: Text(
+                          'Active',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: mainText,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 17),
+                      if (loading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 40),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: primaryMaroon,
+                            ),
+                          ),
+                        )
+                      else if (hasError)
+                        _buildMessageState(
+                          icon: Icons.cloud_off_rounded,
+                          title: 'Could not load requests',
+                          message:
+                              'Please check your connection and try again.',
+                        )
+                      else if (all.isEmpty)
+                        _buildMessageState(
+                          icon: Icons.inbox_outlined,
+                          title: 'No verified requests',
+                          message:
+                              'Requests appear here once a hospital has '
+                              'verified them.',
+                        )
+                      else if (filtered.isEmpty)
+                        _buildMessageState(
+                          icon: Icons.search_off_rounded,
+                          title: 'No requests found',
+                          message: 'Try searching with another keyword.',
+                        )
+                      else
+                        ...filtered.map(
+                          (request) => Padding(
+                            padding: const EdgeInsets.only(bottom: 19),
+                            child: _buildRequestCard(request),
+                          ),
+                        ),
+                    ],
                   ),
-
-                  const SizedBox(height: 17),
-
-                  if (filteredRequests.isEmpty)
-                    _buildEmptyState()
-                  else
-                    ...filteredRequests.map(
-                      (request) => Padding(
-                        padding: const EdgeInsets.only(bottom: 19),
-                        child: _buildRequestCard(request),
-                      ),
-                    ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -185,9 +195,7 @@ class _OrganisationRequestsScreenState
               ),
             ),
           ),
-
           const SizedBox(width: 14),
-
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,13 +272,12 @@ class _OrganisationRequestsScreenState
   // REQUEST CARD
   // ============================================================
 
-  Widget _buildRequestCard(Map<String, String> request) {
-    final urgencyType = request['urgencyType']!;
-
+  Widget _buildRequestCard(BloodRequest request) {
     Color urgencyColor;
     Color urgencyBackground;
 
-    switch (urgencyType) {
+    switch (request.urgency.toLowerCase()) {
+      case 'critical':
       case 'urgent':
         urgencyColor = primaryMaroon;
         urgencyBackground = const Color(0xFFFCE8EC);
@@ -286,6 +293,14 @@ class _OrganisationRequestsScreenState
         urgencyBackground = const Color(0xFFE3F6F8);
     }
 
+    final unitsText =
+        '${request.unitsNeeded} ${request.unitsNeeded == 1 ? 'unit' : 'units'}';
+    final hasLocation = request.location.isNotEmpty && request.location != '-';
+    final place = hasLocation
+        ? '${request.hospitalName} • ${request.location}'
+        : request.hospitalName;
+    final remaining = _remainingLabel(request.requiredAt);
+
     // ==========================================================
     // CLICKABLE REQUEST CARD
     // ==========================================================
@@ -297,24 +312,13 @@ class _OrganisationRequestsScreenState
           MaterialPageRoute(
             builder: (context) {
               return OrganisationRequestsDetailsScreen(
-                requestId: request['requestId']!,
-                bloodType: request['bloodType']!,
-                units: request['units']!,
-                hospital: request['hospital']!,
-                ward: 'Emergency Ward',
-                distance: request['distance']!,
-                urgency: _formatUrgency(request['urgency']!),
-                neededBy: request['remaining'] == '12 min'
-                    ? '8:30 PM'
-                    : request['remaining']!,
-                verificationSource: 'Blood Bank Officer',
+                requestId: request.id,
                 onFindDonors: widget.onFindDonors,
               );
             },
           ),
         );
       },
-
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(17, 14, 17, 13),
@@ -351,7 +355,7 @@ class _OrganisationRequestsScreenState
                     ),
                   ),
                   child: Text(
-                    request['urgency']!,
+                    request.urgency.toUpperCase(),
                     style: TextStyle(
                       color: urgencyColor,
                       fontSize: 10,
@@ -360,9 +364,8 @@ class _OrganisationRequestsScreenState
                     ),
                   ),
                 ),
-
                 Text(
-                  request['requestId']!,
+                  _shortId(request.id),
                   style: const TextStyle(
                     fontSize: 10,
                     color: secondaryText,
@@ -385,18 +388,16 @@ class _OrganisationRequestsScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${request['bloodType']} • ${request['units']}',
+                        '${request.bloodGroup} • $unitsText',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: mainText,
                         ),
                       ),
-
                       const SizedBox(height: 3),
-
                       Text(
-                        '${request['hospital']} • ${request['distance']}',
+                        place,
                         style: const TextStyle(
                           fontSize: 12,
                           color: secondaryText,
@@ -407,32 +408,30 @@ class _OrganisationRequestsScreenState
                     ],
                   ),
                 ),
-
-                const SizedBox(width: 10),
-
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      request['remaining']!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: primaryMaroon,
+                if (remaining != null) ...[
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        remaining.$1,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: primaryMaroon,
+                        ),
                       ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    const Text(
-                      'remaining',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: secondaryText,
+                      const SizedBox(height: 4),
+                      Text(
+                        remaining.$2,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: secondaryText,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ],
@@ -442,61 +441,71 @@ class _OrganisationRequestsScreenState
   }
 
   // ============================================================
-  // FORMAT URGENCY
+  // HELPERS
   // ============================================================
 
-  String _formatUrgency(String urgency) {
-    switch (urgency) {
-      case 'URGENT':
-        return 'Urgent';
+  /// Short, readable code for a request. The full Firestore document id
+  /// is long, so only the first 6 characters are shown to the user.
+  String _shortId(String id) {
+    final short = id.length > 6 ? id.substring(0, 6) : id;
+    return 'REQ-${short.toUpperCase()}';
+  }
 
-      case 'HIGH':
-        return 'High';
+  /// Time left until the blood is needed, or null when the request has
+  /// no required-by time recorded (nothing is invented).
+  (String, String)? _remainingLabel(DateTime? requiredAt) {
+    if (requiredAt == null) return null;
 
-      case 'NORMAL':
-        return 'Normal';
+    final diff = requiredAt.difference(DateTime.now());
 
-      default:
-        return urgency;
+    if (diff.isNegative) {
+      return ('Overdue', 'past required time');
     }
+    if (diff.inMinutes < 60) {
+      return ('${diff.inMinutes} min', 'remaining');
+    }
+    if (diff.inHours < 24) {
+      return ('${diff.inHours} h', 'remaining');
+    }
+    return ('${diff.inDays} d', 'remaining');
   }
 
   // ============================================================
-  // EMPTY SEARCH RESULT
+  // EMPTY / ERROR STATES
   // ============================================================
 
-  Widget _buildEmptyState() {
+  Widget _buildMessageState({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
         horizontal: 20,
         vertical: 35,
       ),
-      child: const Column(
+      child: Column(
         children: [
           Icon(
-            Icons.search_off_rounded,
+            icon,
             size: 42,
             color: secondaryText,
           ),
-
-          SizedBox(height: 12),
-
+          const SizedBox(height: 12),
           Text(
-            'No requests found',
-            style: TextStyle(
+            title,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: mainText,
             ),
           ),
-
-          SizedBox(height: 5),
-
+          const SizedBox(height: 5),
           Text(
-            'Try searching with another keyword.',
+            message,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
               color: secondaryText,
             ),

@@ -1,46 +1,21 @@
 import 'package:flutter/material.dart';
+
+import '../../services/coordinator_service.dart';
 import 'organisation_home_screen.dart';
 import 'organisation_protected_conversation_screen.dart';
 
-enum AlertStatus { accepted, pending, declined }
-
-class DonorAlertItem {
-  final String id;
-  final String title;
-  final String details;
-  final String time;
-  final AlertStatus status;
-  final bool isToday;
-
-  const DonorAlertItem({
-    required this.id,
-    required this.title,
-    required this.details,
-    required this.time,
-    required this.status,
-    required this.isToday,
-  });
-}
-
-class OrganisationAlertsNotifications2Screen extends StatefulWidget {
-  /// Donor shown in the header subtitle (e.g. "D-1042")
+class OrganisationAlertsNotifications2Screen extends StatelessWidget {
+  /// Anonymous donor code shown in the header, e.g. "D-5CSP".
   final String donorId;
+
+  /// This donor's responses, newest first.
+  final List<CoordinatorResponseEvent> events;
 
   const OrganisationAlertsNotifications2Screen({
     super.key,
-    this.donorId = 'D-1042',
+    required this.donorId,
+    required this.events,
   });
-
-  @override
-  State<OrganisationAlertsNotifications2Screen> createState() =>
-      _OrganisationAlertsNotifications2ScreenState();
-}
-
-class _OrganisationAlertsNotifications2ScreenState
-    extends State<OrganisationAlertsNotifications2Screen> {
-  // ============================================================
-  // DESIGN COLORS (same as the other coordinator screens)
-  // ============================================================
 
   static const Color backgroundColor = Color(0xFFFAF7F6);
   static const Color whiteColor = Colors.white;
@@ -53,52 +28,21 @@ class _OrganisationAlertsNotifications2ScreenState
   static const Color tealText = Color(0xFF0F7F86);
   static const Color borderColor = Color(0xFFE6DADD);
   static const Color successGreen = Color(0xFF1E8A4C);
+  static const Color pendingColor = Color(0xFFD98A1B);
   static const Color alertRed = Color(0xFFD92D20);
 
-  // TODO: replace with real data (Firestore) later
-  final List<DonorAlertItem> _alerts = const [
-    DonorAlertItem(
-      id: 'a1',
-      title: 'Donor D-1042 accepted',
-      details: 'A+ emergency request • 2.1 km',
-      time: '2 min ago',
-      status: AlertStatus.accepted,
-      isToday: true,
-    ),
-    DonorAlertItem(
-      id: 'a2',
-      title: 'Donor response pending',
-      details: 'D-1187 • A+ • notified 10 min ago',
-      time: '10 min ago',
-      status: AlertStatus.pending,
-      isToday: true,
-    ),
-    DonorAlertItem(
-      id: 'a3',
-      title: 'Donation request declined',
-      details: 'D-1091 • Consider another matched donor',
-      time: '1 hr ago',
-      status: AlertStatus.declined,
-      isToday: false,
-    ),
-  ];
-
-  // ============================================================
-  // NAVIGATION
-  // ============================================================
-
-  void _openMessage() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => OrganisationProtectedConversationScreen(
-        donorId: widget.donorId,
+  void _openMessage(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrganisationProtectedConversationScreen(
+          donorId: donorId,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-  void _backToRequest() {
+  void _backToRequest(BuildContext context) {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
@@ -110,8 +54,8 @@ class _OrganisationAlertsNotifications2ScreenState
 
   @override
   Widget build(BuildContext context) {
-    final today = _alerts.where((a) => a.isToday).toList();
-    final earlier = _alerts.where((a) => !a.isToday).toList();
+    final today = events.where((e) => e.isToday).toList();
+    final earlier = events.where((e) => !e.isToday).toList();
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -119,7 +63,6 @@ class _OrganisationAlertsNotifications2ScreenState
         child: Column(
           children: [
             _buildHeader(context),
-
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -127,32 +70,37 @@ class _OrganisationAlertsNotifications2ScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 28),
-
+                    if (events.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          'No responses recorded for this donor yet.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: secondaryText,
+                          ),
+                        ),
+                      ),
                     if (today.isNotEmpty) ...[
                       _buildSectionTitle('Today'),
                       const SizedBox(height: 12),
-                      for (final a in today) _buildAlertCard(a),
+                      for (final e in today) _buildAlertCard(e),
                       const SizedBox(height: 16),
                     ],
-
                     if (earlier.isNotEmpty) ...[
                       _buildSectionTitle('Earlier'),
                       const SizedBox(height: 12),
-                      for (final a in earlier) _buildAlertCard(a),
+                      for (final e in earlier) _buildAlertCard(e),
                       const SizedBox(height: 16),
                     ],
-
                     const SizedBox(height: 4),
-
                     _buildPrivacyCard(),
-
                     const SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
-
-            _buildBottomButtons(),
+            _buildBottomButtons(context),
           ],
         ),
       ),
@@ -192,9 +140,7 @@ class _OrganisationAlertsNotifications2ScreenState
               ),
             ),
           ),
-
           const SizedBox(width: 14),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +156,7 @@ class _OrganisationAlertsNotifications2ScreenState
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${widget.donorId} - Stay updated on donor responses',
+                  '$donorId · Stay updated on donor responses',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 13, color: secondaryText),
@@ -222,10 +168,6 @@ class _OrganisationAlertsNotifications2ScreenState
       ),
     );
   }
-
-  // ============================================================
-  // SECTION TITLE
-  // ============================================================
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -246,26 +188,32 @@ class _OrganisationAlertsNotifications2ScreenState
   // ALERT CARD
   // ============================================================
 
-  Widget _buildStatusIcon(AlertStatus status) {
-    switch (status) {
-      case AlertStatus.accepted:
-        return const Icon(Icons.check_rounded, size: 22, color: successGreen);
-      case AlertStatus.pending:
-        return const Text(
-          '!',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: alertRed,
-            height: 1,
-          ),
-        );
-      case AlertStatus.declined:
-        return const Icon(Icons.close_rounded, size: 20, color: alertRed);
-    }
+  String _titleFor(CoordinatorResponseEvent e) {
+    if (e.isAccepted) return 'Donor $donorId accepted';
+    if (e.isPending) return 'Donor response pending';
+    if (e.status == 'withdrawn') return 'Donor withdrew the offer';
+    return 'Donation request declined';
   }
 
-  Widget _buildAlertCard(DonorAlertItem item) {
+  Widget _buildStatusIcon(CoordinatorResponseEvent e) {
+    if (e.isAccepted) {
+      return const Icon(Icons.check_rounded, size: 22, color: successGreen);
+    }
+    if (e.isPending) {
+      return const Text(
+        '!',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          color: pendingColor,
+          height: 1,
+        ),
+      );
+    }
+    return const Icon(Icons.close_rounded, size: 20, color: alertRed);
+  }
+
+  Widget _buildAlertCard(CoordinatorResponseEvent e) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 0, 6, 12),
       child: Container(
@@ -279,22 +227,18 @@ class _OrganisationAlertsNotifications2ScreenState
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status icon
             SizedBox(
               width: 24,
               height: 24,
-              child: Center(child: _buildStatusIcon(item.status)),
+              child: Center(child: _buildStatusIcon(e)),
             ),
-
             const SizedBox(width: 12),
-
-            // Title + details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.title,
+                    _titleFor(e),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -303,7 +247,7 @@ class _OrganisationAlertsNotifications2ScreenState
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    item.details,
+                    '${e.bloodGroup} request • ${e.hospitalName}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: secondaryText,
@@ -312,18 +256,12 @@ class _OrganisationAlertsNotifications2ScreenState
                 ],
               ),
             ),
-
             const SizedBox(width: 8),
-
-            // Time
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(
-                item.time,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: secondaryText,
-                ),
+                e.timeAgo,
+                style: const TextStyle(fontSize: 11, color: secondaryText),
               ),
             ),
           ],
@@ -373,18 +311,17 @@ class _OrganisationAlertsNotifications2ScreenState
   // BOTTOM BUTTONS
   // ============================================================
 
-  Widget _buildBottomButtons() {
+  Widget _buildBottomButtons(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 8, 6, 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Message (filled)
           SizedBox(
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: _openMessage,
+              onPressed: () => _openMessage(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryMaroon,
                 foregroundColor: whiteColor,
@@ -397,15 +334,12 @@ class _OrganisationAlertsNotifications2ScreenState
               ),
             ),
           ),
-
           const SizedBox(height: 10),
-
-          // Back to Request (outlined)
           SizedBox(
             width: double.infinity,
             height: 42,
             child: OutlinedButton(
-              onPressed: _backToRequest,
+              onPressed: () => _backToRequest(context),
               style: OutlinedButton.styleFrom(
                 foregroundColor: tealText,
                 side: const BorderSide(color: tealText, width: 1.2),

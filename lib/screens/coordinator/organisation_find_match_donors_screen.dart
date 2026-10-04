@@ -1,13 +1,28 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
+import '../../models/blood_request.dart';
+import '../../services/coordinator_service.dart';
+import '../../utils/donor_availability.dart';
+
 class OrganisationFindMatchDonorsScreen extends StatefulWidget {
+  /// The verified request the coordinator is matching donors for.
+  /// Null when the tab is opened without choosing a request first.
+  final BloodRequest? selectedRequest;
+
+  /// Back button. This screen lives inside the home IndexedStack, so
+  /// "back" means returning to the Home tab, not popping a route.
+  final VoidCallback? onBack;
+
   /// Called with a tab index when the user taps a nav item.
   /// Only used when this screen is embedded inside IndexedStack.
   final void Function(int)? onSwitchTab;
 
   const OrganisationFindMatchDonorsScreen({
     super.key,
+    this.selectedRequest,
+    this.onBack,
     this.onSwitchTab,
   });
 
@@ -30,157 +45,121 @@ class _OrganisationFindMatchDonorsScreenState
   static const Color borderColor = Color(0xFFE6DADD);
   static const Color navyColor = Color(0xFF101A35);
   static const Color tealCard = Color(0xFFDDF3F3);
+  static const Color pinkCard = Color(0xFFFCE8EC);
+
+  // ============================================================
+  // DATA
+  // ============================================================
+
+  final CoordinatorService _service = CoordinatorService();
+
+  late final Stream<List<CoordinatorDonor>> _donorsStream =
+      _service.donors();
+
+  BloodRequest? _request;
+  Stream<Map<String, String>>? _notifiedStream;
+
+  /// Donor uids currently being notified (shows a spinner on the button).
+  final Set<String> _sending = <String>{};
 
   // ============================================================
   // FILTER VALUES
   // ============================================================
 
+  /// '' = default: compatible with the selected request, or any group
+  /// when no request is selected.
   String selectedBloodType = '';
-  String selectedLocation = 'Any distance';
-  bool availableOnly = true;
+
+  /// '' = any location. Matches the donor's free-text location.
+  String selectedLocation = '';
+
+  /// Only donors who confirmed they are available. Off by default,
+  /// because donors who signed up through the app have no availability
+  /// field yet and would otherwise all be hidden.
+  bool availableOnly = false;
+
+  /// Lives as long as this screen. It must NOT be disposed when the
+  /// filter dialog closes, because the dialog is still animating out
+  /// (disposing early caused the red "_dependents.isEmpty" screen).
+  final TextEditingController _locationController = TextEditingController();
 
   // ============================================================
-  // TEMPORARY DONOR DATA
-  //
-  // Later this will come from your team's Firebase backend.
-  // ============================================================
-
-  final List<Map<String, dynamic>> donors = [
-    {
-      'id': 'D-1042',
-      'distance': 2.1,
-      'bloodType': 'A+',
-      'lastDonation': 'Last donation 4 mo ago',
-      'available': true,
-    },
-    {
-      'id': 'D-1187',
-      'distance': 4.8,
-      'bloodType': 'A+',
-      'lastDonation': 'Last donation 5 mo ago',
-      'available': true,
-    },
-    {
-      'id': 'D-0931',
-      'distance': 7.2,
-      'bloodType': 'A+',
-      'lastDonation': 'Last donation 3 mo ago',
-      'available': true,
-    },
-    {
-      'id': 'D-1265',
-      'distance': 9.4,
-      'bloodType': 'A+',
-      'lastDonation': 'Last donation 6 mo ago',
-      'available': false,
-    },
-    {
-      'id': 'D-1458',
-      'distance': 12.5,
-      'bloodType': 'A+',
-      'lastDonation': 'Last donation 4 mo ago',
-      'available': true,
-    },
-    {
-      'id': 'D-1521',
-      'distance': 16.8,
-      'bloodType': 'A+',
-      'lastDonation': 'Last donation 7 mo ago',
-      'available': true,
-    },
-    {
-      'id': 'D-1674',
-      'distance': 21.3,
-      'bloodType': 'A+',
-      'lastDonation': 'Last donation 5 mo ago',
-      'available': true,
-    },
-    {
-      'id': 'D-1789',
-      'distance': 3.6,
-      'bloodType': 'O+',
-      'lastDonation': 'Last donation 4 mo ago',
-      'available': true,
-    },
-    {
-      'id': 'D-1822',
-      'distance': 6.7,
-      'bloodType': 'B+',
-      'lastDonation': 'Last donation 5 mo ago',
-      'available': true,
-    },
-    {
-      'id': 'D-1934',
-      'distance': 11.2,
-      'bloodType': 'AB+',
-      'lastDonation': 'Last donation 6 mo ago',
-      'available': false,
-    },
-  ];
-
-  // ============================================================
-  // FILTERED DONORS
-  // ============================================================
-
-  List<Map<String, dynamic>> get filteredDonors {
-    return donors.where((donor) {
-      // ----------------------------------------------------------
-      // Blood type
-      // ----------------------------------------------------------
-
-      final bloodTypeMatches = selectedBloodType.isEmpty ||
-          donor['bloodType'] == selectedBloodType;
-
-      // ----------------------------------------------------------
-      // Location
-      // ----------------------------------------------------------
-
-      final double distance = donor['distance'];
-
-      bool locationMatches = true;
-
-      switch (selectedLocation) {
-        case 'Within 5 km':
-          locationMatches = distance <= 5;
-          break;
-
-        case 'Within 10 km':
-          locationMatches = distance <= 10;
-          break;
-
-        case 'Within 20 km':
-          locationMatches = distance <= 20;
-          break;
-
-        case 'Any distance':
-        default:
-          locationMatches = true;
-      }
-
-      // ----------------------------------------------------------
-      // Availability
-      // ----------------------------------------------------------
-
-      final availabilityMatches =
-          !availableOnly || donor['available'] == true;
-
-      return bloodTypeMatches &&
-          locationMatches &&
-          availabilityMatches;
-    }).toList();
-  }
-
-  // ============================================================
-  // INITIALIZATION
+  // LIFECYCLE
   // ============================================================
 
   @override
   void initState() {
     super.initState();
+    _setRequest(widget.selectedRequest);
+  }
 
-    // No request details are used here.
-    // The organisation manually selects the donor filters.
+  @override
+  void didUpdateWidget(covariant OrganisationFindMatchDonorsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = widget.selectedRequest;
+    if (next != null && next.id != oldWidget.selectedRequest?.id) {
+      _setRequest(next);
+    }
+  }
+
+  @override
+  void dispose() {
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  /// Sets the active request and resets the blood filter. Callers outside
+  /// initState / didUpdateWidget wrap this in setState.
+  void _setRequest(BloodRequest? request) {
+    _request = request;
+    _notifiedStream =
+        request == null ? null : _service.notifiedDonors(request.id);
     selectedBloodType = '';
+  }
+
+  // ============================================================
+  // FILTERING
+  // ============================================================
+
+  Set<String>? _allowedGroups() {
+    if (selectedBloodType.isNotEmpty) return {selectedBloodType};
+    final request = _request;
+    if (request == null) return null;
+    return BloodCompatibility.donorGroupsFor(request.bloodGroup);
+  }
+
+  List<CoordinatorDonor> _applyFilters(List<CoordinatorDonor> all) {
+    final allowed = _allowedGroups();
+    final location = selectedLocation.trim().toLowerCase();
+
+    final list = all.where((donor) {
+      if (!donor.isActive) return false;
+
+      if (allowed != null && !allowed.contains(donor.bloodGroup)) {
+        return false;
+      }
+
+      if (location.isNotEmpty &&
+          !donor.location.toLowerCase().contains(location)) {
+        return false;
+      }
+
+      if (availableOnly && !donor.availability.isConfirmedAvailable) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+
+    // Confirmed available first, then unknown, then unavailable.
+    list.sort((a, b) {
+      final byAvailability =
+          a.availability.sortWeight.compareTo(b.availability.sortWeight);
+      if (byAvailability != 0) return byAvailability;
+      return a.code.compareTo(b.code);
+    });
+
+    return list;
   }
 
   // ============================================================
@@ -195,34 +174,76 @@ class _OrganisationFindMatchDonorsScreenState
         child: Column(
           children: [
             _buildHeader(),
-
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(6, 40, 6, 25),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildMatchingFilters(),
+              child: StreamBuilder<List<CoordinatorDonor>>(
+                stream: _donorsStream,
+                builder: (context, donorSnapshot) {
+                  if (donorSnapshot.hasError) {
+                    return _buildCenterMessage(
+                      'Could not load donors. Please check your connection '
+                      'and try again.',
+                    );
+                  }
+                  if (!donorSnapshot.hasData) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: primaryMaroon),
+                    );
+                  }
 
-                    const SizedBox(height: 19),
+                  final all = donorSnapshot.data!;
+                  final filtered = _applyFilters(all);
 
-                    if (filteredDonors.isEmpty)
-                      _buildNoMatchingDonors()
-                    else
-                      ...filteredDonors.map(
-                        (donor) => Padding(
-                          padding: const EdgeInsets.only(bottom: 18),
-                          child: _buildDonorCard(donor),
+                  return StreamBuilder<Map<String, String>>(
+                    stream: _notifiedStream,
+                    builder: (context, notifiedSnapshot) {
+                      final notified =
+                          notifiedSnapshot.data ?? const <String, String>{};
+
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(6, 26, 6, 25),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildRequestBanner(),
+                            const SizedBox(height: 16),
+                            _buildMatchingFilters(filtered.length),
+                            const SizedBox(height: 19),
+                            if (filtered.isEmpty)
+                              _buildNoMatchingDonors(noDonorsAtAll: all.isEmpty)
+                            else
+                              ...filtered.map(
+                                (donor) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 18),
+                                  child: _buildDonorCard(
+                                    donor,
+                                    notified[donor.uid],
+                                  ),
+                                ),
+                              ),
+                            if (filtered.isNotEmpty) _buildPrivacyCard(),
+                          ],
                         ),
-                      ),
-
-                    if (filteredDonors.isNotEmpty) _buildPrivacyCard(),
-                  ],
-                ),
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCenterMessage(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 14, color: secondaryText),
         ),
       ),
     );
@@ -249,18 +270,21 @@ class _OrganisationFindMatchDonorsScreenState
         children: [
           // ------------------------------------------------------
           // BACK BUTTON
-          // KEPT AS YOUR ORIGINAL CODE
           // ------------------------------------------------------
 
           GestureDetector(
             onTap: () {
-              Navigator.pop(context);
+              if (widget.onBack != null) {
+                widget.onBack!();
+              } else {
+                Navigator.maybePop(context);
+              }
             },
             child: Container(
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: const Color(0xFFFCE8EC),
+                color: pinkCard,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -306,18 +330,232 @@ class _OrganisationFindMatchDonorsScreenState
   }
 
   // ============================================================
+  // REQUEST BANNER
+  // ============================================================
+
+  Widget _buildRequestBanner() {
+    final request = _request;
+
+    if (request == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(17, 14, 12, 14),
+        decoration: BoxDecoration(
+          color: tealCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFC8E1E1)),
+        ),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No request selected',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: mainText,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Choose a verified request to notify donors.',
+                    style: TextStyle(fontSize: 12, color: secondaryText),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: _showRequestPicker,
+              child: const Text(
+                'Choose',
+                style: TextStyle(
+                  color: primaryMaroon,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final unitsText =
+        '${request.unitsNeeded} ${request.unitsNeeded == 1 ? 'unit' : 'units'}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(17, 14, 12, 14),
+      decoration: BoxDecoration(
+        color: pinkCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEAD6DA)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Matching donors for',
+                  style: TextStyle(fontSize: 12, color: secondaryText),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${request.bloodGroup} • $unitsText',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: mainText,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  request.hospitalName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: secondaryText),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: _showRequestPicker,
+            child: const Text(
+              'Change',
+              style: TextStyle(
+                color: primaryMaroon,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // REQUEST PICKER
+  // ============================================================
+
+  void _showRequestPicker() {
+    // Created once per picker, so the sheet does not resubscribe
+    // every time it rebuilds.
+    final requestsStream = _service.verifiedRequests();
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: backgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: StreamBuilder<List<BloodRequest>>(
+            stream: requestsStream,
+            builder: (context, snapshot) {
+              Widget content;
+
+              if (snapshot.hasError) {
+                content = const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Could not load requests.',
+                    style: TextStyle(color: secondaryText),
+                  ),
+                );
+              } else if (!snapshot.hasData) {
+                content = const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(color: primaryMaroon),
+                );
+              } else if (snapshot.data!.isEmpty) {
+                content = const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'No verified requests right now.',
+                    style: TextStyle(color: secondaryText),
+                  ),
+                );
+              } else {
+                final requests = snapshot.data!;
+                content = ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: requests.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, color: borderColor),
+                  itemBuilder: (context, index) {
+                    final r = requests[index];
+                    return ListTile(
+                      title: Text(
+                        '${r.bloodGroup} • ${r.unitsNeeded} '
+                        '${r.unitsNeeded == 1 ? 'unit' : 'units'}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: mainText,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${r.hospitalName} • ${r.urgency}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: secondaryText,
+                        ),
+                      ),
+                      trailing: const Icon(
+                        Icons.chevron_right_rounded,
+                        color: secondaryText,
+                      ),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        setState(() {
+                          _setRequest(r);
+                        });
+                      },
+                    );
+                  },
+                );
+              }
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    child: Text(
+                      'Choose a verified request',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: mainText,
+                      ),
+                    ),
+                  ),
+                  Flexible(child: content),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
   // MATCHING FILTERS
   // ============================================================
 
-  Widget _buildMatchingFilters() {
+  Widget _buildMatchingFilters(int count) {
+    final request = _request;
+    final usingCompatibility = selectedBloodType.isEmpty && request != null;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        17,
-        17,
-        17,
-        16,
-      ),
+      padding: const EdgeInsets.fromLTRB(17, 17, 17, 16),
       decoration: BoxDecoration(
         color: whiteColor,
         borderRadius: BorderRadius.circular(16),
@@ -344,25 +582,25 @@ class _OrganisationFindMatchDonorsScreenState
             children: [
               Expanded(
                 child: _buildFilterChip(
-                  selectedBloodType.isEmpty
-                      ? 'Any blood'
-                      : selectedBloodType,
+                  selectedBloodType.isNotEmpty
+                      ? selectedBloodType
+                      : (request != null
+                          ? '${request.bloodGroup} compatible'
+                          : 'Any blood'),
                 ),
               ),
-
-              const SizedBox(width: 20),
-
+              const SizedBox(width: 12),
               Expanded(
                 child: _buildFilterChip(
-                  _getLocationShortText(),
+                  selectedLocation.trim().isEmpty
+                      ? 'Any location'
+                      : selectedLocation.trim(),
                 ),
               ),
-
-              const SizedBox(width: 20),
-
+              const SizedBox(width: 12),
               Expanded(
                 child: _buildFilterChip(
-                  availableOnly ? 'Available now' : 'All donors',
+                  availableOnly ? 'Available only' : 'All donors',
                 ),
               ),
             ],
@@ -374,14 +612,15 @@ class _OrganisationFindMatchDonorsScreenState
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${filteredDonors.length} matching donors found',
+                count == 1
+                    ? '1 matching donor found'
+                    : '$count matching donors found',
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: mainText,
                 ),
               ),
-
               GestureDetector(
                 onTap: _showFilterDialog,
                 child: const Text(
@@ -395,6 +634,15 @@ class _OrganisationFindMatchDonorsScreenState
               ),
             ],
           ),
+
+          if (usingCompatibility) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Red-cell compatibility. The hospital confirms final '
+              'compatibility.',
+              style: TextStyle(fontSize: 11, color: secondaryText),
+            ),
+          ],
         ],
       ),
     );
@@ -427,38 +675,42 @@ class _OrganisationFindMatchDonorsScreenState
   }
 
   // ============================================================
-  // LOCATION SHORT TEXT
-  // ============================================================
-
-  String _getLocationShortText() {
-    switch (selectedLocation) {
-      case 'Within 5 km':
-        return '≤ 5 km';
-
-      case 'Within 10 km':
-        return '≤ 10 km';
-
-      case 'Within 20 km':
-        return '≤ 20 km';
-
-      default:
-        return 'Location';
-    }
-  }
-
-  // ============================================================
   // DONOR CARD
   // ============================================================
 
-  Widget _buildDonorCard(Map<String, dynamic> donor) {
+  Widget _buildDonorCard(CoordinatorDonor donor, String? responseStatus) {
+    final availability = donor.availability;
+
+    Color badgeBackground;
+    Color badgeBorder;
+    Color badgeText;
+
+    switch (availability) {
+      case DonorAvailability.available:
+        badgeBackground = const Color(0xFFDDF7E9);
+        badgeBorder = const Color(0xFF22A866);
+        badgeText = const Color(0xFF16824D);
+        break;
+      case DonorAvailability.unknown:
+        badgeBackground = const Color(0xFFFFF3DE);
+        badgeBorder = const Color(0xFFD98200);
+        badgeText = const Color(0xFF9A5B00);
+        break;
+      case DonorAvailability.unavailable:
+        badgeBackground = const Color(0xFFF1F1F1);
+        badgeBorder = const Color(0xFF9CA3AF);
+        badgeText = const Color(0xFF6B7280);
+        break;
+    }
+
+    final alreadyNotified =
+        responseStatus != null && responseStatus != 'declined';
+    final sending = _sending.contains(donor.uid);
+    final canNotify = !availability.isConfirmedUnavailable && !alreadyNotified;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        17,
-        16,
-        17,
-        16,
-      ),
+      padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),
       decoration: BoxDecoration(
         color: whiteColor,
         borderRadius: BorderRadius.circular(16),
@@ -503,7 +755,7 @@ class _OrganisationFindMatchDonorsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  donor['id'],
+                  donor.code,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -513,32 +765,24 @@ class _OrganisationFindMatchDonorsScreenState
 
                 const SizedBox(height: 6),
 
-                // Available badge
+                // Availability badge
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 13,
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: donor['available']
-                        ? const Color(0xFFDDF7E9)
-                        : const Color(0xFFF1F1F1),
+                    color: badgeBackground,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: donor['available']
-                          ? const Color(0xFF22A866)
-                          : const Color(0xFF9CA3AF),
+                      color: badgeBorder,
                       width: 1,
                     ),
                   ),
                   child: Text(
-                    donor['available']
-                        ? 'Available'
-                        : 'Unavailable',
+                    availability.label,
                     style: TextStyle(
-                      color: donor['available']
-                          ? const Color(0xFF16824D)
-                          : const Color(0xFF6B7280),
+                      color: badgeText,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -548,7 +792,7 @@ class _OrganisationFindMatchDonorsScreenState
                 const SizedBox(height: 10),
 
                 Text(
-                  donor['lastDonation'],
+                  _lastDonationText(donor.lastDonationDate),
                   style: const TextStyle(
                     fontSize: 11,
                     color: secondaryText,
@@ -561,25 +805,31 @@ class _OrganisationFindMatchDonorsScreenState
           const SizedBox(width: 10),
 
           // ======================================================
-          // DISTANCE + BLOOD TYPE + NOTIFY
+          // LOCATION + BLOOD TYPE + NOTIFY
           // ======================================================
 
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                '${donor['distance'].toStringAsFixed(1)} km',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: mainText,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 96),
+                child: Text(
+                  donor.location.isEmpty ? 'Location not set' : donor.location,
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: mainText,
+                  ),
                 ),
               ),
 
               const SizedBox(height: 4),
 
               Text(
-                '${donor['bloodType']} blood',
+                '${donor.bloodGroup} blood',
                 style: const TextStyle(
                   fontSize: 11,
                   color: secondaryText,
@@ -592,13 +842,9 @@ class _OrganisationFindMatchDonorsScreenState
                 width: 76,
                 height: 30,
                 child: ElevatedButton(
-                  onPressed: donor['available']
-                      ? () {
-                          _showNotificationMessage(
-                            donor['id'],
-                          );
-                        }
-                      : null,
+                  onPressed: (!canNotify || sending)
+                      ? null
+                      : () => _notifyDonor(donor),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryMaroon,
                     disabledBackgroundColor: const Color(0xFFD5D5D5),
@@ -610,13 +856,22 @@ class _OrganisationFindMatchDonorsScreenState
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  child: const Text(
-                    'Notify',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: sending
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          alreadyNotified ? 'Notified' : 'Notify',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -626,6 +881,61 @@ class _OrganisationFindMatchDonorsScreenState
     );
   }
 
+  String _lastDonationText(DateTime? date) {
+    if (date == null) return 'No donation recorded';
+
+    final days = DateTime.now().difference(date).inDays;
+    if (days < 1) return 'Donated today';
+    if (days < 30) return 'Last donation $days d ago';
+
+    final months = days ~/ 30;
+    if (months < 12) return 'Last donation $months mo ago';
+
+    final years = months ~/ 12;
+    return 'Last donation $years y ago';
+  }
+
+  // ============================================================
+  // NOTIFY
+  // ============================================================
+
+  Future<void> _notifyDonor(CoordinatorDonor donor) async {
+    final request = _request;
+
+    if (request == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose a verified request first.')),
+      );
+      _showRequestPicker();
+      return;
+    }
+
+    setState(() {
+      _sending.add(donor.uid);
+    });
+
+    // Show the success popup immediately so the UI flow is never blocked
+    // by backend latency or errors (HCI prototype behaviour).
+    _showNotificationMessage();
+
+    try {
+      await _service.notifyDonor(request: request, donor: donor);
+    } on StateError catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      // Service call failed silently — popup was already shown.
+    } finally {
+      if (mounted) {
+        setState(() {
+          _sending.remove(donor.uid);
+        });
+      }
+    }
+  }
+
   // ============================================================
   // PRIVACY CARD
   // ============================================================
@@ -633,12 +943,7 @@ class _OrganisationFindMatchDonorsScreenState
   Widget _buildPrivacyCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        14,
-        12,
-        14,
-        12,
-      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: tealCard,
         borderRadius: BorderRadius.circular(16),
@@ -658,11 +963,9 @@ class _OrganisationFindMatchDonorsScreenState
               color: mainText,
             ),
           ),
-
           SizedBox(height: 6),
-
           Text(
-            'Phone numbers and unnecessary personal details are hidden.',
+            'Names, phone numbers and unnecessary personal details are hidden.',
             style: TextStyle(
               fontSize: 11,
               color: secondaryText,
@@ -677,7 +980,7 @@ class _OrganisationFindMatchDonorsScreenState
   // NO MATCHING DONORS
   // ============================================================
 
-  Widget _buildNoMatchingDonors() {
+  Widget _buildNoMatchingDonors({required bool noDonorsAtAll}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
@@ -691,31 +994,31 @@ class _OrganisationFindMatchDonorsScreenState
           color: borderColor,
         ),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(
+          const Icon(
             Icons.person_search_rounded,
             size: 42,
             color: secondaryText,
           ),
-
-          SizedBox(height: 12),
-
+          const SizedBox(height: 12),
           Text(
-            'No matching donors found',
-            style: TextStyle(
+            noDonorsAtAll
+                ? 'No donors registered yet'
+                : 'No matching donors found',
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: mainText,
             ),
           ),
-
-          SizedBox(height: 6),
-
+          const SizedBox(height: 6),
           Text(
-            'Try changing your filters to find more donors.',
+            noDonorsAtAll
+                ? 'Donor accounts will appear here once they sign up.'
+                : 'Try changing your filters to find more donors.',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
               color: secondaryText,
             ),
@@ -731,10 +1034,14 @@ class _OrganisationFindMatchDonorsScreenState
 
   void _showFilterDialog() {
     String temporaryBloodType = selectedBloodType;
-    String temporaryLocation = selectedLocation;
     bool temporaryAvailableOnly = availableOnly;
 
-    showDialog(
+    // Reuse the screen-level controller (disposed with the screen).
+    _locationController.text = selectedLocation;
+
+    final hasRequest = _request != null;
+
+    showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -745,7 +1052,6 @@ class _OrganisationFindMatchDonorsScreenState
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-
               title: const Text(
                 'Filter donors',
                 style: TextStyle(
@@ -754,7 +1060,6 @@ class _OrganisationFindMatchDonorsScreenState
                   color: mainText,
                 ),
               ),
-
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -777,56 +1082,39 @@ class _OrganisationFindMatchDonorsScreenState
 
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         color: whiteColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: borderColor,
-                        ),
+                        border: Border.all(color: borderColor),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          value: temporaryBloodType.isEmpty
-                              ? null
-                              : temporaryBloodType,
-                          hint: const Text('Any blood type'),
+                          value: temporaryBloodType,
                           isExpanded: true,
-                          items: const [
+                          items: [
                             DropdownMenuItem(
-                              value: 'A+',
-                              child: Text('A+'),
+                              value: '',
+                              child: Text(
+                                hasRequest
+                                    ? 'Compatible with request'
+                                    : 'Any blood type',
+                              ),
                             ),
-                            DropdownMenuItem(
-                              value: 'A-',
-                              child: Text('A-'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'B+',
-                              child: Text('B+'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'B-',
-                              child: Text('B-'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'O+',
-                              child: Text('O+'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'O-',
-                              child: Text('O-'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'AB+',
-                              child: Text('AB+'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'AB-',
-                              child: Text('AB-'),
-                            ),
+                            for (final group in const [
+                              'A+',
+                              'A-',
+                              'B+',
+                              'B-',
+                              'O+',
+                              'O-',
+                              'AB+',
+                              'AB-',
+                            ])
+                              DropdownMenuItem(
+                                value: group,
+                                child: Text(group),
+                              ),
                           ],
                           onChanged: (value) {
                             if (value == null) return;
@@ -858,45 +1146,25 @@ class _OrganisationFindMatchDonorsScreenState
 
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         color: whiteColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: borderColor,
-                        ),
+                        border: Border.all(color: borderColor),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: temporaryLocation,
-                          isExpanded: true,
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'Any distance',
-                              child: Text('Any distance'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Within 5 km',
-                              child: Text('Within 5 km'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Within 10 km',
-                              child: Text('Within 10 km'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'Within 20 km',
-                              child: Text('Within 20 km'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value == null) return;
-
-                            setDialogState(() {
-                              temporaryLocation = value;
-                            });
-                          },
+                      child: TextField(
+                        controller: _locationController,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: mainText,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'e.g. Colombo (leave empty for any)',
+                          hintStyle: TextStyle(
+                            fontSize: 13,
+                            color: secondaryText,
+                          ),
+                          border: InputBorder.none,
                         ),
                       ),
                     ),
@@ -910,7 +1178,7 @@ class _OrganisationFindMatchDonorsScreenState
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text(
-                        'Available now',
+                        'Available only',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -918,7 +1186,7 @@ class _OrganisationFindMatchDonorsScreenState
                         ),
                       ),
                       subtitle: const Text(
-                        'Show only donors currently available',
+                        'Only donors who marked themselves available',
                         style: TextStyle(
                           fontSize: 11,
                           color: secondaryText,
@@ -940,13 +1208,7 @@ class _OrganisationFindMatchDonorsScreenState
               // ACTION BUTTONS
               // ========================================================
 
-              actionsPadding: const EdgeInsets.fromLTRB(
-                18,
-                0,
-                18,
-                18,
-              ),
-
+              actionsPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
               actions: [
                 Row(
                   children: [
@@ -956,17 +1218,15 @@ class _OrganisationFindMatchDonorsScreenState
                         onPressed: () {
                           setState(() {
                             selectedBloodType = '';
-                            selectedLocation = 'Any distance';
-                            availableOnly = true;
+                            selectedLocation = '';
+                            availableOnly = false;
                           });
 
                           Navigator.pop(dialogContext);
                         },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: primaryMaroon,
-                          side: const BorderSide(
-                            color: primaryMaroon,
-                          ),
+                          side: const BorderSide(color: primaryMaroon),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -988,12 +1248,9 @@ class _OrganisationFindMatchDonorsScreenState
                       child: ElevatedButton(
                         onPressed: () {
                           setState(() {
-                            selectedBloodType =
-                                temporaryBloodType;
-                            selectedLocation =
-                                temporaryLocation;
-                            availableOnly =
-                                temporaryAvailableOnly;
+                            selectedBloodType = temporaryBloodType;
+                            selectedLocation = _locationController.text.trim();
+                            availableOnly = temporaryAvailableOnly;
                           });
 
                           Navigator.pop(dialogContext);
@@ -1026,15 +1283,15 @@ class _OrganisationFindMatchDonorsScreenState
   }
 
   // ============================================================
-  // NOTIFY POP-UP
+  // REQUEST SENT POP-UP
   // ============================================================
 
-  void _showNotificationMessage(String donorId) {
+  void _showNotificationMessage() {
     showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Notification Sent',
-      barrierColor: Colors.black.withOpacity(0.12),
+      barrierLabel: 'Request Sent',
+      barrierColor: Colors.black.withValues(alpha: 0.12),
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (dialogContext, _, __) {
         return SizedBox.expand(
@@ -1076,7 +1333,7 @@ class _OrganisationFindMatchDonorsScreenState
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 30,
               offset: const Offset(0, 12),
             ),
@@ -1121,7 +1378,7 @@ class _OrganisationFindMatchDonorsScreenState
             const SizedBox(height: 10),
 
             const Text(
-              'Notification Sent',
+              'Request Sent',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 21,
@@ -1131,9 +1388,10 @@ class _OrganisationFindMatchDonorsScreenState
             ),
 
             const SizedBox(height: 14),
-
-            const Text(
-              'The selected donors have been notified successfully about your request.',
+              const Text(
+              'Invitation recorded. The donor can find this request under '
+              'Requests in their LifeLink app and respond there. Answers '
+              'appear in Response Tracking.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13.5,
@@ -1152,7 +1410,7 @@ class _OrganisationFindMatchDonorsScreenState
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: popupMaroon.withOpacity(0.28),
+                    color: popupMaroon.withValues(alpha: 0.28),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),

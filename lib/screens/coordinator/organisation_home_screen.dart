@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'organisation_requests_screen.dart';
-import 'organisation_find_match_donors_screen.dart';
-import 'organisation_response_tracking_screen.dart';
+import 'package:flutter/material.dart';
+
+import '../../models/blood_request.dart';
+import '../../services/coordinator_service.dart';
 import 'organisation_alerts_notifications_screen.dart';
+import 'organisation_find_match_donors_screen.dart';
 import 'organisation_profile_screen.dart';
+import 'organisation_requests_screen.dart';
+import 'organisation_response_tracking_screen.dart';
 
 class OrganisationHomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -19,10 +22,36 @@ class OrganisationHomeScreen extends StatefulWidget {
 class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   late int _selectedIndex;
 
+  final CoordinatorService _service = CoordinatorService();
+
+  // Kept in a field so the stream is created once, not on every rebuild.
+  late final Stream<List<BloodRequest>> _requestsStream =
+      _service.verifiedRequests();
+
+  /// The verified request the coordinator chose to find donors for.
+  /// Kept here so the Donors tab knows which request it is matching.
+  BloodRequest? _selectedRequest;
+
+  /// The tab that was active before switching to the Donors tab.
+  /// Used so the back button returns to the correct previous tab.
+  int _previousIndex = 0;
+
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
+  }
+
+  /// Switches to the Donors tab. Passing a request selects it; passing
+  /// null keeps whichever request was selected before.
+  void _openDonors([BloodRequest? request]) {
+    setState(() {
+      _previousIndex = _selectedIndex;
+      if (request != null) {
+        _selectedRequest = request;
+      }
+      _selectedIndex = 2;
+    });
   }
 
   // ============================================================
@@ -43,29 +72,30 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-
       body: SafeArea(
         bottom: false,
         child: IndexedStack(
           index: _selectedIndex,
           children: [
             _buildHomeScreen(),
-
             OrganisationRequestsScreen(
               onBack: () {
                 setState(() {
                   _selectedIndex = 0;
                 });
               },
-              onFindDonors: () {
+              onFindDonors: (request) {
+                _openDonors(request);
+              },
+            ),
+            OrganisationFindMatchDonorsScreen(
+              selectedRequest: _selectedRequest,
+              onBack: () {
                 setState(() {
-                  _selectedIndex = 2;
+                  _selectedIndex = _previousIndex;
                 });
               },
             ),
-
-            const OrganisationFindMatchDonorsScreen(),
-
             OrganisationResponseTrackingScreen(
               onBack: () {
                 setState(() {
@@ -76,7 +106,8 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const OrganisationAlertsNotificationsScreen(),
+                    builder: (_) =>
+                        const OrganisationAlertsNotificationsScreen(),
                   ),
                 );
               },
@@ -84,50 +115,57 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
           ],
         ),
       ),
-
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
   // ============================================================
-  // HOME
+  // HOME (live data from Firestore)
   // ============================================================
 
   Widget _buildHomeScreen() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
+    return StreamBuilder<List<BloodRequest>>(
+      stream: _requestsStream,
+      builder: (context, snapshot) {
+        final requests = snapshot.data ?? const <BloodRequest>[];
+        final hasError = snapshot.hasError;
+        final loading = !snapshot.hasData && !hasError;
 
-          const SizedBox(height: 28),
+        // Donors who accepted across all verified requests
+        // (denormalised counter maintained by the hospital module).
+        final acceptedCount =
+            requests.fold<int>(0, (sum, r) => sum + r.donorsAcceptedCount);
 
-          _buildEmergencyCoordinationCard(),
-
-          const SizedBox(height: 28),
-
-          _buildSectionTitle('Quick actions'),
-
-          const SizedBox(height: 14),
-
-          _buildQuickActions(),
-
-          const SizedBox(height: 20),
-
-          _buildSectionTitle('Verified requests'),
-
-          const SizedBox(height: 14),
-
-          _buildVerifiedRequestCard(),
-
-          const SizedBox(height: 28),
-
-          _buildPrivacyReminder(),
-
-          const SizedBox(height: 30),
-        ],
-      ),
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 28),
+              _buildEmergencyCoordinationCard(
+                count: requests.length,
+                loading: loading,
+              ),
+              const SizedBox(height: 28),
+              _buildSectionTitle('Quick actions'),
+              const SizedBox(height: 14),
+              _buildQuickActions(acceptedCount),
+              const SizedBox(height: 20),
+              _buildSectionTitle('Verified requests'),
+              const SizedBox(height: 14),
+              _buildVerifiedRequestsSection(
+                requests: requests,
+                loading: loading,
+                hasError: hasError,
+              ),
+              const SizedBox(height: 28),
+              _buildPrivacyReminder(),
+              const SizedBox(height: 30),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -141,7 +179,6 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(17, 13, 17, 14),
-
       decoration: const BoxDecoration(
         color: backgroundColor,
         border: Border(
@@ -151,7 +188,6 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
           ),
         ),
       ),
-
       child: Row(
         children: [
           Expanded(
@@ -168,9 +204,7 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
                         shape: BoxShape.circle,
                       ),
                     ),
-
                     const SizedBox(width: 5),
-
                     const Text(
                       'Organization Dashboard',
                       style: TextStyle(
@@ -182,13 +216,13 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 5),
-
                 Padding(
                   padding: const EdgeInsets.only(left: 13),
                   child: Text(
                     'Welcome back, ${_getUserName(user)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -201,71 +235,60 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
           ),
 
           // Profile icon
-          // Profile icon
-        InkWell(
-          borderRadius: BorderRadius.circular(5),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const OrganisationProfileScreen(),
+          InkWell(
+            borderRadius: BorderRadius.circular(5),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const OrganisationProfileScreen(),
+                ),
+              );
+            },
+            child: Container(
+              width: 29,
+              height: 29,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F0F0),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: const Color(0xFFDAD6D7),
+                ),
               ),
-            );
-          },
-          child: Container(
-            width: 29,
-            height: 29,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF2F0F0),
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(
-                color: const Color(0xFFDAD6D7),
+              child: const Icon(
+                Icons.person_outline_rounded,
+                size: 20,
+                color: secondaryText,
               ),
-            ),
-            child: const Icon(
-              Icons.person_outline_rounded,
-              size: 20,
-              color: secondaryText,
             ),
           ),
-        ),
         ],
       ),
     );
   }
 
   String _getUserName(User? user) {
-    if (user == null) {
-      return 'Isiwara';
+    final name = user?.displayName?.trim();
+    if (name != null && name.isNotEmpty) {
+      return name;
     }
-
-    if (user.displayName != null &&
-        user.displayName!.trim().isNotEmpty) {
-      return user.displayName!.trim();
-    }
-
-    return 'Isiwara';
+    return 'Coordinator';
   }
 
   // ============================================================
   // EMERGENCY COORDINATION
   // ============================================================
 
-  Widget _buildEmergencyCoordinationCard() {
+  Widget _buildEmergencyCoordinationCard({
+    required int count,
+    required bool loading,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
-
       child: Container(
         width: double.infinity,
         height: 112,
-
-        padding: const EdgeInsets.fromLTRB(
-          18,
-          17,
-          14,
-          15,
-        ),
-
+        padding: const EdgeInsets.fromLTRB(18, 17, 14, 15),
         decoration: BoxDecoration(
           color: pinkCard,
           borderRadius: BorderRadius.circular(17),
@@ -273,7 +296,6 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
             color: const Color(0xFFEAD6DA),
           ),
         ),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -284,34 +306,31 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
                 color: secondaryText,
               ),
             ),
-
             const SizedBox(height: 5),
-
             Row(
               children: [
-                const Text(
-                  '3',
-                  style: TextStyle(
+                Text(
+                  loading ? '–' : '$count',
+                  style: const TextStyle(
                     fontSize: 38,
                     fontWeight: FontWeight.w700,
                     color: mainText,
                     height: 0.95,
                   ),
                 ),
-
                 const SizedBox(width: 13),
-
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'active verified requests',
-                    style: TextStyle(
+                    count == 1
+                        ? 'active verified request'
+                        : 'active verified requests',
+                    style: const TextStyle(
                       fontSize: 14,
                       color: secondaryText,
                       height: 1.15,
                     ),
                   ),
                 ),
-
                 _buildPrimaryButton(
                   text: 'View requests',
                   width: 119,
@@ -338,7 +357,6 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-
       child: Text(
         title,
         style: const TextStyle(
@@ -355,10 +373,15 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   // QUICK ACTIONS
   // ============================================================
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(int acceptedCount) {
+    final responsesText = acceptedCount == 0
+        ? 'No accepted donor\nresponses yet'
+        : acceptedCount == 1
+            ? '1 donor has accepted\nyour requests'
+            : '$acceptedCount donors have accepted\nyour requests';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
-
       child: Row(
         children: [
           Expanded(
@@ -374,13 +397,11 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
               },
             ),
           ),
-
           const SizedBox(width: 20),
-
           Expanded(
             child: _buildQuickActionCard(
               title: 'Responses',
-              description: '8 donor responses\nneed attention',
+              description: responsesText,
               buttonText: 'Track',
               buttonWidth: 75,
               outlinedButton: true,
@@ -406,14 +427,7 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   }) {
     return Container(
       height: 124,
-
-      padding: const EdgeInsets.fromLTRB(
-        19,
-        17,
-        15,
-        12,
-      ),
-
+      padding: const EdgeInsets.fromLTRB(19, 17, 15, 12),
       decoration: BoxDecoration(
         color: whiteColor,
         borderRadius: BorderRadius.circular(16),
@@ -421,7 +435,6 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
           color: borderColor,
         ),
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -433,9 +446,7 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
               color: mainText,
             ),
           ),
-
           const SizedBox(height: 7),
-
           Expanded(
             child: Text(
               description,
@@ -446,7 +457,6 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
               ),
             ),
           ),
-
           outlinedButton
               ? _buildOutlinedButton(
                   text: buttonText,
@@ -467,24 +477,84 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   }
 
   // ============================================================
-  // VERIFIED REQUEST
+  // VERIFIED REQUESTS (live)
   // ============================================================
 
-  Widget _buildVerifiedRequestCard() {
+  Widget _buildVerifiedRequestsSection({
+    required List<BloodRequest> requests,
+    required bool loading,
+    required bool hasError,
+  }) {
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: CircularProgressIndicator(color: primaryMaroon),
+        ),
+      );
+    }
+
+    if (hasError) {
+      return _buildMessageCard(
+        'Could not load verified requests. Please check your connection '
+        'and try again.',
+      );
+    }
+
+    if (requests.isEmpty) {
+      return _buildMessageCard(
+        'No verified requests right now. Requests appear here once a '
+        'hospital has verified them.',
+      );
+    }
+
+    // Home shows the three most urgent; the Requests tab shows them all.
+    final shown = requests.take(3).toList();
+
+    return Column(
+      children: [
+        for (var i = 0; i < shown.length; i++) ...[
+          _buildVerifiedRequestCard(shown[i]),
+          if (i != shown.length - 1) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMessageCard(String message) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
-
       child: Container(
         width: double.infinity,
-        height: 155,
-
-        padding: const EdgeInsets.fromLTRB(
-          17,
-          16,
-          17,
-          14,
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          color: whiteColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor),
         ),
+        child: Text(
+          message,
+          style: const TextStyle(
+            fontSize: 13,
+            color: secondaryText,
+            height: 1.35,
+          ),
+        ),
+      ),
+    );
+  }
 
+  Widget _buildVerifiedRequestCard(BloodRequest r) {
+    final hasLocation = r.location.isNotEmpty && r.location != '-';
+    final place =
+        hasLocation ? '${r.hospitalName} • ${r.location}' : r.hospitalName;
+    final remaining = _remainingLabel(r.requiredAt);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(17, 16, 17, 14),
         decoration: BoxDecoration(
           color: whiteColor,
           borderRadius: BorderRadius.circular(16),
@@ -492,17 +562,15 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
             color: borderColor,
           ),
         ),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // URGENT
+            // Urgency badge
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 5,
               ),
-
               decoration: BoxDecoration(
                 color: pinkCard,
                 borderRadius: BorderRadius.circular(20),
@@ -510,10 +578,9 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
                   color: primaryMaroon,
                 ),
               ),
-
-              child: const Text(
-                'URGENT',
-                style: TextStyle(
+              child: Text(
+                r.urgency.toUpperCase(),
+                style: const TextStyle(
                   color: primaryMaroon,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
@@ -521,83 +588,93 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 9),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'A+ • 4 units',
-                        style: TextStyle(
+                      Text(
+                        '${r.bloodGroup} • ${r.unitsNeeded} '
+                        '${r.unitsNeeded == 1 ? 'unit' : 'units'}',
+                        style: const TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w700,
                           color: mainText,
                         ),
                       ),
-
                       const SizedBox(height: 3),
-
-                      const Text(
-                        'District General Hospital • 6.2 km',
-                        style: TextStyle(
+                      Text(
+                        place,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                           fontSize: 12,
                           color: secondaryText,
                         ),
                       ),
-
                       const SizedBox(height: 11),
-
                       _buildPrimaryButton(
                         text: 'Find donors',
                         width: 103,
                         height: 27,
                         fontSize: 11,
-                        onPressed: () {
-                          setState(() {
-                            _selectedIndex = 2;
-                          });
-                        },
+                        onPressed: () => _openDonors(r),
                       ),
                     ],
                   ),
                 ),
-
-                const Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '12 min',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: primaryMaroon,
+                if (remaining != null) ...[
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        remaining.$1,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: primaryMaroon,
+                        ),
                       ),
-                    ),
-
-                    SizedBox(height: 3),
-
-                    Text(
-                      'remaining',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: secondaryText,
+                      const SizedBox(height: 3),
+                      Text(
+                        remaining.$2,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: secondaryText,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Time left until the blood is needed. Returns null when the request
+  /// has no required-by time recorded, so nothing is invented.
+  (String, String)? _remainingLabel(DateTime? requiredAt) {
+    if (requiredAt == null) return null;
+
+    final diff = requiredAt.difference(DateTime.now());
+
+    if (diff.isNegative) {
+      return ('Overdue', 'past required time');
+    }
+    if (diff.inMinutes < 60) {
+      return ('${diff.inMinutes} min', 'remaining');
+    }
+    if (diff.inHours < 24) {
+      return ('${diff.inHours} h', 'remaining');
+    }
+    return ('${diff.inDays} d', 'remaining');
   }
 
   // ============================================================
@@ -607,18 +684,10 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   Widget _buildPrivacyReminder() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
-
       child: Container(
         width: double.infinity,
         height: 65,
-
-        padding: const EdgeInsets.fromLTRB(
-          14,
-          10,
-          14,
-          8,
-        ),
-
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
         decoration: BoxDecoration(
           color: tealCard,
           borderRadius: BorderRadius.circular(16),
@@ -626,7 +695,6 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
             color: const Color(0xFFC8E1E1),
           ),
         ),
-
         child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -638,9 +706,7 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
                 color: mainText,
               ),
             ),
-
             SizedBox(height: 4),
-
             Text(
               'Only share the information required for donor coordination.',
               style: TextStyle(
@@ -668,21 +734,17 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
     return SizedBox(
       width: width,
       height: height,
-
       child: ElevatedButton(
         onPressed: onPressed,
-
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryMaroon,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: EdgeInsets.zero,
-
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
         ),
-
         child: Text(
           text,
           style: TextStyle(
@@ -707,26 +769,21 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
     return SizedBox(
       width: width,
       height: height,
-
       child: OutlinedButton(
         onPressed: onPressed,
-
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFF008DA3),
           backgroundColor: Colors.white,
           elevation: 0,
           padding: EdgeInsets.zero,
-
           side: const BorderSide(
             color: Color(0xFF008DA3),
             width: 1,
           ),
-
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
         ),
-
         child: Text(
           text,
           style: const TextStyle(
@@ -745,10 +802,8 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   Widget _buildBottomNavigationBar() {
     return Container(
       height: 67,
-
       decoration: const BoxDecoration(
         color: whiteColor,
-
         border: Border(
           top: BorderSide(
             color: borderColor,
@@ -756,7 +811,6 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
           ),
         ),
       ),
-
       child: Row(
         children: [
           _buildNavItem(
@@ -765,22 +819,18 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
             label: 'Home',
             index: 0,
           ),
-
           _buildNavItem(
             icon: Icons.indeterminate_check_box_outlined,
-            selectedIcon:
-                Icons.indeterminate_check_box_rounded,
+            selectedIcon: Icons.indeterminate_check_box_rounded,
             label: 'Requests',
             index: 1,
           ),
-
           _buildNavItem(
             icon: Icons.diamond_outlined,
             selectedIcon: Icons.diamond_outlined,
             label: 'Donors',
             index: 2,
           ),
-
           _buildNavItem(
             icon: Icons.notifications_none_rounded,
             selectedIcon: Icons.notifications_rounded,
@@ -807,30 +857,21 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
             _selectedIndex = index;
           });
         },
-
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               selected ? selectedIcon : icon,
               size: 23,
-              color: selected
-                  ? primaryMaroon
-                  : const Color(0xFF6D7A8C),
+              color: selected ? primaryMaroon : const Color(0xFF6D7A8C),
             ),
-
             const SizedBox(height: 4),
-
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: selected
-                    ? FontWeight.w600
-                    : FontWeight.w400,
-                color: selected
-                    ? primaryMaroon
-                    : const Color(0xFF6D7A8C),
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? primaryMaroon : const Color(0xFF6D7A8C),
               ),
             ),
           ],
@@ -838,77 +879,6 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
       ),
     );
   }
-
-  
-
-  // ============================================================
-  // DONORS PLACEHOLDER
-  // ============================================================
-
-  Widget _buildDonorsScreen() {
-    return _buildPlaceholderScreen(
-      icon: Icons.people_outline_rounded,
-      title: 'Donors',
-      subtitle: 'Find and match suitable donors',
-    );
-  }
-
-  // ============================================================
-  // ALERTS PLACEHOLDER
-  // ============================================================
-
-  Widget _buildAlertsScreen() {
-    return _buildPlaceholderScreen(
-      icon: Icons.notifications_none_rounded,
-      title: 'Alerts',
-      subtitle: 'Donor responses and notifications',
-    );
-  }
-
-  // ============================================================
-  // PLACEHOLDER
-  // ============================================================
-
-  Widget _buildPlaceholderScreen({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 48,
-            color: primaryMaroon,
-          ),
-
-          const SizedBox(height: 15),
-
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: mainText,
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 14,
-              color: secondaryText,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
-
 
 // flutter run -d emulator-5554

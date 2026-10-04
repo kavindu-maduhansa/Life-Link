@@ -1,26 +1,20 @@
 import 'package:flutter/material.dart';
+
+import '../../models/blood_request.dart';
+import '../../services/coordinator_service.dart';
 import 'organisation_request_sent_screen.dart';
 
 class OrganisationSendDonationRequestScreen extends StatefulWidget {
-  final String requestId;
-  final String donorId;
-  final String bloodGroup;
-  final int units;
-  final String hospitalName;
-  final String distanceText;
-  final bool isUrgent;
-  final bool isAvailable;
+  /// The verified request the donor is being asked to help with.
+  final BloodRequest request;
+
+  /// The donor being contacted (carries no phone number or email).
+  final CoordinatorDonor donor;
 
   const OrganisationSendDonationRequestScreen({
     super.key,
-    this.requestId = 'REQ-1048',
-    this.donorId = 'D-1042',
-    this.bloodGroup = 'A+',
-    this.units = 4,
-    this.hospitalName = 'District General Hospital',
-    this.distanceText = '2.1 km',
-    this.isUrgent = true,
-    this.isAvailable = true,
+    required this.request,
+    required this.donor,
   });
 
   @override
@@ -48,22 +42,69 @@ class _OrganisationSendDonationRequestScreenState
   static const Color urgentRed = Color(0xFFD62839);
   static const Color successGreen = Color(0xFF1E7B4F);
 
-  late final TextEditingController _messageController;
+  final CoordinatorService _service = CoordinatorService();
 
-  @override
-  void initState() {
-    super.initState();
-    _messageController = TextEditingController(
-      text: 'A verified emergency blood request matches your blood group '
-          'and availability. Would you be available to donate?',
+  bool _sending = false;
+
+  String get _shortRequestId {
+    final id = widget.request.id;
+    final short = id.length > 6 ? id.substring(0, 6) : id;
+    return 'REQ-${short.toUpperCase()}';
+  }
+
+  bool get _isUrgent =>
+      widget.request.urgency == 'Critical' || widget.request.urgency == 'High';
+
+  // ============================================================
+  // SEND
+  // ============================================================
+
+  Future<void> _send() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+
+    try {
+      await _service.notifyDonor(
+        request: widget.request,
+        donor: widget.donor,
+      );
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OrganisationRequestSentScreen(
+            requestId: widget.request.id,
+            donorId: widget.donor.code,
+            bloodGroup: widget.donor.bloodGroup,
+          ),
+        ),
+      );
+    } on StateError {
+      // Already notified, or the session expired. The service message can
+      // contain the donor's name, so a generic message is shown instead.
+      _showMessage(
+        'Could not send. This donor may already be contacted for this '
+        'request, or you may need to sign in again.',
+      );
+    } catch (e, st) {
+      debugPrint('send donation request failed: $e\n$st');
+      _showMessage('Could not send the request. Please try again.');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  void _showMessage(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text)),
     );
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -88,13 +129,13 @@ class _OrganisationSendDonationRequestScreenState
                     const SizedBox(height: 12),
                     _buildDonorSelectedCard(),
                     const SizedBox(height: 22),
-                    _buildSectionTitle('Message to donor'),
+                    _buildSectionTitle('What happens next'),
                     const SizedBox(height: 12),
-                    _buildMessageCard(),
+                    _buildNextStepCard(),
                     const SizedBox(height: 12),
                     _buildPrivacyCard(),
                     const SizedBox(height: 26),
-                    _buildSendButton(context),
+                    _buildSendButton(),
                     const SizedBox(height: 12),
                     _buildCancelButton(context),
                   ],
@@ -155,7 +196,7 @@ class _OrganisationSendDonationRequestScreenState
               ),
               const SizedBox(height: 3),
               Text(
-                '${widget.requestId} Protected communication',
+                '$_shortRequestId · Protected communication',
                 style: const TextStyle(fontSize: 13, color: secondaryText),
               ),
             ],
@@ -189,6 +230,10 @@ class _OrganisationSendDonationRequestScreenState
   // ============================================================
 
   Widget _buildRequestSummaryCard() {
+    final request = widget.request;
+    final units =
+        '${request.unitsNeeded} ${request.unitsNeeded == 1 ? 'unit' : 'units'}';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -196,7 +241,7 @@ class _OrganisationSendDonationRequestScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (widget.isUrgent) ...[
+          if (_isUrgent) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
@@ -220,7 +265,7 @@ class _OrganisationSendDonationRequestScreenState
             children: [
               Expanded(
                 child: Text(
-                  '${widget.bloodGroup} • ${widget.units} units',
+                  '${request.bloodGroup} • $units',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -240,7 +285,7 @@ class _OrganisationSendDonationRequestScreenState
           ),
           const SizedBox(height: 4),
           Text(
-            widget.hospitalName,
+            request.hospitalName,
             style: const TextStyle(fontSize: 13, color: secondaryText),
           ),
         ],
@@ -253,6 +298,10 @@ class _OrganisationSendDonationRequestScreenState
   // ============================================================
 
   Widget _buildDonorSelectedCard() {
+    final donor = widget.donor;
+    final location =
+        donor.location.isEmpty ? 'Location not set' : donor.location;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -265,7 +314,7 @@ class _OrganisationSendDonationRequestScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${widget.donorId} • ${widget.bloodGroup}',
+                  '${donor.code} • ${donor.bloodGroup}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -274,8 +323,7 @@ class _OrganisationSendDonationRequestScreenState
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${widget.isAvailable ? 'Available now' : 'Unavailable'}'
-                  ' • ${widget.distanceText}',
+                  '${donor.availability.label} • $location',
                   style: const TextStyle(fontSize: 13, color: secondaryText),
                 ),
               ],
@@ -295,27 +343,22 @@ class _OrganisationSendDonationRequestScreenState
   }
 
   // ============================================================
-  // MESSAGE TO DONOR
+  // WHAT HAPPENS NEXT
   // ============================================================
 
-  Widget _buildMessageCard() {
+  Widget _buildNextStepCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       decoration: _cardDecoration(),
-      child: TextField(
-        controller: _messageController,
-        maxLines: 4,
-        minLines: 4,
-        style: const TextStyle(
+      child: const Text(
+        'The invitation is recorded in LifeLink. The donor can find this '
+        'request under Requests in their app and respond there. LifeLink '
+        'does not send SMS, email or push messages.',
+        style: TextStyle(
           fontSize: 14,
-          height: 1.7,
+          height: 1.6,
           color: mainText,
-        ),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          hintText: 'Write a message to the donor',
-          hintStyle: TextStyle(color: secondaryText),
         ),
       ),
     );
@@ -338,7 +381,7 @@ class _OrganisationSendDonationRequestScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Your phone number is not shared.',
+            'Phone numbers stay hidden.',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -347,7 +390,7 @@ class _OrganisationSendDonationRequestScreenState
           ),
           SizedBox(height: 4),
           Text(
-            'Communication stays securely inside LifeLink.',
+            'The donor responds inside the LifeLink app.',
             style: TextStyle(fontSize: 12, color: secondaryText),
           ),
         ],
@@ -359,35 +402,35 @@ class _OrganisationSendDonationRequestScreenState
   // BUTTONS
   // ============================================================
 
-  Widget _buildSendButton(BuildContext context) {
+  Widget _buildSendButton() {
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OrganisationRequestSentScreen(
-                requestId: widget.requestId,
-                donorId: widget.donorId,
-                bloodGroup: widget.bloodGroup,
-              ),
-            ),
-          );
-        },
+        onPressed: _sending ? null : _send,
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryMaroon,
+          disabledBackgroundColor: primaryMaroon.withValues(alpha: 0.6),
           foregroundColor: whiteColor,
+          disabledForegroundColor: whiteColor,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),
           ),
         ),
-        child: const Text(
-          'Send Request',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-        ),
+        child: _sending
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: whiteColor,
+                ),
+              )
+            : const Text(
+                'Send Request',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
       ),
     );
   }
@@ -397,7 +440,7 @@ class _OrganisationSendDonationRequestScreenState
       width: double.infinity,
       height: 48,
       child: OutlinedButton(
-        onPressed: () => Navigator.maybePop(context),
+        onPressed: _sending ? null : () => Navigator.maybePop(context),
         style: OutlinedButton.styleFrom(
           foregroundColor: tealButton,
           backgroundColor: whiteColor,

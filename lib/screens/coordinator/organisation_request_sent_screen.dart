@@ -9,9 +9,9 @@ class OrganisationRequestSentScreen extends StatelessWidget {
 
   const OrganisationRequestSentScreen({
     super.key,
-    this.requestId = 'REQ-1048',
-    this.donorId = 'D-1042',
-    this.bloodGroup = 'A+',
+    required this.requestId,
+    required this.donorId,
+    required this.bloodGroup,
   });
 
   // ============================================================
@@ -34,6 +34,12 @@ class OrganisationRequestSentScreen extends StatelessWidget {
   static const Color successGreen = Color(0xFF1E7B4F);
   static const Color successBg = Color(0xFFE3F4EA);
   static const Color successBorder = Color(0xFFCBE6D6);
+
+  /// Short, readable code for the request (the full Firestore id is long).
+  String get _shortRequestId {
+    final short = requestId.length > 6 ? requestId.substring(0, 6) : requestId;
+    return 'REQ-${short.toUpperCase()}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +134,7 @@ class OrganisationRequestSentScreen extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                '$requestId Donor notification',
+                '$_shortRequestId · Donor invitation',
                 style: const TextStyle(fontSize: 13, color: secondaryText),
               ),
             ],
@@ -166,7 +172,7 @@ class OrganisationRequestSentScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '$donorId has been notified of the verified\n'
+            '$donorId has been invited to the verified\n'
             '$bloodGroup emergency blood request.',
             textAlign: TextAlign.center,
             style: const TextStyle(
@@ -214,11 +220,19 @@ class OrganisationRequestSentScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildStepRow('1', 'Donor receives an in-app notification'),
+          _buildStepRow(
+            '1',
+            'The donor can find this request under Requests in their '
+                'LifeLink app',
+          ),
           const SizedBox(height: 18),
-          _buildStepRow('2', 'Track the response from Response Tracking'),
+          _buildStepRow('2', "Track the donor's answer in Response Tracking"),
           const SizedBox(height: 18),
-          _buildStepRow('3', 'Message the donor without sharing phone numbers'),
+          _buildStepRow(
+            '3',
+            'Contact details stay hidden. LifeLink sends no SMS, email or '
+                'push messages',
+          ),
         ],
       ),
     );
