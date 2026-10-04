@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/blood_inventory.dart';
 import '../models/blood_request.dart';
@@ -33,14 +34,18 @@ class RequestService {
     required String performedByName,
     Map<String, dynamic>? details,
   }) async {
-    await _auditLogs.add({
-      'action': action,
-      'requestId': requestId,
-      'performedBy': performedBy,
-      'performedByName': performedByName,
-      'timestamp': FieldValue.serverTimestamp(),
-      'details': ?details,
-    });
+    try {
+      await _auditLogs.add({
+        'action': action,
+        'requestId': requestId,
+        'performedBy': performedBy,
+        'performedByName': performedByName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'details': ?details,
+      });
+    } catch (e) {
+      debugPrint('[RequestService.logAudit] Non-fatal audit log error: $e');
+    }
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> auditTrail(String requestId) {
@@ -227,36 +232,59 @@ class RequestService {
     required String doctorId,
     required String doctorName,
   }) async {
+    final donorId = (donor['donorId'] as String?)?.trim() ?? '';
+    final donorName = (donor['donorName'] as String?)?.trim() ?? 'Donor';
+    final donorPhone = (donor['donorPhone'] as String?)?.trim() ?? '';
+    final bloodGroup = (donor['bloodGroup'] as String?)?.trim() ?? '-';
+
+    if (donorId.isEmpty) {
+      throw StateError('Selected donor has an invalid ID.');
+    }
+
     // Prevent notifying the same donor twice for the same request
     // while they still have an active (non-declined) response on
     // file - a fresh notification is allowed again if they declined.
-    final existing = await requestRef(requestId).collection('responses').where('donorId', isEqualTo: donor['donorId']).get();
-    final alreadyActive = existing.docs.any((d) => d.data()['status'] != 'declined');
-    if (alreadyActive) {
-      throw StateError('${donor['donorName']} has already been notified for this request.');
+    try {
+      final existing = await requestRef(requestId).collection('responses').where('donorId', isEqualTo: donorId).get();
+      final alreadyActive = existing.docs.any((d) => d.data()['status'] != 'declined');
+      if (alreadyActive) {
+        throw StateError('$donorName has already been notified for this request.');
+      }
+    } on StateError {
+      rethrow;
+    } catch (e) {
+      debugPrint('[RequestService.notifyDonor] Could not check existing responses: $e');
     }
 
-    await requestRef(requestId).collection('responses').add({
-      'donorId': donor['donorId'],
-      'donorName': donor['donorName'],
-      'donorPhone': donor['donorPhone'],
-      'bloodGroup': donor['bloodGroup'],
+    await requestRef(requestId).collection('responses').doc(donorId).set({
+      'donorId': donorId,
+      'donorName': donorName,
+      'donorPhone': donorPhone,
+      'bloodGroup': bloodGroup,
       'status': 'notified',
       'unitsPledged': unitsPledged,
       'notifiedBy': doctorName,
       'notifiedAt': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
 
-    await requestRef(requestId).update({'status': RequestStatus.matched, 'updatedAt': FieldValue.serverTimestamp()});
+    try {
+      await requestRef(requestId).update({'status': RequestStatus.matched, 'updatedAt': FieldValue.serverTimestamp()});
+    } catch (e) {
+      debugPrint('[RequestService.notifyDonor] Status update warning: $e');
+    }
 
-    await _recomputeCounts(requestId);
+    try {
+      await _recomputeCounts(requestId);
+    } catch (e) {
+      debugPrint('[RequestService.notifyDonor] Recompute counts warning: $e');
+    }
 
     await logAudit(
       action: 'donor_notified',
       requestId: requestId,
       performedBy: doctorId,
       performedByName: doctorName,
-      details: {'donorName': donor['donorName']},
+      details: {'donorName': donorName},
     );
   }
 

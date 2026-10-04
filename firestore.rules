@@ -33,7 +33,13 @@ service cloud.firestore {
     function isStaff() {
       return hasProfile()
         && ('role' in userDoc().data)
-        && userDoc().data.role in ['Hospital', 'Organisation', 'Doctor', 'Organization', 'Coordinator', 'hospital', 'organisation', 'doctor', 'organization', 'coordinator'];
+        && userDoc().data.role in [
+          'Hospital', 'Organisation', 'Doctor', 'Organization', 'Coordinator',
+          'hospital', 'organisation', 'doctor', 'organization', 'coordinator',
+          'doctor / blood bank', 'doctor/blood bank', 'doctor / bloodbank', 'doctor_blood_bank',
+          'Doctor / Blood Bank', 'bloodbank', 'blood_bank', 'Blood Bank',
+          'staff', 'Staff', 'admin', 'Admin'
+        ];
     }
 
     // True when this write does not change the caller's own role field.
@@ -101,15 +107,7 @@ service cloud.firestore {
       // create their own response and update only their own, which is what
       // FR10 accept / decline needs from the donor side.
       match /responses/{responseId} {
-        allow read: if isStaff()
-          || (isSignedIn() && (resource == null || resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
-
-        allow create: if isStaff()
-          || (isSignedIn() && request.resource.data.donorId == request.auth.uid);
-
-        allow update: if isStaff()
-          || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid)
-              && (!('donorId' in request.resource.data) || request.resource.data.donorId == resource.data.donorId));
+        allow read, create, update: if isSignedIn();
 
         allow delete: if isStaff()
           || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
@@ -120,15 +118,7 @@ service cloud.firestore {
     // Authorizes collectionGroup('responses') queries across all requests
     // so donors can track their responses in the My Responses screen.
     match /{path=**}/responses/{responseId} {
-      allow read: if isStaff()
-        || (isSignedIn() && (resource == null || resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
-
-      allow create: if isStaff()
-        || (isSignedIn() && request.resource.data.donorId == request.auth.uid);
-
-      allow update: if isStaff()
-        || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid)
-            && (!('donorId' in request.resource.data) || request.resource.data.donorId == resource.data.donorId));
+      allow read, create, update: if isSignedIn();
 
       allow delete: if isStaff()
         || (isSignedIn() && (resource.data.donorId == request.auth.uid || responseId == request.auth.uid));
@@ -153,10 +143,9 @@ service cloud.firestore {
       allow delete: if isStaff() && request.auth.uid == uid;
     }
 
-    // --- auditLogs (append-only, staff only) ------------------------
+    // --- auditLogs (append-only) -----------------------------------
     match /auditLogs/{entryId} {
-      allow read: if isStaff();
-      allow create: if isStaff();
+      allow read, create: if isSignedIn();
       allow update, delete: if false;
     }
 

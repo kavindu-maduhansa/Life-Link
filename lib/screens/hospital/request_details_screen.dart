@@ -149,9 +149,14 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     try {
       await _service.notifyDonor(requestId: request.id, donor: donor, unitsPledged: units, doctorId: _doctorId, doctorName: _doctorName);
       if (mounted) showSuccessSnack(context, '${donor['donorName']} notified.');
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[RequestDetailsScreen.notifyDonor] Error: $e\n$stack');
       if (!mounted) return;
-      final message = e is StateError ? e.message : 'Could not notify this donor. Please try again.';
+      final message = e is StateError
+          ? e.message
+          : (e is FirebaseException && e.message != null
+              ? 'Could not notify this donor: ${e.message}'
+              : 'Could not notify this donor: $e');
       showErrorSnack(context, message);
     }
   }
