@@ -53,6 +53,16 @@ class _HistoryTabState extends State<HistoryTab> {
 
   static const _groups = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
 
+  static const List<String> _statusOptions = [
+    RequestStatus.verified,
+    RequestStatus.fulfilled,
+    RequestStatus.pending,
+    RequestStatus.matched,
+    RequestStatus.rejected,
+    RequestStatus.expired,
+    RequestStatus.cancelled,
+  ];
+
   // #pagination - History has no cap on how far back it can go, and
   // rendering every matching request at once gets slow once a
   // hospital has months of closed requests. Firestore itself isn't
@@ -78,7 +88,7 @@ class _HistoryTabState extends State<HistoryTab> {
   void initState() {
     super.initState();
     _loadSavedFilters();
-    _requestsStream = FirebaseFirestore.instance.collection('requests').where('status', whereIn: RequestStatus.historyStatuses).snapshots();
+    _requestsStream = FirebaseFirestore.instance.collection('requests').snapshots();
   }
 
   @override
@@ -184,9 +194,13 @@ class _HistoryTabState extends State<HistoryTab> {
               scrollDirection: Axis.horizontal,
               children: [
                 _Chip(label: 'All Status', selected: _statusFilter == null, onTap: () => setState(() => _statusFilter = null)),
-                ...RequestStatus.historyStatuses.map((s) => Padding(
+                ..._statusOptions.map((s) => Padding(
                       padding: const EdgeInsets.only(left: 6),
-                      child: _Chip(label: RequestStatus.label(s), selected: _statusFilter == s, onTap: () => setState(() => _statusFilter = s)),
+                      child: _Chip(
+                        label: RequestStatus.label(s),
+                        selected: _statusFilter == s,
+                        onTap: () => setState(() => _statusFilter = _statusFilter == s ? null : s),
+                      ),
                     )),
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
@@ -348,7 +362,10 @@ class _HistoryTabState extends State<HistoryTab> {
                   return r.id.toLowerCase().contains(query) ||
                       r.patientName.toLowerCase().contains(query) ||
                       r.bloodGroup.toLowerCase().contains(query) ||
-                      r.hospitalName.toLowerCase().contains(query);
+                      r.hospitalName.toLowerCase().contains(query) ||
+                      (r.verifiedBy?.toLowerCase().contains(query) ?? false) ||
+                      (r.assignedDoctorName?.toLowerCase().contains(query) ?? false) ||
+                      RequestStatus.label(r.status).toLowerCase().contains(query);
                 }).toList();
               }
 
@@ -411,12 +428,14 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   // Fixed presets always offered, independent of what the doctor has
-  // personally saved - the exact examples from the module spec.
+  // personally saved - quick shortcuts for common operational queries.
   static final List<_SavedFilter> _quickPresets = [
-    _SavedFilter(name: 'O- Requests', bloodGroup: 'O-', icon: Icons.bloodtype_outlined),
-    _SavedFilter(name: 'Critical Only', priority: UrgencyLevel.critical, icon: Icons.emergency_outlined),
+    _SavedFilter(name: 'Verified', status: RequestStatus.verified, icon: Icons.verified_outlined),
+    _SavedFilter(name: 'Pending', status: RequestStatus.pending, icon: Icons.hourglass_top_rounded),
     _SavedFilter(name: 'Fulfilled', status: RequestStatus.fulfilled, icon: Icons.check_circle_outline_rounded),
     _SavedFilter(name: 'Rejected', status: RequestStatus.rejected, icon: Icons.cancel_outlined),
+    _SavedFilter(name: 'O- Requests', bloodGroup: 'O-', icon: Icons.bloodtype_outlined),
+    _SavedFilter(name: 'Critical Only', priority: UrgencyLevel.critical, icon: Icons.emergency_outlined),
   ];
 }
 
@@ -451,9 +470,12 @@ class _HistorySummaryBar extends StatelessWidget {
     final colors = context.colors;
     if (requests.isEmpty) return const SizedBox.shrink();
 
+    final verified = requests.where((r) => r.status == RequestStatus.verified).length;
     final fulfilled = requests.where((r) => r.status == RequestStatus.fulfilled).length;
+    final pending = requests.where((r) => r.status == RequestStatus.pending).length;
     final rejected = requests.where((r) => r.status == RequestStatus.rejected).length;
     final expired = requests.where((r) => r.status == RequestStatus.expired).length;
+    final cancelled = requests.where((r) => r.status == RequestStatus.cancelled).length;
     final fulfilmentRate = requests.isEmpty ? 0 : ((fulfilled / requests.length) * 100).round();
 
     return Container(
@@ -472,10 +494,13 @@ class _HistorySummaryBar extends StatelessWidget {
               runSpacing: 6,
               children: [
                 _SummaryStat(label: 'Total', value: '${requests.length}', color: colors.textPrimary),
-                _SummaryStat(label: 'Fulfilled', value: '$fulfilled', color: colors.success),
-                _SummaryStat(label: 'Rejected', value: '$rejected', color: colors.critical),
-                _SummaryStat(label: 'Expired', value: '$expired', color: colors.warning),
-                _SummaryStat(label: 'Fulfilment rate', value: '$fulfilmentRate%', color: colors.primary),
+                if (verified > 0) _SummaryStat(label: 'Verified', value: '$verified', color: colors.primary),
+                if (fulfilled > 0) _SummaryStat(label: 'Fulfilled', value: '$fulfilled', color: colors.success),
+                if (pending > 0) _SummaryStat(label: 'Pending', value: '$pending', color: colors.warning),
+                if (rejected > 0) _SummaryStat(label: 'Rejected', value: '$rejected', color: colors.critical),
+                if (expired > 0) _SummaryStat(label: 'Expired', value: '$expired', color: colors.textSecondary),
+                if (cancelled > 0) _SummaryStat(label: 'Cancelled', value: '$cancelled', color: colors.textSecondary),
+                if (fulfilled > 0) _SummaryStat(label: 'Fulfilment rate', value: '$fulfilmentRate%', color: colors.primary),
               ],
             ),
           ),
@@ -657,7 +682,19 @@ class _HistoryRequestCard extends StatelessWidget {
                           style: TextStyle(fontSize: 11, color: colors.textSecondary)),
                       Row(
                         children: [
-                          Text(RequestStatus.label(request.status), style: TextStyle(fontSize: 11, color: statusColor)),
+                          Text(RequestStatus.label(request.status), style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
+                          if (request.verifiedBy != null && request.verifiedBy!.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            Icon(Icons.verified_user_outlined, size: 12, color: colors.textSecondary),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                'by ${request.verifiedBy}',
+                                style: TextStyle(fontSize: 10, color: colors.textSecondary),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                           if (reviewed) ...[
                             const SizedBox(width: 8),
                             Icon(Icons.check_circle_outline_rounded, size: 13, color: colors.success),
