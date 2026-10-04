@@ -263,6 +263,19 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // Best-effort update to parent request counts so hospital dashboard shows coverage
+      try {
+        await FirebaseFirestore.instance.collection('requests').doc(widget.requestId).update({
+          'donorsNotifiedCount': FieldValue.increment(1),
+          'donorsAcceptedCount': FieldValue.increment(1),
+          'unitsConfirmed': FieldValue.increment(1),
+          'status': RequestStatus.matched,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('Could not update request counts on donor response: $e');
+      }
+
       if (mounted) {
         setState(() {
           _hasAlreadyResponded = true;

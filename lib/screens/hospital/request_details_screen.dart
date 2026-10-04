@@ -1583,7 +1583,12 @@ class _CoordinationCard extends StatelessWidget {
     final notified = responses.length;
     final responded = responses.where((r) => r.status != 'notified').length;
     final responseRate = notified == 0 ? null : (responded / notified * 100).round();
-    final progress = request.unitsNeeded == 0 ? 0.0 : (request.unitsConfirmed / request.unitsNeeded).clamp(0.0, 1.0);
+    final acceptedUnits = responses
+        .where((r) => r.status == 'accepted' || r.status == 'completed')
+        .fold<int>(0, (total, r) => total + r.unitsPledged);
+    final confirmedUnits = request.unitsConfirmed > 0 ? request.unitsConfirmed : acceptedUnits;
+    final progress = request.unitsNeeded == 0 ? 0.0 : (confirmedUnits / request.unitsNeeded).clamp(0.0, 1.0);
+    final remaining = (request.unitsNeeded - confirmedUnits).clamp(0, request.unitsNeeded);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1615,16 +1620,16 @@ class _CoordinationCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                '${request.unitsConfirmed} / ${request.unitsNeeded} Units Confirmed',
+                '$confirmedUnits / ${request.unitsNeeded} Units Confirmed',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary),
               ),
               const Spacer(),
-              if (request.unitsRemaining > 0)
+              if (remaining > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
                   child: Text(
-                    '${request.unitsRemaining} unit(s) remaining',
+                    '$remaining unit(s) remaining',
                     style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: colors.warning),
                   ),
                 )

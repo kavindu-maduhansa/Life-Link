@@ -327,20 +327,22 @@ class RequestService {
     );
   }
 
+  Future<void> _recomputeCounts(String requestId) => recomputeCounts(requestId);
+
   /// Recomputes the request's denormalised counters
   /// (`unitsConfirmed`, `donorsNotifiedCount`, `donorsAcceptedCount`)
   /// from its `responses` subcollection, and rolls the request's own
-  /// status forward/back to reflect fulfilment progress. Kept as a
-  /// one-shot read + write (not a listener) to avoid extra realtime
-  /// listener overhead per item #19.
-  Future<void> _recomputeCounts(String requestId) async {
+  /// status forward/back to reflect fulfilment progress.
+  Future<void> recomputeCounts(String requestId) async {
     final reqSnap = await requestRef(requestId).get();
+    if (!reqSnap.exists) return;
     final unitsNeeded = (reqSnap.data()?['unitsNeeded'] as num?)?.toInt() ?? 1;
     final currentStatus = reqSnap.data()?['status'] as String? ?? RequestStatus.pending;
 
     final responses = await requestRef(requestId).collection('responses').get();
     var notified = 0;
     var accepted = 0;
+    var completedUnits = 0;
     var confirmedUnits = 0;
     for (final doc in responses.docs) {
       final data = doc.data();
@@ -350,6 +352,9 @@ class RequestService {
       if (status == 'accepted' || status == 'completed') {
         accepted++;
         confirmedUnits += units;
+      }
+      if (status == 'completed') {
+        completedUnits += units;
       }
     }
 
@@ -364,8 +369,10 @@ class RequestService {
     // active, non-terminal state, so a rejected/expired request is
     // never silently re-activated by a stray response update (#20).
     if (RequestStatus.activeStatuses.contains(currentStatus)) {
-      if (confirmedUnits >= unitsNeeded && unitsNeeded > 0) {
+      if (completedUnits >= unitsNeeded && unitsNeeded > 0) {
         update['status'] = RequestStatus.fulfilled;
+      } else if (accepted > 0 || confirmedUnits > 0) {
+        update['status'] = RequestStatus.matched;
       } else if (accepted == 0 && currentStatus == RequestStatus.matched && notified > 0) {
         // every notified donor declined - back to verified so staff
         // can search again.

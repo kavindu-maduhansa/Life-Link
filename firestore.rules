@@ -87,7 +87,8 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid;
 
       allow update: if isStaff()
-        || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+        || (isSignedIn() && resource.data.createdBy == request.auth.uid)
+        || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['donorsNotifiedCount', 'donorsAcceptedCount', 'unitsConfirmed', 'status', 'updatedAt']));
 
       allow delete: if false;
 

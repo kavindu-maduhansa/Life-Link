@@ -925,7 +925,8 @@ class _DonorCoverageBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final ratio = needed <= 0 ? 0.0 : (confirmed / needed).clamp(0.0, 1.0);
+    final effectiveConfirmed = confirmed > 0 ? confirmed : accepted;
+    final ratio = needed <= 0 ? 0.0 : (effectiveConfirmed / needed).clamp(0.0, 1.0);
     final pct = (ratio * 100).round();
     final barColor = ratio >= 1.0 ? colors.success : (ratio >= 0.5 ? colors.champagne : colors.critical);
     final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
@@ -951,20 +952,17 @@ class _DonorCoverageBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           child: SizedBox(
             height: 8,
-            child: Stack(
-              children: [
-                Container(color: colors.elevatedSurface),
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: ratio),
-                  duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 700),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, value, _) => FractionallySizedBox(
-                    widthFactor: value.clamp(0.0, 1.0),
-                    alignment: Alignment.centerLeft,
-                    child: Container(color: barColor),
-                  ),
-                ),
-              ],
+            width: double.infinity,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: ratio),
+              duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 700),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value.clamp(0.0, 1.0),
+                minHeight: 8,
+                backgroundColor: colors.elevatedSurface,
+                valueColor: AlwaysStoppedAnimation(barColor),
+              ),
             ),
           ),
         ),
@@ -972,7 +970,7 @@ class _DonorCoverageBar extends StatelessWidget {
         Text(
           notified == 0
               ? 'No donors notified yet'
-              : '$notified donor(s) notified · $accepted responding · $confirmed/$needed unit(s) confirmed',
+              : '$notified donor(s) notified · $accepted responding · $effectiveConfirmed/$needed unit(s) confirmed',
           style: TextStyle(fontSize: 10.5, color: colors.textSecondary),
         ),
       ],
