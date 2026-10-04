@@ -49,7 +49,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             requestingFor: _requestingFor!,
             patientName: _patientNameController.text.trim(),
             patientAge: int.parse(_ageController.text.trim()),
-            relationship: _relationship ?? 'Self',
+            relationship: _relationship ?? '',
             patientId: _patientIdController.text.trim(),
           ),
         ),
@@ -110,7 +110,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                           setState(() {
                             _requestingFor = option;
                             if (option == 'Self') {
-                              _relationship = 'Self';
+                              _relationship = null;
                             }
                           });
                         },
@@ -185,7 +185,8 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     });
                   },
                   validator: (value) {
-                    if (_requestingFor == 'Other' && value == null) {
+                    if (_requestingFor == 'Other' &&
+                        (value == null || value.isEmpty)) {
                       return 'Please select relationship';
                     }
                     return null;
