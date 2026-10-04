@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'my_requests_screen.dart';
+import '../recipient_navbar_wrapper.dart';
 
 /// Request submitted confirmation screen (HF 08)
 class RequestSubmittedScreen extends StatefulWidget {
@@ -130,7 +130,8 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const MyRequestsScreen(),
+                          builder: (context) =>
+                              const RecipientNavbarWrapper(initialIndex: 1),
                         ),
                         (route) => false,
                       );
@@ -159,7 +160,14 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.popUntil(context, (route) => route.isFirst);
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const RecipientNavbarWrapper(initialIndex: 0),
+                        ),
+                        (route) => false,
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: primaryColor,

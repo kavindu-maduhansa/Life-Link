@@ -12,14 +12,21 @@ import 'profile_screen.dart';
 /// - Tracking (NotificationsScreen - repurposed for tracking)
 /// - Profile (ProfileScreen)
 class RecipientNavbarWrapper extends StatefulWidget {
-  const RecipientNavbarWrapper({super.key});
+  final int initialIndex;
+  const RecipientNavbarWrapper({super.key, this.initialIndex = 0});
 
   @override
   State<RecipientNavbarWrapper> createState() => _RecipientNavbarWrapperState();
 }
 
 class _RecipientNavbarWrapperState extends State<RecipientNavbarWrapper> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   final List<Widget> _screens = [
     const RecipientHomeScreen(),

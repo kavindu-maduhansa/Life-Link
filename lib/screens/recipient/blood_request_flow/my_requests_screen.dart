@@ -18,16 +18,10 @@ class MyRequestsScreen extends StatelessWidget {
           // Custom header
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Color(0xFFC62828),
-            ),
+            decoration: const BoxDecoration(color: Color(0xFFC62828)),
             child: const Row(
               children: [
-                Icon(
-                  Icons.list_alt_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
+                Icon(Icons.list_alt_rounded, color: Colors.white, size: 28),
                 SizedBox(width: 12),
                 Text(
                   'My Requests',
@@ -46,7 +40,6 @@ class MyRequestsScreen extends StatelessWidget {
               stream: FirebaseFirestore.instance
                   .collection('requests')
                   .where('createdBy', isEqualTo: user?.uid)
-                  .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -66,12 +59,18 @@ class MyRequestsScreen extends StatelessWidget {
                         const SizedBox(height: 16),
                         const Text(
                           'No requests yet',
-                          style: TextStyle(fontSize: 18, color: Color(0xFF6B7280)),
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Color(0xFF6B7280),
+                          ),
                         ),
                         const SizedBox(height: 8),
                         const Text(
                           'Create your first blood request',
-                          style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF9CA3AF),
+                          ),
                         ),
                       ],
                     ),
@@ -80,6 +79,16 @@ class MyRequestsScreen extends StatelessWidget {
 
                 final requests = snapshot.data!.docs;
 
+                // Sort client-side by createdAt descending
+                requests.sort((a, b) {
+                  final aTime = a.data()['createdAt'] as Timestamp?;
+                  final bTime = b.data()['createdAt'] as Timestamp?;
+                  if (aTime == null && bTime == null) return 0;
+                  if (aTime == null) return 1;
+                  if (bTime == null) return -1;
+                  return bTime.toDate().compareTo(aTime.toDate());
+                });
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: requests.length,
@@ -87,9 +96,11 @@ class MyRequestsScreen extends StatelessWidget {
                     final request = requests[index];
                     final data = request.data();
                     final status = data['status'] as String? ?? 'pending';
-                    final bloodGroup = data['bloodGroup'] as String? ?? 'Unknown';
+                    final bloodGroup =
+                        data['bloodGroup'] as String? ?? 'Unknown';
                     final unitsNeeded = data['unitsNeeded'] as int? ?? 0;
-                    final hospitalName = data['hospitalName'] as String? ?? 'Unknown';
+                    final hospitalName =
+                        data['hospitalName'] as String? ?? 'Unknown';
                     final createdAt = data['createdAt'] as Timestamp?;
                     final isEmergency = data['requestType'] == 'emergency';
 
@@ -138,7 +149,9 @@ class MyRequestsScreen extends StatelessWidget {
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          isEmergency ? 'Emergency' : 'Non-Emergency',
+                                          isEmergency
+                                              ? 'Emergency'
+                                              : 'Non-Emergency',
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
@@ -160,7 +173,9 @@ class MyRequestsScreen extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: primaryColor.withValues(alpha: 0.1),
+                                      color: primaryColor.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
@@ -175,7 +190,8 @@ class MyRequestsScreen extends StatelessWidget {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           hospitalName,
