@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/coordinator_service.dart';
 import 'organisation_home_screen.dart';
-import 'organisation_protected_conversation_screen.dart';
+import 'organisation_follow_up_card.dart';
 
 class OrganisationAlertsNotifications2Screen extends StatelessWidget {
   /// Anonymous donor code shown in the header, e.g. "D-5CSP".
@@ -30,17 +30,6 @@ class OrganisationAlertsNotifications2Screen extends StatelessWidget {
   static const Color successGreen = Color(0xFF1E8A4C);
   static const Color pendingColor = Color(0xFFD98A1B);
   static const Color alertRed = Color(0xFFD92D20);
-
-  void _openMessage(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => OrganisationProtectedConversationScreen(
-          donorId: donorId,
-        ),
-      ),
-    );
-  }
 
   void _backToRequest(BuildContext context) {
     Navigator.pushAndRemoveUntil(
@@ -93,6 +82,11 @@ class OrganisationAlertsNotifications2Screen extends StatelessWidget {
                       for (final e in earlier) _buildAlertCard(e),
                       const SizedBox(height: 16),
                     ],
+                       if (events.isNotEmpty)
+                        OrganisationFollowUpCard(
+                          donorUid: events.first.donorUid,
+                          donorCode: donorId,
+                        ),
                     const SizedBox(height: 4),
                     _buildPrivacyCard(),
                     const SizedBox(height: 24),
@@ -311,47 +305,24 @@ class OrganisationAlertsNotifications2Screen extends StatelessWidget {
   // BOTTOM BUTTONS
   // ============================================================
 
-  Widget _buildBottomButtons(BuildContext context) {
+    Widget _buildBottomButtons(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 8, 6, 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: () => _openMessage(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryMaroon,
-                foregroundColor: whiteColor,
-                elevation: 0,
-                shape: const StadiumBorder(),
-              ),
-              child: const Text(
-                'Message',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-            ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: OutlinedButton(
+          onPressed: () => _backToRequest(context),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: tealText,
+            side: const BorderSide(color: tealText, width: 1.2),
+            shape: const StadiumBorder(),
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: OutlinedButton(
-              onPressed: () => _backToRequest(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: tealText,
-                side: const BorderSide(color: tealText, width: 1.2),
-                shape: const StadiumBorder(),
-              ),
-              child: const Text(
-                'Back to Request',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-            ),
+          child: const Text(
+            'Back to Request',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
-        ],
+        ),
       ),
     );
   }

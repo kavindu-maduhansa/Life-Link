@@ -225,6 +225,23 @@ class CoordinatorService {
     return events;
   }
 
+    // ------------------------------------------------------------
+  // Delete response
+  // ------------------------------------------------------------
+
+  /// Deletes one donor response from a request.
+  Future<void> deleteResponse({
+    required String requestId,
+    required String donorUid,
+  }) async {
+    await _db
+        .collection('requests')
+        .doc(requestId)
+        .collection('responses')
+        .doc(donorUid)
+        .delete();
+  }
+
   /// Notifies a donor about a verified request (FR05 / FR11).
   ///
   /// Reuses the hospital module's own RequestService.notifyDonor, so a
@@ -418,4 +435,5 @@ class CoordinatorResponseEvent {
     if (diff.inHours < 24) return '${diff.inHours} hr ago';
     return '${diff.inDays} d ago';
   }
+
 }

@@ -21,6 +21,7 @@ class _OrganisationAlertsNotificationsScreenState
   static const Color pinkCard = Color(0xFFFCE8EC);
   static const Color tealCard = Color(0xFFDDF3F3);
   static const Color borderColor = Color(0xFFE6DADD);
+
   static const Color acceptedColor = Color(0xFF2D9974);
   static const Color pendingColor = Color(0xFFD98A1B);
   static const Color declinedColor = Color(0xFF971B3E);
@@ -32,13 +33,15 @@ class _OrganisationAlertsNotificationsScreenState
 
   Future<void> _reload() async {
     final next = _service.recentResponses();
+
     setState(() {
       _future = next;
     });
+
     try {
       await next;
     } catch (_) {
-      // The FutureBuilder shows the error state.
+      // FutureBuilder shows the error state.
     }
   }
 
@@ -56,14 +59,18 @@ class _OrganisationAlertsNotificationsScreenState
                 builder: (context, snapshot) {
                   if (snapshot.connectionState != ConnectionState.done) {
                     return const Center(
-                      child: CircularProgressIndicator(color: primaryMaroon),
+                      child: CircularProgressIndicator(
+                        color: primaryMaroon,
+                      ),
                     );
                   }
+
                   if (snapshot.hasError) {
                     return _buildMessageState(
                       icon: Icons.cloud_off_rounded,
                       title: 'Could not load responses',
-                      message: 'Please check your connection and try again.',
+                      message:
+                          'Please check your connection and try again.',
                       action: TextButton(
                         onPressed: _reload,
                         child: const Text(
@@ -76,8 +83,10 @@ class _OrganisationAlertsNotificationsScreenState
                       ),
                     );
                   }
+
                   final events =
                       snapshot.data ?? const <CoordinatorResponseEvent>[];
+
                   return RefreshIndicator(
                     color: primaryMaroon,
                     onRefresh: _reload,
@@ -92,6 +101,10 @@ class _OrganisationAlertsNotificationsScreenState
     );
   }
 
+  // ============================================================
+  // LIST
+  // ============================================================
+
   Widget _buildList(List<CoordinatorResponseEvent> events) {
     final today = events.where((e) => e.isToday).toList();
     final earlier = events.where((e) => !e.isToday).toList();
@@ -100,21 +113,27 @@ class _OrganisationAlertsNotificationsScreenState
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
-      padding: const EdgeInsets.only(top: 28, bottom: 30),
+      padding: const EdgeInsets.only(
+        top: 28,
+        bottom: 30,
+      ),
       children: [
         if (events.isEmpty) _buildEmptyState(),
+
         if (today.isNotEmpty) ...[
           _buildSectionTitle('Today'),
           const SizedBox(height: 12),
           for (final e in today) _buildCard(e, events),
           const SizedBox(height: 16),
         ],
+
         if (earlier.isNotEmpty) ...[
           _buildSectionTitle('Earlier'),
           const SizedBox(height: 12),
           for (final e in earlier) _buildCard(e, events),
           const SizedBox(height: 16),
         ],
+
         const SizedBox(height: 4),
         _buildPrivacyCard(),
       ],
@@ -128,11 +147,19 @@ class _OrganisationAlertsNotificationsScreenState
   Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(17, 13, 17, 14),
+      padding: const EdgeInsets.fromLTRB(
+        17,
+        13,
+        17,
+        14,
+      ),
       decoration: const BoxDecoration(
         color: whiteColor,
         border: Border(
-          bottom: BorderSide(color: borderColor, width: 1),
+          bottom: BorderSide(
+            color: borderColor,
+            width: 1,
+          ),
         ),
       ),
       child: Row(
@@ -170,7 +197,10 @@ class _OrganisationAlertsNotificationsScreenState
               SizedBox(height: 3),
               Text(
                 'Stay updated on donor responses',
-                style: TextStyle(fontSize: 13, color: secondaryText),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: secondaryText,
+                ),
               ),
             ],
           ),
@@ -178,6 +208,10 @@ class _OrganisationAlertsNotificationsScreenState
       ),
     );
   }
+
+  // ============================================================
+  // SECTION TITLE
+  // ============================================================
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -209,79 +243,106 @@ class _OrganisationAlertsNotificationsScreenState
             : declinedColor;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 0, 6, 12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OrganisationAlertsNotifications2Screen(
-                donorId: e.donorCode,
-                events: all.where((x) => x.donorUid == e.donorUid).toList(),
-              ),
-            ),
-          );
-        },
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 14, 16, 14),
-          decoration: BoxDecoration(
-            color: whiteColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
+      padding: const EdgeInsets.fromLTRB(
+        6,
+        0,
+        6,
+        12,
+      ),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: whiteColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: borderColor,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 7),
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    OrganisationAlertsNotifications2Screen(
+                  donorId: e.donorCode,
+                  events: all
+                      .where(
+                        (x) => x.donorUid == e.donorUid,
+                      )
+                      .toList(),
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              14,
+              10,
+              14,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Status dot
+                Padding(
+                  padding: const EdgeInsets.only(top: 7),
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Donor ${e.donorCode} • ${e.statusLabel}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: mainText,
+
+                const SizedBox(width: 12),
+
+                // Response information
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Donor ${e.donorCode} • ${e.statusLabel}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: mainText,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${e.bloodGroup} request • ${e.hospitalName}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: secondaryText,
+                      const SizedBox(height: 4),
+                      Text(
+                        '${e.bloodGroup} request • ${e.hospitalName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: secondaryText,
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 6),
+
+                // Time + delete button
+                   Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(
+                      e.timeAgo,
+                      style: const TextStyle(fontSize: 11, color: secondaryText),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Text(
-                  e.timeAgo,
-                  style: const TextStyle(fontSize: 11, color: secondaryText),
-                ),
-              ),
-            ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -289,12 +350,15 @@ class _OrganisationAlertsNotificationsScreenState
   }
 
   // ============================================================
-  // EMPTY / ERROR STATES
+  // EMPTY STATE
   // ============================================================
 
   Widget _buildEmptyState() {
     return const Padding(
-      padding: EdgeInsets.only(top: 30, bottom: 10),
+      padding: EdgeInsets.only(
+        top: 30,
+        bottom: 10,
+      ),
       child: Center(
         child: Column(
           children: [
@@ -314,12 +378,17 @@ class _OrganisationAlertsNotificationsScreenState
             ),
             SizedBox(height: 4),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 30),
+              padding: EdgeInsets.symmetric(
+                horizontal: 30,
+              ),
               child: Text(
-                'Invite donors from Find & Match Donors. Their answers '
-                'appear here.',
+                'Invite donors from Find & Match Donors. '
+                'Their answers appear here.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: secondaryText),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: secondaryText,
+                ),
               ),
             ),
           ],
@@ -327,6 +396,10 @@ class _OrganisationAlertsNotificationsScreenState
       ),
     );
   }
+
+  // ============================================================
+  // ERROR STATE
+  // ============================================================
 
   Widget _buildMessageState({
     required IconData icon,
@@ -340,7 +413,11 @@ class _OrganisationAlertsNotificationsScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 42, color: secondaryText),
+            Icon(
+              icon,
+              size: 42,
+              color: secondaryText,
+            ),
             const SizedBox(height: 12),
             Text(
               title,
@@ -354,7 +431,10 @@ class _OrganisationAlertsNotificationsScreenState
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: secondaryText),
+              style: const TextStyle(
+                fontSize: 13,
+                color: secondaryText,
+              ),
             ),
             if (action != null) ...[
               const SizedBox(height: 8),
@@ -366,16 +446,27 @@ class _OrganisationAlertsNotificationsScreenState
     );
   }
 
+  // ============================================================
+  // PRIVACY CARD
+  // ============================================================
+
   Widget _buildPrivacyCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+        padding: const EdgeInsets.fromLTRB(
+          18,
+          14,
+          14,
+          14,
+        ),
         decoration: BoxDecoration(
           color: tealCard,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFC8E1E1)),
+          border: Border.all(
+            color: const Color(0xFFC8E1E1),
+          ),
         ),
         child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,7 +482,10 @@ class _OrganisationAlertsNotificationsScreenState
             SizedBox(height: 4),
             Text(
               'Names and contact details stay hidden.',
-              style: TextStyle(fontSize: 12, color: secondaryText),
+              style: TextStyle(
+                fontSize: 12,
+                color: secondaryText,
+              ),
             ),
           ],
         ),
