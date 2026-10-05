@@ -134,6 +134,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // --- stockTransactions -----------------------------------------
+    // Audit-style ledger of blood stock movements (received, issued,
+    // expired, adjustments). Read and written by hospital staff.
+    match /stockTransactions/{transactionId} {
+      allow read, create: if isStaff();
+      allow update, delete: if false;
+    }
+
     // --- staffPresence ---------------------------------------------
     // Who is on shift, for handover (presence_service.dart). Staff read the
     // whole collection; each staff member writes only their own entry.

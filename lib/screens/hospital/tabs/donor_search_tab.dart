@@ -1483,15 +1483,29 @@ class _DonorCard extends StatelessWidget {
               onPressed: (selectedGroup == null || locationController.text.trim().isEmpty)
                   ? null
                   : () async {
-                      final doctor = FirebaseAuth.instance.currentUser;
-                      await FirebaseFirestore.instance.collection('users').doc(donorId).update({
-                        'bloodGroup': selectedGroup,
-                        'location': locationController.text.trim(),
-                        'verified': true,
-                        'verifiedBy': doctor?.email ?? 'Hospital Staff',
-                        'verifiedAt': FieldValue.serverTimestamp(),
-                      });
-                      if (context.mounted) Navigator.pop(context);
+                      try {
+                        final doctor = FirebaseAuth.instance.currentUser;
+                        await FirebaseFirestore.instance.collection('users').doc(donorId).update({
+                          'bloodGroup': selectedGroup,
+                          'location': locationController.text.trim(),
+                          'verified': true,
+                          'verifiedBy': doctor?.email ?? 'Hospital Staff',
+                          'verifiedAt': FieldValue.serverTimestamp(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        });
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Donor verified successfully.')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Could not verify donor: $e')),
+                          );
+                        }
+                      }
                     },
               child: const Text('Confirm Verification'),
             ),

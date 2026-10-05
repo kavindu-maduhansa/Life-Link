@@ -260,6 +260,7 @@ class RequestService {
       'donorId': donorId,
       'donorName': donorName,
       'donorPhone': donorPhone,
+      'phoneNumber': donorPhone,
       'bloodGroup': bloodGroup,
       'status': 'notified',
       'unitsPledged': unitsPledged,
@@ -302,7 +303,14 @@ class RequestService {
     ).collection('responses').doc(responseId).update({'status': status, 'respondedAt': FieldValue.serverTimestamp()});
 
     if (status == 'completed') {
-      await _db.collection('users').doc(donorId).update({'lastDonationDate': FieldValue.serverTimestamp()});
+      try {
+        await _db.collection('users').doc(donorId).update({
+          'lastDonationDate': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('[RequestService.updateResponseStatus] Warning: Could not update user lastDonationDate: $e');
+      }
 
       // Write exactly one donation history record for the completed donation
       final historyId = '${requestId}_$responseId';
@@ -338,6 +346,7 @@ class RequestService {
           'responseId': responseId,
           'verifiedBy': doctorName,
           'unitsDonated': (respData['unitsPledged'] as num?)?.toInt() ?? 1,
+          'clinicalNote': 'Donation verified and completed by hospital staff.',
           'notes': 'Donation verified and completed by hospital staff.',
         });
       }
@@ -364,7 +373,8 @@ class RequestService {
   Future<void> recomputeCounts(String requestId) async {
     final reqSnap = await requestRef(requestId).get();
     if (!reqSnap.exists) return;
-    final unitsNeeded = (reqSnap.data()?['unitsNeeded'] as num?)?.toInt() ?? 1;
+    final rawUnits = reqSnap.data()?['unitsNeeded'] ?? reqSnap.data()?['requiredUnits'];
+    final unitsNeeded = (rawUnits as num?)?.toInt() ?? 1;
     final currentStatus = reqSnap.data()?['status'] as String? ?? RequestStatus.pending;
 
     final responses = await requestRef(requestId).collection('responses').get();

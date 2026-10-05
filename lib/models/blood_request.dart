@@ -228,7 +228,7 @@ class BloodRequest {
       patientName: (data['patientName'] as String?)?.trim().isNotEmpty == true ? data['patientName'] as String : 'Unknown Patient',
       bloodGroup: data['bloodGroup'] as String? ?? '-',
       unitsNeeded: _toInt(data['unitsNeeded'] ?? data['requiredUnits'], 1),
-      urgency: data['urgency'] as String? ?? data['urgencyLevel'] as String? ?? 'Normal',
+      urgency: _normalizeUrgency(data['urgency'] ?? data['urgencyLevel']),
       hospitalName: data['hospitalName'] as String? ?? '-',
       location: data['location'] as String? ?? data['hospitalLocation'] as String? ?? '-',
       notes: (data['notes'] ?? data['description'] ?? data['reason']) as String? ?? '',
@@ -495,6 +495,17 @@ class BloodRequest {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
+  }
+
+  /// Normalizes urgency strings (case-insensitive) to canonical capitalized forms
+  /// ('Critical', 'High', 'Normal') matching UrgencyLevel.
+  static String _normalizeUrgency(dynamic val) {
+    if (val == null) return 'Normal';
+    final s = val.toString().trim().toLowerCase();
+    if (s == 'critical') return 'Critical';
+    if (s == 'high') return 'High';
+    if (s == 'normal' || s == 'standard' || s == 'low') return 'Normal';
+    return s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : 'Normal';
   }
 }
 

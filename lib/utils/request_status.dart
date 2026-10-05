@@ -113,10 +113,10 @@ class UrgencyLevel {
   static const List<String> all = [critical, high, normal];
 
   static Color color(String urgency) {
-    switch (urgency) {
-      case critical:
+    switch (urgency.trim().toLowerCase()) {
+      case 'critical':
         return const Color(0xFFC62828);
-      case high:
+      case 'high':
         return const Color(0xFFEF6C00);
       default:
         return const Color(0xFF2E7D32);
@@ -126,10 +126,10 @@ class UrgencyLevel {
   /// Sort weight so critical requests can be surfaced first
   /// (lower = higher priority).
   static int weight(String urgency) {
-    switch (urgency) {
-      case critical:
+    switch (urgency.trim().toLowerCase()) {
+      case 'critical':
         return 0;
-      case high:
+      case 'high':
         return 1;
       default:
         return 2;
