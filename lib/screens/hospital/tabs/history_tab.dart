@@ -17,6 +17,7 @@ import '../../../widgets/common_states.dart';
 import '../../../widgets/entrance_fade_slide.dart';
 import '../../../widgets/pressable_scale.dart';
 import '../../../widgets/skeleton_loader.dart';
+import '../../../theme/neumorphic_theme.dart';
 
 /// FR14 - Request history, upgraded with advanced search (#9) and a
 /// compact analytics summary + PDF export.
@@ -130,7 +131,11 @@ class _HistoryTabState extends State<HistoryTab> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Save this filter'),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(hintText: 'e.g. Critical O- Requests')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'e.g. Critical O- Requests'),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Save')),
@@ -138,10 +143,12 @@ class _HistoryTabState extends State<HistoryTab> {
       ),
     );
     if (name == null || name.isEmpty || !mounted) return;
-    setState(() => _savedFilters = [
-          ..._savedFilters,
-          _SavedFilter(name: name, status: _statusFilter, priority: _priorityFilter, bloodGroup: _bloodGroupFilter),
-        ]);
+    setState(
+      () => _savedFilters = [
+        ..._savedFilters,
+        _SavedFilter(name: name, status: _statusFilter, priority: _priorityFilter, bloodGroup: _bloodGroupFilter),
+      ],
+    );
     await _persistSavedFilters();
   }
 
@@ -168,22 +175,31 @@ class _HistoryTabState extends State<HistoryTab> {
       children: [
         EntranceFadeSlide(
           child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (_) => setState(() {}),
-            style: TextStyle(color: colors.textPrimary),
-            decoration: InputDecoration(
-              hintText: 'Search by request ID, patient, blood group, or hospital...',
-              hintStyle: TextStyle(color: colors.textSecondary),
-              prefixIcon: Icon(Icons.search_rounded, color: colors.textSecondary),
-              filled: true,
-              fillColor: colors.elevatedSurface,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.border)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.border)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.primary, width: 1.6)),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              style: TextStyle(color: colors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search by request ID, patient, blood group, or hospital...',
+                hintStyle: TextStyle(color: colors.textSecondary),
+                prefixIcon: Icon(Icons.search_rounded, color: colors.textSecondary),
+                filled: true,
+                fillColor: colors.elevatedSurface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: colors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: colors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: colors.primary, width: 1.6),
+                ),
+              ),
             ),
-          ),
           ),
         ),
         Padding(
@@ -194,40 +210,60 @@ class _HistoryTabState extends State<HistoryTab> {
               scrollDirection: Axis.horizontal,
               children: [
                 _Chip(label: 'All Status', selected: _statusFilter == null, onTap: () => setState(() => _statusFilter = null)),
-                ..._statusOptions.map((s) => Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: _Chip(
-                        label: RequestStatus.label(s),
-                        selected: _statusFilter == s,
-                        onTap: () => setState(() => _statusFilter = _statusFilter == s ? null : s),
-                      ),
-                    )),
+                ..._statusOptions.map(
+                  (s) => Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: _Chip(
+                      label: RequestStatus.label(s),
+                      selected: _statusFilter == s,
+                      onTap: () => setState(() => _statusFilter = _statusFilter == s ? null : s),
+                    ),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
-                  child: _Chip(label: 'All Priority', selected: _priorityFilter == null, onTap: () => setState(() => _priorityFilter = null)),
+                  child: _Chip(
+                    label: 'All Priority',
+                    selected: _priorityFilter == null,
+                    onTap: () => setState(() => _priorityFilter = null),
+                  ),
                 ),
-                ...UrgencyLevel.all.map((u) => Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: _Chip(label: u, selected: _priorityFilter == u, onTap: () => setState(() => _priorityFilter = u)),
-                    )),
+                ...UrgencyLevel.all.map(
+                  (u) => Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: _Chip(label: u, selected: _priorityFilter == u, onTap: () => setState(() => _priorityFilter = u)),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
                   child: Container(width: 1, color: colors.border, margin: const EdgeInsets.symmetric(vertical: 8)),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(left: 12),
-                  child: _Chip(label: 'All Groups', selected: _bloodGroupFilter == null, onTap: () => setState(() => _bloodGroupFilter = null)),
+                  child: _Chip(
+                    label: 'All Groups',
+                    selected: _bloodGroupFilter == null,
+                    onTap: () => setState(() => _bloodGroupFilter = null),
+                  ),
                 ),
-                ..._groups.map((g) => Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: _Chip(label: g, selected: _bloodGroupFilter == g, onTap: () => setState(() => _bloodGroupFilter = _bloodGroupFilter == g ? null : g)),
-                    )),
+                ..._groups.map(
+                  (g) => Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: _Chip(
+                      label: g,
+                      selected: _bloodGroupFilter == g,
+                      onTap: () => setState(() => _bloodGroupFilter = _bloodGroupFilter == g ? null : g),
+                    ),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
                   child: ActionChip(
                     avatar: Icon(Icons.date_range_rounded, size: 15, color: colors.primary),
-                    label: Text(_dateRange == null ? 'Date Range' : '${_fmt(_dateRange!.start)} - ${_fmt(_dateRange!.end)}',
-                        style: TextStyle(fontSize: 11, color: colors.textPrimary)),
+                    label: Text(
+                      _dateRange == null ? 'Date Range' : '${_fmt(_dateRange!.start)} - ${_fmt(_dateRange!.end)}',
+                      style: TextStyle(fontSize: 11, color: colors.textPrimary),
+                    ),
                     onPressed: _pickDateRange,
                     backgroundColor: colors.elevatedSurface,
                     side: BorderSide(color: _dateRange == null ? colors.border : colors.primary),
@@ -265,7 +301,10 @@ class _HistoryTabState extends State<HistoryTab> {
                         children: [
                           Icon(Icons.sort_rounded, size: 15, color: colors.textSecondary),
                           const SizedBox(width: 4),
-                          Text(_sortLabel(_sortMode), style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontWeight: FontWeight.w600)),
+                          Text(
+                            _sortLabel(_sortMode),
+                            style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontWeight: FontWeight.w600),
+                          ),
                         ],
                       ),
                     ),
@@ -335,11 +374,17 @@ class _HistoryTabState extends State<HistoryTab> {
               var requests = snapshot.data!.docs.map(BloodRequest.fromDoc).toList();
               switch (_sortMode) {
                 case _HistorySortMode.newest:
-                  requests.sort((a, b) => (b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-                      .compareTo(a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+                  requests.sort(
+                    (a, b) => (b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+                      a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+                    ),
+                  );
                 case _HistorySortMode.oldest:
-                  requests.sort((a, b) => (a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-                      .compareTo(b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+                  requests.sort(
+                    (a, b) => (a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+                      b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+                    ),
+                  );
                 case _HistorySortMode.bloodGroup:
                   requests.sort((a, b) => a.bloodGroup.compareTo(b.bloodGroup));
                 case _HistorySortMode.patientName:
@@ -378,7 +423,11 @@ class _HistoryTabState extends State<HistoryTab> {
                   _HistorySummaryBar(requests: requests),
                   Expanded(
                     child: requests.isEmpty
-                        ? const EmptyState(icon: Icons.folder_off_outlined, title: 'No matching requests', message: 'Try adjusting your search or filters.')
+                        ? const EmptyState(
+                            icon: Icons.folder_off_outlined,
+                            title: 'No matching requests',
+                            message: 'Try adjusting your search or filters.',
+                          )
                         : ListView.separated(
                             padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                             itemCount: visibleRequests.length + (hasMore ? 1 : 0),
@@ -452,11 +501,11 @@ class _SavedFilter {
 
   Map<String, dynamic> toJson() => {'name': name, 'status': status, 'priority': priority, 'bloodGroup': bloodGroup};
   factory _SavedFilter.fromJson(Map<String, dynamic> json) => _SavedFilter(
-        name: json['name'] as String? ?? 'Filter',
-        status: json['status'] as String?,
-        priority: json['priority'] as String?,
-        bloodGroup: json['bloodGroup'] as String?,
-      );
+    name: json['name'] as String? ?? 'Filter',
+    status: json['status'] as String?,
+    priority: json['priority'] as String?,
+    bloodGroup: json['bloodGroup'] as String?,
+  );
 }
 
 /// Compact, deterministic (non-AI) analytics for the currently filtered
@@ -532,7 +581,10 @@ class _SummaryStat extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+        Text(
+          value,
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+        ),
         const SizedBox(width: 4),
         Text(label, style: TextStyle(fontSize: 11, color: colors.textSecondary)),
       ],
@@ -579,15 +631,8 @@ class _HistoryRequestCard extends StatelessWidget {
               if (!(formKey.currentState?.validate() ?? false)) return;
               final note = controller.text.trim();
               Navigator.pop(ctx);
-              RequestService.instance.addHandoverNote(
-                requestId: request.id,
-                note: note,
-                doctorId: _doctorId,
-                doctorName: _doctorName,
-              );
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Handover note added')),
-              );
+              RequestService.instance.addHandoverNote(requestId: request.id, note: note, doctorId: _doctorId, doctorName: _doctorName);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Handover note added')));
             },
             child: const Text('Save Note'),
           ),
@@ -636,9 +681,7 @@ class _HistoryRequestCard extends StatelessWidget {
                 doctorName: _doctorName,
                 reviewNote: note.isNotEmpty ? note : null,
               );
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Request marked as reviewed')),
-              );
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request marked as reviewed')));
             },
             child: const Text('Mark Reviewed'),
           ),
@@ -661,6 +704,8 @@ class _HistoryRequestCard extends StatelessWidget {
           color: colors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: reviewed ? colors.success.withValues(alpha: 0.4) : colors.border),
+          boxShadow: LLNeumorphism.shadows(brightness: Theme.of(context).brightness, elevation: NeumorphicElevationLevel.card),
+          gradient: LLNeumorphism.convexGradient(brightness: Theme.of(context).brightness, baseColor: colors.surface),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,13 +721,21 @@ class _HistoryRequestCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(request.patientName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                      Text(
+                        request.patientName,
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      ),
                       const SizedBox(height: 2),
-                      Text('${request.bloodGroup} · ${request.unitsNeeded} unit(s) · ${request.hospitalName}',
-                          style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                      Text(
+                        '${request.bloodGroup} · ${request.unitsNeeded} unit(s) · ${request.hospitalName}',
+                        style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                      ),
                       Row(
                         children: [
-                          Text(RequestStatus.label(request.status), style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
+                          Text(
+                            RequestStatus.label(request.status),
+                            style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600),
+                          ),
                           if (request.verifiedBy != null && request.verifiedBy!.isNotEmpty) ...[
                             const SizedBox(width: 8),
                             Icon(Icons.verified_user_outlined, size: 12, color: colors.textSecondary),
@@ -699,7 +752,10 @@ class _HistoryRequestCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             Icon(Icons.check_circle_outline_rounded, size: 13, color: colors.success),
                             const SizedBox(width: 3),
-                            Text('Reviewed', style: TextStyle(fontSize: 10, color: colors.success, fontWeight: FontWeight.w600)),
+                            Text(
+                              'Reviewed',
+                              style: TextStyle(fontSize: 10, color: colors.success, fontWeight: FontWeight.w600),
+                            ),
                           ],
                         ],
                       ),
@@ -725,16 +781,16 @@ class _HistoryRequestCard extends StatelessWidget {
                     onTap: () => _showHandoverNoteDialog(context),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      decoration: BoxDecoration(color: colors.primary.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.note_add_outlined, size: 14, color: colors.primary),
                           const SizedBox(width: 4),
-                          Text('Handover Note', style: TextStyle(fontSize: 11, color: colors.primary, fontWeight: FontWeight.w600)),
+                          Text(
+                            'Handover Note',
+                            style: TextStyle(fontSize: 11, color: colors.primary, fontWeight: FontWeight.w600),
+                          ),
                         ],
                       ),
                     ),

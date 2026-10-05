@@ -238,33 +238,48 @@ class _HospitalHomeScreenState extends State<HospitalHomeScreen> {
           bottomNavigationBar: LayoutBuilder(
             builder: (context, constraints) {
               if (constraints.maxWidth >= kWideLayoutBreakpoint) return const SizedBox.shrink();
-              return NavigationBar(
-                selectedIndex: _tabIndex,
-                onDestinationSelected: (i) => setState(() => _tabIndex = i),
-                backgroundColor: colors.surface,
-                indicatorColor: colors.primary.withValues(alpha: 0.15),
-                destinations: [
-                  NavigationDestination(
-                    icon: const Icon(Icons.dashboard_outlined),
-                    selectedIcon: Icon(Icons.dashboard_rounded, color: colors.primary),
-                    label: 'Dashboard',
-                  ),
-                  NavigationDestination(
-                    icon: const _PendingBadgeIcon(),
-                    selectedIcon: _PendingBadgeIcon(selected: true, color: colors.primary),
-                    label: 'Verify',
-                  ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.search_rounded),
-                    selectedIcon: Icon(Icons.search_rounded, color: colors.primary),
-                    label: 'Donors',
-                  ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.history_rounded),
-                    selectedIcon: Icon(Icons.history_rounded, color: colors.primary),
-                    label: 'History',
-                  ),
-                ],
+              return Container(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  border: Border(top: BorderSide(color: colors.border)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black.withValues(alpha: 0.5)
+                          : colors.darkShadow.withValues(alpha: 0.08),
+                      offset: const Offset(0, -3),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                child: NavigationBar(
+                  selectedIndex: _tabIndex,
+                  onDestinationSelected: (i) => setState(() => _tabIndex = i),
+                  backgroundColor: colors.surface,
+                  indicatorColor: colors.primary.withValues(alpha: 0.15),
+                  destinations: [
+                    NavigationDestination(
+                      icon: const Icon(Icons.dashboard_outlined),
+                      selectedIcon: Icon(Icons.dashboard_rounded, color: colors.primary),
+                      label: 'Dashboard',
+                    ),
+                    NavigationDestination(
+                      icon: const _PendingBadgeIcon(),
+                      selectedIcon: _PendingBadgeIcon(selected: true, color: colors.primary),
+                      label: 'Verify',
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.search_rounded),
+                      selectedIcon: Icon(Icons.search_rounded, color: colors.primary),
+                      label: 'Donors',
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.history_rounded),
+                      selectedIcon: Icon(Icons.history_rounded, color: colors.primary),
+                      label: 'History',
+                    ),
+                  ],
+                ),
               );
             },
           ),

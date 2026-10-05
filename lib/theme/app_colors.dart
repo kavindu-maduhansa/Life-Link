@@ -58,6 +58,10 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.border,
     required this.disabled,
     required this.chartPalette,
+    this.pressedSurface = const Color(0xFFEFE8EA),
+    this.highlightShadow = const Color(0xFFFFFFFF),
+    this.darkShadow = const Color(0x1F806B73),
+    this.insetShadow = const Color(0x14000000),
   });
 
   final Color background;
@@ -66,6 +70,18 @@ class AppColors extends ThemeExtension<AppColors> {
   /// A second surface tone, one step off [surface]. Used for input
   /// fills, inset rows and subtle grouping - not for cards.
   final Color elevatedSurface;
+
+  /// Recessed / inset surface tone for pressed controls, tabs, and inputs.
+  final Color pressedSurface;
+
+  /// Top-left highlight shadow color for Neumorphic surfaces.
+  final Color highlightShadow;
+
+  /// Bottom-right diffuse dark shadow color for Neumorphic surfaces.
+  final Color darkShadow;
+
+  /// Recessed inner shadow tone for Neumorphic inputs and selected chips.
+  final Color insetShadow;
 
   /// Deep burgundy - the Doctor / Blood Bank module's identity colour.
   /// Used for the primary CTA, selected critical commands, blood-group
@@ -151,6 +167,10 @@ class AppColors extends ThemeExtension<AppColors> {
     textSecondary: Color(0xFF6B6064), // muted taupe
     border: Color(0xFFE6DADD), // soft rose grey
     disabled: Color(0xFFB9AFB2), // muted grey
+    pressedSurface: Color(0xFFEFE8EA),
+    highlightShadow: Color(0xFFFFFFFF),
+    darkShadow: Color(0x1F806B73),
+    insetShadow: Color(0x14000000),
     chartPalette: [
       Color(0xFF8F1838), // burgundy
       Color(0xFF087F8C), // clinical teal
@@ -189,6 +209,10 @@ class AppColors extends ThemeExtension<AppColors> {
     textSecondary: Color(0xFF9E9295),
     border: Color(0xFF332A2E),
     disabled: Color(0xFF6A5F63),
+    pressedSurface: Color(0xFF140F11),
+    highlightShadow: Color(0x14FFFFFF),
+    darkShadow: Color(0x73000000),
+    insetShadow: Color(0x59000000),
     chartPalette: [
       Color(0xFFD2B278), // champagne
       Color(0xFFB0577A), // brightened burgundy
@@ -222,6 +246,10 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? textSecondary,
     Color? border,
     Color? disabled,
+    Color? pressedSurface,
+    Color? highlightShadow,
+    Color? darkShadow,
+    Color? insetShadow,
     List<Color>? chartPalette,
   }) {
     return AppColors(
@@ -244,6 +272,10 @@ class AppColors extends ThemeExtension<AppColors> {
       textSecondary: textSecondary ?? this.textSecondary,
       border: border ?? this.border,
       disabled: disabled ?? this.disabled,
+      pressedSurface: pressedSurface ?? this.pressedSurface,
+      highlightShadow: highlightShadow ?? this.highlightShadow,
+      darkShadow: darkShadow ?? this.darkShadow,
+      insetShadow: insetShadow ?? this.insetShadow,
       chartPalette: chartPalette ?? this.chartPalette,
     );
   }
@@ -253,28 +285,54 @@ class AppColors extends ThemeExtension<AppColors> {
     if (other is! AppColors) return this;
     final palette = <Color>[
       for (var i = 0; i < chartPalette.length; i++)
-        Color.lerp(chartPalette[i], i < other.chartPalette.length ? other.chartPalette[i] : chartPalette[i], t)!,
+        Color.lerp(
+          chartPalette[i],
+          i < other.chartPalette.length
+              ? other.chartPalette[i]
+              : chartPalette[i],
+          t,
+        )!,
     ];
     return AppColors(
       background: Color.lerp(background, other.background, t)!,
       surface: Color.lerp(surface, other.surface, t)!,
       elevatedSurface: Color.lerp(elevatedSurface, other.elevatedSurface, t)!,
       primary: Color.lerp(primary, other.primary, t)!,
-      primaryContainer: Color.lerp(primaryContainer, other.primaryContainer, t)!,
+      primaryContainer: Color.lerp(
+        primaryContainer,
+        other.primaryContainer,
+        t,
+      )!,
       accent: Color.lerp(accent, other.accent, t)!,
       accentContainer: Color.lerp(accentContainer, other.accentContainer, t)!,
       champagne: Color.lerp(champagne, other.champagne, t)!,
       critical: Color.lerp(critical, other.critical, t)!,
-      criticalContainer: Color.lerp(criticalContainer, other.criticalContainer, t)!,
+      criticalContainer: Color.lerp(
+        criticalContainer,
+        other.criticalContainer,
+        t,
+      )!,
       success: Color.lerp(success, other.success, t)!,
-      successContainer: Color.lerp(successContainer, other.successContainer, t)!,
+      successContainer: Color.lerp(
+        successContainer,
+        other.successContainer,
+        t,
+      )!,
       warning: Color.lerp(warning, other.warning, t)!,
-      warningContainer: Color.lerp(warningContainer, other.warningContainer, t)!,
+      warningContainer: Color.lerp(
+        warningContainer,
+        other.warningContainer,
+        t,
+      )!,
       analytics: Color.lerp(analytics, other.analytics, t)!,
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
       textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
       border: Color.lerp(border, other.border, t)!,
       disabled: Color.lerp(disabled, other.disabled, t)!,
+      pressedSurface: Color.lerp(pressedSurface, other.pressedSurface, t)!,
+      highlightShadow: Color.lerp(highlightShadow, other.highlightShadow, t)!,
+      darkShadow: Color.lerp(darkShadow, other.darkShadow, t)!,
+      insetShadow: Color.lerp(insetShadow, other.insetShadow, t)!,
       chartPalette: palette,
     );
   }
@@ -283,5 +341,7 @@ class AppColors extends ThemeExtension<AppColors> {
 /// Shortcut so screens can write `context.colors.critical` instead of the
 /// longer `Theme.of(context).extension<AppColors>()!` call everywhere.
 extension AppColorsX on BuildContext {
-  AppColors get colors => Theme.of(this).extension<AppColors>() ?? AppColors.light;
+  AppColors get colors =>
+      Theme.of(this).extension<AppColors>() ?? AppColors.light;
+  AppColors get appColors => colors;
 }

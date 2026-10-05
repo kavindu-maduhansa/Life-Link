@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'urgency_contact_screen.dart';
 
 /// Hospital & location selection screen (HF 05)
@@ -75,13 +76,27 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828);
+    final colors = context.colors;
+    final primaryColor = colors.accent;
 
     return Scaffold(
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Hospital & Location'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        title: Text(
+          'Hospital & Location',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: colors.surface,
+        foregroundColor: colors.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: colors.border, height: 1),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -91,15 +106,19 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Progress Indicator
-              LinearProgressIndicator(
-                value: 0.75,
-                backgroundColor: Colors.grey.shade300,
-                valueColor: const AlwaysStoppedAnimation<Color>(primaryColor),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: 0.75,
+                  minHeight: 6,
+                  backgroundColor: colors.border,
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Step 3 of 4',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 12, color: colors.textSecondary),
               ),
               const SizedBox(height: 24),
 
@@ -108,14 +127,31 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
                 controller: _hospitalController,
                 keyboardType: TextInputType.text,
                 textCapitalization: TextCapitalization.words,
+                style: TextStyle(color: colors.textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Hospital',
+                  labelStyle: TextStyle(color: colors.textSecondary),
                   hintText: 'Enter hospital name',
-                  prefixIcon: const Icon(Icons.local_hospital_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.local_hospital_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 validator: (value) {
@@ -132,14 +168,31 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
                 controller: _wardUnitController,
                 keyboardType: TextInputType.text,
                 textCapitalization: TextCapitalization.words,
+                style: TextStyle(color: colors.textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Ward / Unit',
+                  labelStyle: TextStyle(color: colors.textSecondary),
                   hintText: 'Enter ward or unit number',
-                  prefixIcon: const Icon(Icons.meeting_room_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.meeting_room_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 validator: (value) {
@@ -156,14 +209,31 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
                 controller: _doctorClinicController,
                 keyboardType: TextInputType.text,
                 textCapitalization: TextCapitalization.words,
+                style: TextStyle(color: colors.textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Doctor or Clinic',
+                  labelStyle: TextStyle(color: colors.textSecondary),
                   hintText: 'Enter doctor name or clinic name',
-                  prefixIcon: const Icon(Icons.person_search_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.person_search_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 validator: (value) {
@@ -183,6 +253,7 @@ class _HospitalLocationScreenState extends State<HospitalLocationScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
+                    elevation: 2,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

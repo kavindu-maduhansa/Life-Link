@@ -11,6 +11,7 @@ import '../../../widgets/common_states.dart';
 import '../../../widgets/entrance_fade_slide.dart';
 import '../../../widgets/pressable_scale.dart';
 import '../../../widgets/skeleton_loader.dart';
+import '../../../theme/neumorphic_theme.dart';
 
 /// FR09 - Donor availability search, upgraded into a professional
 /// donor-matching workspace.
@@ -1117,7 +1118,8 @@ class _DonorCard extends StatelessWidget {
             color: compareSelected ? colors.primary : (tier != null ? tier.color(colors).withValues(alpha: 0.5) : colors.border),
             width: compareSelected ? 1.8 : (tier != null ? 1.4 : 1),
           ),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3))],
+          boxShadow: LLNeumorphism.shadows(brightness: Theme.of(context).brightness, elevation: NeumorphicElevationLevel.card),
+          gradient: LLNeumorphism.convexGradient(brightness: Theme.of(context).brightness, baseColor: colors.surface),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

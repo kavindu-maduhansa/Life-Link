@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../theme/app_colors.dart';
+import '../../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Notifications screen (HF 11)
 class NotificationsScreen extends StatelessWidget {
@@ -8,34 +10,55 @@ class NotificationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final primaryColor = colors.accent;
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
+      backgroundColor: colors.background,
       body: Column(
         children: [
-          // Custom header
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Color(0xFFC62828),
-            ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.notifications_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                SizedBox(width: 12),
-                Text(
-                  'Alerts',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+          // Neumorphic custom header
+          SafeArea(
+            bottom: false,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                border: Border(bottom: BorderSide(color: colors.border)),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.darkShadow.withValues(alpha: 0.05),
+                    offset: const Offset(0, 2),
+                    blurRadius: 4,
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.notifications_rounded,
+                      color: primaryColor,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Alerts',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           // Notifications list
@@ -59,17 +82,24 @@ class NotificationsScreen extends StatelessWidget {
                         Icon(
                           Icons.notifications_none_rounded,
                           size: 64,
-                          color: Colors.grey.shade400,
+                          color: colors.textSecondary.withValues(alpha: 0.5),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           'No notifications',
-                          style: TextStyle(fontSize: 18, color: Color(0xFF6B7280)),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: colors.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'You will see updates here',
-                          style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: colors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -90,79 +120,80 @@ class NotificationsScreen extends StatelessWidget {
                     final createdAt = data['createdAt'] as Timestamp?;
                     final isRead = data['isRead'] as bool? ?? false;
 
-                    return Card(
+                    return NeumorphicCard(
                       margin: const EdgeInsets.only(bottom: 12),
-                      color: isRead ? Colors.white : Colors.red.shade50,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: _getNotificationColor(type).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                _getNotificationIcon(type),
-                                color: _getNotificationColor(type),
-                                size: 24,
-                              ),
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: _getNotificationColor(
+                                type,
+                              ).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          title,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: isRead
-                                                ? FontWeight.w500
-                                                : FontWeight.bold,
-                                            color: const Color(0xFF1F2937),
-                                          ),
+                            child: Icon(
+                              _getNotificationIcon(type),
+                              color: _getNotificationColor(type),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: isRead
+                                              ? FontWeight.w500
+                                              : FontWeight.bold,
+                                          color: colors.textPrimary,
                                         ),
                                       ),
-                                      if (!isRead)
-                                        Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFFC62828),
-                                            shape: BoxShape.circle,
-                                          ),
+                                    ),
+                                    if (!isRead)
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: primaryColor,
+                                          shape: BoxShape.circle,
                                         ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    message,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: Color(0xFF6B7280),
-                                    ),
-                                  ),
-                                  if (createdAt != null) ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _formatDate(createdAt.toDate()),
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Color(0xFF9CA3AF),
                                       ),
-                                    ),
                                   ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  message,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: colors.textSecondary,
+                                  ),
+                                ),
+                                if (createdAt != null) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _formatDate(createdAt.toDate()),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: colors.textSecondary.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                  ),
                                 ],
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     );
                   },

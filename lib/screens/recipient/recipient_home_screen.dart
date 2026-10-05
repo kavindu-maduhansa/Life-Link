@@ -6,14 +6,14 @@ import 'blood_request_flow/notifications_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/lifelink_design.dart';
 import '../../widgets/lifelink/ll_brand.dart';
-import '../../widgets/lifelink/ll_components.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Recipient Dashboard for managing emergency blood requests.
 ///
 /// Designed as part of the LifeLink HCI high-fidelity prototype (FR01/FR06).
-/// Provides clear emergency affordances, tracking stages, and prepared UI
-/// structures for recipient requests while maintaining full consistency with
-/// LifeLink's clinical design system and Light/Dark themes.
+/// Restyled with tactile Neumorphic Soft UI components, dual-shadow raised cards,
+/// and clear emergency actions while maintaining 100% functional integrity and
+/// Firebase persistence.
 class RecipientHomeScreen extends StatelessWidget {
   const RecipientHomeScreen({super.key});
 
@@ -22,20 +22,13 @@ class RecipientHomeScreen extends StatelessWidget {
       await FirebaseAuth.instance.signOut();
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sign out: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to sign out: $e')));
       }
     }
   }
 
   void _handleCreateRequestTap(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PatientDetailsScreen(isEmergency: true),
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const PatientDetailsScreen(isEmergency: true)));
   }
 
   /// Standardised status presentation for recipient request lifecycle.
@@ -44,7 +37,7 @@ class RecipientHomeScreen extends StatelessWidget {
     switch (status) {
       case 'pending':
       case 'pending verification':
-        return LLStatusBadge(
+        return NeumorphicStatusBadge(
           label: 'Pending Verification',
           icon: Icons.hourglass_top_rounded,
           tone: LLTone.warning,
@@ -53,7 +46,7 @@ class RecipientHomeScreen extends StatelessWidget {
         );
       case 'verified':
       case 'approved':
-        return LLStatusBadge(
+        return NeumorphicStatusBadge(
           label: 'Verified',
           icon: Icons.verified_rounded,
           tone: LLTone.operational,
@@ -61,7 +54,7 @@ class RecipientHomeScreen extends StatelessWidget {
           tooltip: 'Request has been verified by hospital staff and is active for donor matching.',
         );
       case 'matched':
-        return LLStatusBadge(
+        return NeumorphicStatusBadge(
           label: 'Matched',
           icon: Icons.people_outline_rounded,
           tone: LLTone.brand,
@@ -70,7 +63,7 @@ class RecipientHomeScreen extends StatelessWidget {
         );
       case 'completed':
       case 'fulfilled':
-        return LLStatusBadge(
+        return NeumorphicStatusBadge(
           label: 'Completed',
           icon: Icons.task_alt_rounded,
           tone: LLTone.success,
@@ -80,7 +73,7 @@ class RecipientHomeScreen extends StatelessWidget {
       case 'rejected':
       case 'cancelled':
       case 'canceled':
-        return LLStatusBadge(
+        return NeumorphicStatusBadge(
           label: 'Rejected',
           icon: Icons.cancel_outlined,
           tone: LLTone.critical,
@@ -88,7 +81,7 @@ class RecipientHomeScreen extends StatelessWidget {
           tooltip: 'Request was rejected or cancelled.',
         );
       default:
-        return LLStatusBadge(
+        return NeumorphicStatusBadge(
           label: rawStatus?.isNotEmpty == true ? rawStatus! : 'Unknown',
           icon: Icons.info_outline_rounded,
           tone: LLTone.neutral,
@@ -112,9 +105,7 @@ class RecipientHomeScreen extends StatelessWidget {
     // Safe, non-exposing display name resolution
     final displayName = (user?.displayName?.trim().isNotEmpty == true)
         ? user!.displayName!.trim()
-        : (user?.email != null && user!.email!.contains('@')
-            ? user.email!.split('@').first
-            : 'Recipient');
+        : (user?.email != null && user!.email!.contains('@') ? user.email!.split('@').first : 'Recipient');
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -122,6 +113,7 @@ class RecipientHomeScreen extends StatelessWidget {
         titleSpacing: LLSpacing.md,
         backgroundColor: colors.surface,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -137,37 +129,28 @@ class RecipientHomeScreen extends StatelessWidget {
                     maxLines: 1,
                     softWrap: false,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: colors.textPrimary,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
                   ),
                   Text(
                     'Recipient Home',
                     maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: colors.textSecondary),
                   ),
                 ],
               ),
             ),
           ],
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: colors.border),
+        ),
         actions: [
           IconButton(
             tooltip: 'Notifications',
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationsScreen(),
-                ),
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen()));
             },
           ),
           IconButton(
@@ -188,22 +171,18 @@ class RecipientHomeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 1. Welcome & Role Header
-                  LLCard(
+                  NeumorphicCard(
                     padding: const EdgeInsets.all(20),
                     child: Row(
                       children: [
-                        Container(
+                        NeumorphicSurface(
                           width: 52,
                           height: 52,
-                          decoration: BoxDecoration(
-                            color: colors.critical.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.volunteer_activism_rounded,
-                            size: 28,
-                            color: colors.critical,
-                          ),
+                          borderRadius: BorderRadius.circular(26),
+                          elevation: NeumorphicElevationLevel.low,
+                          color: colors.critical.withValues(alpha: 0.12),
+                          borderColor: colors.critical.withValues(alpha: 0.25),
+                          child: Icon(Icons.volunteer_activism_rounded, size: 28, color: colors.critical),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -217,11 +196,7 @@ class RecipientHomeScreen extends StatelessWidget {
                                       '${_getGreeting()}, $displayName',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: colors.textPrimary,
-                                      ),
+                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -234,11 +209,7 @@ class RecipientHomeScreen extends StatelessWidget {
                                     ),
                                     child: Text(
                                       'Recipient Area',
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: colors.primary,
-                                      ),
+                                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: colors.primary),
                                     ),
                                   ),
                                 ],
@@ -246,11 +217,7 @@ class RecipientHomeScreen extends StatelessWidget {
                               const SizedBox(height: 4),
                               Text(
                                 'Manage and track your emergency blood requests.',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colors.textSecondary,
-                                  height: 1.3,
-                                ),
+                                style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.3),
                               ),
                             ],
                           ),
@@ -262,26 +229,12 @@ class RecipientHomeScreen extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   // 2. Primary Emergency Request Action Banner
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          colors.critical,
-                          colors.primary,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(LLRadius.card),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.critical.withValues(alpha: 0.28),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
+                  NeumorphicSurface(
+                    padding: const EdgeInsets.all(22),
+                    elevation: NeumorphicElevationLevel.raised,
+                    borderRadius: BorderRadius.circular(LLRadius.card),
+                    borderColor: colors.critical.withValues(alpha: 0.4),
+                    borderWidth: 1.5,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -290,24 +243,17 @@ class RecipientHomeScreen extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
+                                color: colors.critical.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: colors.critical.withValues(alpha: 0.3)),
                               ),
-                              child: const Icon(
-                                Icons.emergency_rounded,
-                                color: Colors.white,
-                                size: 22,
-                              ),
+                              child: Icon(Icons.emergency_rounded, color: colors.critical, size: 22),
                             ),
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Text(
                                 'Need Blood Urgently?',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
@@ -315,28 +261,20 @@ class RecipientHomeScreen extends StatelessWidget {
                         const SizedBox(height: 10),
                         Text(
                           'Submit a verified blood request directly to hospital coordinators and compatible blood donors.',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            fontSize: 13.5,
-                            height: 1.4,
-                          ),
+                          style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.4),
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
+                        const SizedBox(height: 18),
+                        NeumorphicButton(
                           onPressed: () => _handleCreateRequestTap(context),
-                          icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
-                          label: const Text(
-                            'Create Emergency Request',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: colors.critical,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                          isCritical: true,
+                          height: 48,
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_circle_outline_rounded, size: 20),
+                              SizedBox(width: 8),
+                              Text('Create Emergency Request', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                            ],
                           ),
                         ),
                       ],
@@ -346,7 +284,7 @@ class RecipientHomeScreen extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // 3. Status Lifecycle Presentation Guide
-                  LLCard(
+                  NeumorphicCard(
                     padding: const EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,22 +295,14 @@ class RecipientHomeScreen extends StatelessWidget {
                             const SizedBox(width: 8),
                             Text(
                               'Request Status Guide',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: colors.textPrimary,
-                              ),
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colors.textPrimary),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'How your emergency request moves through verification and donor matching:',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: colors.textSecondary,
-                            height: 1.3,
-                          ),
+                          style: TextStyle(fontSize: 12.5, color: colors.textSecondary, height: 1.3),
                         ),
                         const SizedBox(height: 12),
                         Wrap(
@@ -398,11 +328,7 @@ class RecipientHomeScreen extends StatelessWidget {
                     children: [
                       Text(
                         'My Requests',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: colors.textPrimary,
-                        ),
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: colors.textPrimary),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -413,11 +339,7 @@ class RecipientHomeScreen extends StatelessWidget {
                         ),
                         child: Text(
                           '0 Requests',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: colors.textSecondary,
-                          ),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textSecondary),
                         ),
                       ),
                     ],
@@ -426,58 +348,40 @@ class RecipientHomeScreen extends StatelessWidget {
                   const SizedBox(height: 12),
 
                   // 5. "My Requests" Empty State
-                  LLCard(
-                    padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
+                  NeumorphicCard(
+                    padding: const EdgeInsets.symmetric(vertical: 36.0, horizontal: 20.0),
                     child: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
+                          NeumorphicSurface(
                             width: 64,
                             height: 64,
-                            decoration: BoxDecoration(
-                              color: colors.primary.withValues(alpha: 0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.assignment_outlined,
-                              size: 32,
-                              color: colors.primary,
-                            ),
+                            borderRadius: BorderRadius.circular(32),
+                            elevation: NeumorphicElevationLevel.low,
+                            color: colors.primary.withValues(alpha: 0.08),
+                            borderColor: colors.primary.withValues(alpha: 0.2),
+                            child: Icon(Icons.assignment_outlined, size: 32, color: colors.primary),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             'No emergency requests yet',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: colors.textPrimary,
-                            ),
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: colors.textPrimary),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Create a request when you need urgent blood support.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              color: colors.textSecondary,
-                              height: 1.4,
-                            ),
+                            style: TextStyle(fontSize: 13.5, color: colors.textSecondary, height: 1.4),
                           ),
                           const SizedBox(height: 20),
-                          OutlinedButton.icon(
+                          NeumorphicButton(
                             onPressed: () => _handleCreateRequestTap(context),
-                            icon: const Icon(Icons.add_rounded, size: 18),
-                            label: const Text('Start Request'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: colors.primary,
-                              side: BorderSide(color: colors.primary.withValues(alpha: 0.5)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            ),
+                            isPrimary: false,
+                            height: 44,
+                            label: 'Start Request',
+                            icon: Icons.add_rounded,
                           ),
                         ],
                       ),
@@ -487,13 +391,9 @@ class RecipientHomeScreen extends StatelessWidget {
                   const SizedBox(height: 28),
 
                   // 6. Clinical Disclaimer / Notice
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colors.elevatedSurface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: colors.border),
-                    ),
+                  NeumorphicCard(
+                    padding: const EdgeInsets.all(14),
+                    elevation: NeumorphicElevationLevel.low,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -502,11 +402,7 @@ class RecipientHomeScreen extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Requests submitted through LifeLink are verified by hospital staff before notification to eligible donors. For immediate life-threatening emergencies, please notify the on-duty hospital emergency department immediately.',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: colors.textSecondary,
-                              height: 1.35,
-                            ),
+                            style: TextStyle(fontSize: 11.5, color: colors.textSecondary, height: 1.35),
                           ),
                         ),
                       ],

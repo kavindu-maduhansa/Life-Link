@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/blood_request.dart';
+import '../../../theme/app_colors.dart';
+import '../../../widgets/neumorphic/neumorphic_widgets.dart';
 import 'request_submitted_screen.dart';
 
 /// Review request screen (HF 07)
@@ -69,8 +71,8 @@ class ReviewRequestScreen extends StatelessWidget {
         createdByName: (user.displayName?.trim().isNotEmpty == true)
             ? user.displayName!.trim()
             : (user.email != null && user.email!.contains('@')
-                ? user.email!.split('@').first
-                : 'Recipient'),
+                  ? user.email!.split('@').first
+                  : 'Recipient'),
         requestType: isEmergency ? 'emergency' : 'non-emergency',
         requestingFor: requestingFor.toLowerCase(),
         patientName: patientName,
@@ -137,13 +139,27 @@ class ReviewRequestScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828);
+    final colors = context.colors;
+    final primaryColor = colors.accent;
 
     return Scaffold(
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Review Request'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        title: Text(
+          'Review Request',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: colors.surface,
+        foregroundColor: colors.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: colors.border, height: 1),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -155,13 +171,13 @@ class ReviewRequestScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: isEmergency
-                    ? Colors.red.withValues(alpha: 0.1)
-                    : Colors.blue.withValues(alpha: 0.1),
+                    ? colors.critical.withValues(alpha: 0.12)
+                    : colors.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isEmergency
-                      ? Colors.red.withValues(alpha: 0.3)
-                      : Colors.blue.withValues(alpha: 0.3),
+                      ? colors.critical.withValues(alpha: 0.3)
+                      : colors.accent.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -172,7 +188,7 @@ class ReviewRequestScreen extends StatelessWidget {
                         ? Icons.emergency_rounded
                         : Icons.calendar_today_rounded,
                     size: 16,
-                    color: isEmergency ? Colors.red : Colors.blue,
+                    color: isEmergency ? colors.critical : colors.accent,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -180,50 +196,87 @@ class ReviewRequestScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: isEmergency ? Colors.red : Colors.blue,
+                      color: isEmergency ? colors.critical : colors.accent,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // Patient Details Section
-            _buildSectionHeader('Patient Details'),
-            _buildDetailRow('Requesting For', requestingFor),
-            _buildDetailRow('Patient Name', patientName),
-            _buildDetailRow('Age', '$patientAge years'),
-            if (requestingFor == 'Other')
-              _buildDetailRow('Relationship', relationship),
-            _buildDetailRow('Patient ID / Hospital Number', patientId),
-            const SizedBox(height: 16),
+            NeumorphicCard(
+              padding: const EdgeInsets.all(18),
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('Patient Details', colors),
+                  _buildDetailRow('Requesting For', requestingFor, colors),
+                  _buildDetailRow('Patient Name', patientName, colors),
+                  _buildDetailRow('Age', '$patientAge years', colors),
+                  if (requestingFor == 'Other')
+                    _buildDetailRow('Relationship', relationship, colors),
+                  _buildDetailRow('Patient ID', patientId, colors),
+                ],
+              ),
+            ),
 
             // Blood Details Section
-            _buildSectionHeader('Blood Details'),
-            _buildDetailRow('Blood Group', bloodGroup),
-            _buildDetailRow('Units Needed', '$unitsNeeded'),
-            _buildDetailRow('Reason', reason),
-            _buildDetailRow(
-              'Required Before',
-              '${requiredBefore.day}/${requiredBefore.month}/${requiredBefore.year}',
+            NeumorphicCard(
+              padding: const EdgeInsets.all(18),
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('Blood Details', colors),
+                  _buildDetailRow('Blood Group', bloodGroup, colors),
+                  _buildDetailRow('Units Needed', '$unitsNeeded', colors),
+                  _buildDetailRow('Reason', reason, colors),
+                  _buildDetailRow(
+                    'Required Before',
+                    '${requiredBefore.day}/${requiredBefore.month}/${requiredBefore.year}',
+                    colors,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
 
             // Hospital Details Section
-            _buildSectionHeader('Hospital Details'),
-            _buildDetailRow('Hospital', hospitalName),
-            _buildDetailRow('Location', hospitalLocation),
-            _buildDetailRow('Ward / Unit', wardUnit),
-            _buildDetailRow('Doctor / Clinic', doctorClinic),
-            const SizedBox(height: 16),
+            NeumorphicCard(
+              padding: const EdgeInsets.all(18),
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('Hospital Details', colors),
+                  _buildDetailRow('Hospital', hospitalName, colors),
+                  _buildDetailRow('Location', hospitalLocation, colors),
+                  _buildDetailRow('Ward / Unit', wardUnit, colors),
+                  _buildDetailRow('Doctor / Clinic', doctorClinic, colors),
+                ],
+              ),
+            ),
 
             // Urgency & Contact Section
-            _buildSectionHeader('Urgency & Contact'),
-            _buildDetailRow('Urgency', urgency),
-            _buildDetailRow('Blood Needed By', bloodNeededBy),
-            _buildDetailRow('Contact Number', contactNumber),
-            _buildDetailRow('Update Method', preferredUpdateMethod),
-            const SizedBox(height: 32),
+            NeumorphicCard(
+              padding: const EdgeInsets.all(18),
+              margin: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('Urgency & Contact', colors),
+                  _buildDetailRow('Urgency', urgency, colors),
+                  _buildDetailRow('Blood Needed By', bloodNeededBy, colors),
+                  _buildDetailRow('Contact Number', contactNumber, colors),
+                  _buildDetailRow(
+                    'Update Method',
+                    preferredUpdateMethod,
+                    colors,
+                  ),
+                ],
+              ),
+            ),
 
             // Submit Button
             SizedBox(
@@ -233,6 +286,7 @@ class ReviewRequestScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
+                  elevation: 2,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -257,7 +311,7 @@ class ReviewRequestScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  side: const BorderSide(color: primaryColor),
+                  side: BorderSide(color: primaryColor.withValues(alpha: 0.6)),
                 ),
                 child: const Text(
                   'Edit Details',
@@ -271,21 +325,21 @@ class ReviewRequestScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, AppColors colors) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 18,
+        style: TextStyle(
+          fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF1F2937),
+          color: colors.textPrimary,
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, AppColors colors) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -295,16 +349,16 @@ class ReviewRequestScreen extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+              style: TextStyle(fontSize: 13.5, color: colors.textSecondary),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1F2937),
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
               ),
             ),
           ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Profile screen for recipient
 class ProfileScreen extends StatelessWidget {
@@ -12,35 +14,55 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828);
+    final colors = context.colors;
+    final primaryColor = colors.accent;
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
+      backgroundColor: colors.background,
       body: Column(
         children: [
-          // Custom header
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Color(0xFFC62828),
-            ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.person_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                SizedBox(width: 12),
-                Text(
-                  'Profile',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+          // Neumorphic custom header
+          SafeArea(
+            bottom: false,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                border: Border(bottom: BorderSide(color: colors.border)),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.darkShadow.withValues(alpha: 0.05),
+                    offset: const Offset(0, 2),
+                    blurRadius: 4,
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: primaryColor,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Profile',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           // Profile content
@@ -57,8 +79,10 @@ class ProfileScreen extends StatelessWidget {
 
                 final userData = snapshot.data!.data();
                 final fullName = userData?['fullName'] as String? ?? 'User';
-                final email = userData?['email'] as String? ?? user?.email ?? '';
-                final phoneNumber = userData?['phoneNumber'] as String? ?? 'Not provided';
+                final email =
+                    userData?['email'] as String? ?? user?.email ?? '';
+                final phoneNumber =
+                    userData?['phoneNumber'] as String? ?? 'Not provided';
                 final role = userData?['role'] as String? ?? 'Recipient';
                 final createdAt = userData?['createdAt'] as Timestamp?;
 
@@ -74,10 +98,26 @@ class ProfileScreen extends StatelessWidget {
                               width: 100,
                               height: 100,
                               decoration: BoxDecoration(
-                                color: primaryColor.withValues(alpha: 0.1),
+                                color: colors.surface,
                                 shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: primaryColor.withValues(alpha: 0.3),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: colors.highlightShadow,
+                                    offset: const Offset(-3, -3),
+                                    blurRadius: 6,
+                                  ),
+                                  BoxShadow(
+                                    color: colors.darkShadow,
+                                    offset: const Offset(3, 3),
+                                    blurRadius: 6,
+                                  ),
+                                ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.person_rounded,
                                 size: 50,
                                 color: primaryColor,
@@ -86,18 +126,18 @@ class ProfileScreen extends StatelessWidget {
                             const SizedBox(height: 16),
                             Text(
                               fullName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF1F2937),
+                                color: colors.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               email,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: Color(0xFF6B7280),
+                                color: colors.textSecondary,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -107,12 +147,15 @@ class ProfileScreen extends StatelessWidget {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: primaryColor.withValues(alpha: 0.1),
+                                color: primaryColor.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: primaryColor.withValues(alpha: 0.3),
+                                ),
                               ),
                               child: Text(
                                 role[0].toUpperCase() + role.substring(1),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: primaryColor,
@@ -125,42 +168,40 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 32),
 
                       // Profile Details Card
-                      Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            children: [
+                      NeumorphicCard(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          children: [
+                            _buildProfileItem(
+                              context: context,
+                              icon: Icons.person_outline_rounded,
+                              label: 'Full Name',
+                              value: fullName,
+                            ),
+                            Divider(height: 32, color: colors.border),
+                            _buildProfileItem(
+                              context: context,
+                              icon: Icons.email_outlined,
+                              label: 'Email',
+                              value: email,
+                            ),
+                            Divider(height: 32, color: colors.border),
+                            _buildProfileItem(
+                              context: context,
+                              icon: Icons.phone_outlined,
+                              label: 'Phone Number',
+                              value: phoneNumber,
+                            ),
+                            if (createdAt != null) ...[
+                              Divider(height: 32, color: colors.border),
                               _buildProfileItem(
-                                icon: Icons.person_outline_rounded,
-                                label: 'Full Name',
-                                value: fullName,
+                                context: context,
+                                icon: Icons.calendar_today_outlined,
+                                label: 'Member Since',
+                                value: _formatDate(createdAt.toDate()),
                               ),
-                              const Divider(height: 32),
-                              _buildProfileItem(
-                                icon: Icons.email_outlined,
-                                label: 'Email',
-                                value: email,
-                              ),
-                              const Divider(height: 32),
-                              _buildProfileItem(
-                                icon: Icons.phone_outlined,
-                                label: 'Phone Number',
-                                value: phoneNumber,
-                              ),
-                              if (createdAt != null) ...[
-                                const Divider(height: 32),
-                                _buildProfileItem(
-                                  icon: Icons.calendar_today_outlined,
-                                  label: 'Member Since',
-                                  value: _formatDate(createdAt.toDate()),
-                                ),
-                              ],
                             ],
-                          ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -170,8 +211,8 @@ class ProfileScreen extends StatelessWidget {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () => _handleSignOut(context),
-                          icon: const Icon(Icons.logout_rounded, color: primaryColor),
-                          label: const Text(
+                          icon: Icon(Icons.logout_rounded, color: primaryColor),
+                          label: Text(
                             'Sign Out',
                             style: TextStyle(color: primaryColor),
                           ),
@@ -180,7 +221,9 @@ class ProfileScreen extends StatelessWidget {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            side: const BorderSide(color: primaryColor),
+                            side: BorderSide(
+                              color: primaryColor.withValues(alpha: 0.6),
+                            ),
                           ),
                         ),
                       ),
@@ -196,17 +239,15 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildProfileItem({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
   }) {
+    final colors = context.colors;
     return Row(
       children: [
-        Icon(
-          icon,
-          color: const Color(0xFF6B7280),
-          size: 24,
-        ),
+        Icon(icon, color: colors.textSecondary, size: 24),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -214,18 +255,15 @@ class ProfileScreen extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF9CA3AF),
-                ),
+                style: TextStyle(fontSize: 12, color: colors.textSecondary),
               ),
               const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF1F2937),
+                  color: colors.textPrimary,
                 ),
               ),
             ],

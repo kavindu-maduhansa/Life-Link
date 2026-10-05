@@ -10,6 +10,7 @@ import '../../services/request_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/stock_readiness.dart';
 import '../../widgets/entrance_fade_slide.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Blood Stock Readiness - what is actually on the shelf, per blood
 /// group and component, so staff can see whether the units are already
@@ -57,11 +58,8 @@ class _BloodStockScreenState extends State<BloodStockScreen> {
           IconButton(
             tooltip: 'Stock change history',
             icon: const Icon(Icons.history_rounded),
-            onPressed: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => const _StockTransactionHistory(),
-            ),
+            onPressed: () =>
+                showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (_) => const _StockTransactionHistory()),
           ),
         ],
       ),
@@ -147,16 +145,11 @@ class _StockLineCardState extends State<StockLineCard> {
     final verdict = StockReadiness.verdictFor(widget.item);
     final (Color tone, Color container, IconData icon) = _toneFor(verdict.level, colors);
 
-    return Container(
+    return NeumorphicCard(
       padding: EdgeInsets.all(widget.compact ? 11 : 14),
-      decoration: BoxDecoration(
-        // Stock cards stay on the white surface; only the status badge
-        // carries the tint, so a shelf full of warnings never becomes a
-        // wall of solid red.
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: verdict.level.isCritical ? tone.withValues(alpha: 0.55) : colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.low,
+      borderRadius: BorderRadius.circular(14),
+      borderColor: verdict.level.isCritical ? tone.withValues(alpha: 0.55) : colors.border,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -317,13 +310,9 @@ class _BloodStockReadinessCardState extends State<BloodStockReadinessCard> {
             ? snapshot.data!.where((i) => StockReadiness.verdictFor(i).needsAttention).take(2).toList()
             : const <BloodInventoryItem>[];
 
-        return Container(
+        return NeumorphicCard(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.border),
-          ),
+          elevation: NeumorphicElevationLevel.card,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -919,10 +908,7 @@ class _StockTransactionHistory extends StatelessWidget {
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                  ),
+                  IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.pop(context)),
                 ],
               ),
             ),
@@ -952,10 +938,7 @@ class _StockTransactionHistory extends StatelessWidget {
                         children: [
                           Icon(Icons.history_rounded, size: 36, color: colors.textSecondary),
                           const SizedBox(height: 10),
-                          Text(
-                            'No stock transactions recorded yet.',
-                            style: TextStyle(fontSize: 13, color: colors.textSecondary),
-                          ),
+                          Text('No stock transactions recorded yet.', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
                         ],
                       ),
                     );
@@ -992,10 +975,7 @@ class _StockTransactionHistory extends StatelessWidget {
                                 width: 36,
                                 height: 36,
                                 alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: colors.primaryContainer,
-                                  borderRadius: BorderRadius.circular(9),
-                                ),
+                                decoration: BoxDecoration(color: colors.primaryContainer, borderRadius: BorderRadius.circular(9)),
                                 child: Text(
                                   bloodGroup,
                                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: colors.primary),
