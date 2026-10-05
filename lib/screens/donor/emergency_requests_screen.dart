@@ -634,91 +634,97 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                                 children: [
                                   // Header: Blood Group Badge + Urgency Badge
                                   Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: colors.primary,
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: colors.primary
-                                                      .withValues(alpha: 0.25),
-                                                  blurRadius: 6,
-                                                  offset: const Offset(0, 2),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(
-                                                  Icons.water_drop_rounded,
-                                                  size: 16,
-                                                  color: Colors.white,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  bloodGroup,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 15,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          if (isCompatible) ...[
-                                            const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Wrap(
+                                          spacing: 8,
+                                          runSpacing: 4,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
                                             Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
+                                                horizontal: 12,
+                                                vertical: 6,
+                                              ),
                                               decoration: BoxDecoration(
-                                                color: colors.successContainer,
+                                                color: colors.primary,
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
-                                                border: Border.all(
-                                                  color: colors.success
-                                                      .withValues(alpha: 0.3),
-                                                ),
+                                                    BorderRadius.circular(10),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: colors.primary
+                                                        .withValues(alpha: 0.25),
+                                                    blurRadius: 6,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  Icon(
-                                                    Icons.check_circle_rounded,
-                                                    size: 12,
-                                                    color: colors.success,
+                                                  const Icon(
+                                                    Icons.water_drop_rounded,
+                                                    size: 16,
+                                                    color: Colors.white,
                                                   ),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    'Compatible',
-                                                    style: TextStyle(
-                                                      fontSize: 11,
+                                                    bloodGroup,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
                                                       fontWeight:
                                                           FontWeight.bold,
-                                                      color: colors.success,
+                                                      fontSize: 15,
                                                     ),
                                                   ),
                                                 ],
                                               ),
                                             ),
+                                            if (isCompatible)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: colors.successContainer,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: colors.success
+                                                        .withValues(alpha: 0.3),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.check_circle_rounded,
+                                                      size: 12,
+                                                      color: colors.success,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'Compatible',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: colors.success,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                           ],
-                                        ],
+                                        ),
                                       ),
+                                      const SizedBox(width: 8),
                                       // Urgency badge & Bookmark
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -878,73 +884,77 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 3,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: colors.successContainer,
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              border: Border.all(
-                                                color: colors.successContainer,
-                                              ),
-                                            ),
-                                            child: Text(
-                                              statusDisplay,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                                color: colors.success,
-                                              ),
-                                            ),
-                                          ),
-                                          if (isVerified) ...[
-                                            const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
                                             Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 3,
-                                                  ),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 3,
+                                              ),
                                               decoration: BoxDecoration(
-                                                color: colors.primary
-                                                    .withValues(alpha: 0.08),
+                                                color: colors.successContainer,
                                                 borderRadius:
                                                     BorderRadius.circular(6),
                                                 border: Border.all(
-                                                  color: colors.primary
-                                                      .withValues(alpha: 0.2),
+                                                  color: colors.successContainer,
                                                 ),
                                               ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.verified_rounded,
-                                                    size: 12,
-                                                    color: colors.primary,
-                                                  ),
-                                                  const SizedBox(width: 3),
-                                                  Text(
-                                                    'Verified',
-                                                    style: TextStyle(
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: colors.primary,
-                                                    ),
-                                                  ),
-                                                ],
+                                              child: Text(
+                                                statusDisplay,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: colors.success,
+                                                ),
                                               ),
                                             ),
+                                            if (isVerified)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 3,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: colors.primary
+                                                      .withValues(alpha: 0.08),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                    color: colors.primary
+                                                        .withValues(alpha: 0.2),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.verified_rounded,
+                                                      size: 12,
+                                                      color: colors.primary,
+                                                    ),
+                                                    const SizedBox(width: 3),
+                                                    Text(
+                                                      'Verified',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: colors.primary,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                           ],
-                                        ],
+                                        ),
                                       ),
+                                      const SizedBox(width: 8),
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -1427,90 +1437,93 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                               children: [
                                 // Header: Blood Group + Urgency Badge
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: colors.primary,
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: colors.primary
-                                                    .withValues(alpha: 0.25),
-                                                blurRadius: 6,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(
-                                                Icons.water_drop_rounded,
-                                                size: 16,
-                                                color: Colors.white,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                bloodGroup,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 15,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        if (isCompatible) ...[
-                                          const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Wrap(
+                                        spacing: 8,
+                                        runSpacing: 4,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
                                           Container(
                                             padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
+                                              horizontal: 12,
+                                              vertical: 6,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: colors.successContainer,
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              border: Border.all(
-                                                color: colors.success
-                                                    .withValues(alpha: 0.3),
+                                              color: colors.primary,
+                                              borderRadius: BorderRadius.circular(
+                                                10,
                                               ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: colors.primary
+                                                      .withValues(alpha: 0.25),
+                                                  blurRadius: 6,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
                                             ),
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(
-                                                  Icons.check_circle_rounded,
-                                                  size: 12,
-                                                  color: colors.success,
+                                                const Icon(
+                                                  Icons.water_drop_rounded,
+                                                  size: 16,
+                                                  color: Colors.white,
                                                 ),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  'Compatible',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
+                                                  bloodGroup,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
                                                     fontWeight: FontWeight.bold,
-                                                    color: colors.success,
+                                                    fontSize: 15,
                                                   ),
                                                 ),
                                               ],
                                             ),
                                           ),
+                                          if (isCompatible)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: colors.successContainer,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: colors.success
+                                                      .withValues(alpha: 0.3),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.check_circle_rounded,
+                                                    size: 12,
+                                                    color: colors.success,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Compatible',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: colors.success,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                         ],
-                                      ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
                                     // Urgency badge & Bookmark
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -1659,70 +1672,75 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 3,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: colors.successContainer,
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            statusDisplay,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: colors.success,
-                                            ),
-                                          ),
-                                        ),
-                                        if (isVerified) ...[
-                                          const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
                                           Container(
                                             padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
+                                              horizontal: 8,
                                               vertical: 3,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: colors.primary.withValues(
-                                                alpha: 0.08,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              border: Border.all(
-                                                color: colors.primary
-                                                    .withValues(alpha: 0.2),
+                                              color: colors.successContainer,
+                                              borderRadius: BorderRadius.circular(
+                                                6,
                                               ),
                                             ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.verified_rounded,
-                                                  size: 12,
-                                                  color: colors.primary,
-                                                ),
-                                                const SizedBox(width: 3),
-                                                Text(
-                                                  'Verified',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: colors.primary,
-                                                  ),
-                                                ),
-                                              ],
+                                            child: Text(
+                                              statusDisplay,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: colors.success,
+                                              ),
                                             ),
                                           ),
+                                          if (isVerified)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 3,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: colors.primary.withValues(
+                                                  alpha: 0.08,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: colors.primary
+                                                      .withValues(alpha: 0.2),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.verified_rounded,
+                                                    size: 12,
+                                                    color: colors.primary,
+                                                  ),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    'Verified',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: colors.primary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                         ],
-                                      ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [

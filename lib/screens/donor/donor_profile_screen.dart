@@ -211,7 +211,7 @@ class DonorProfileScreen extends StatelessWidget {
           );
           final eligibilityDisplay = isEligible
               ? 'Eligible to Donate'
-              : 'Eligible in ${daysUntil ?? 0} days (90-day cooldown)';
+              : 'Eligible in ${daysUntil ?? 0} days (${DonorEligibility.minGapDays}-day cooldown)';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
@@ -629,7 +629,14 @@ class _EditDonorProfileBottomSheetState
         'bloodGroup': updatedBloodGroup,
         'location': updatedLocation,
         'isAvailable': _isAvailable,
+        'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      try {
+        if (updatedFullName.isNotEmpty && user.displayName != updatedFullName) {
+          await user.updateDisplayName(updatedFullName);
+        }
+      } catch (_) {}
 
       if (!mounted) return;
 
@@ -1107,7 +1114,7 @@ class DonorProfileTab extends StatelessWidget {
         final daysUntil = DonorEligibility.daysUntilEligible(lastDonationDate);
         final eligibilityDisplay = isEligible
             ? 'Eligible to Donate'
-            : 'Eligible in ${daysUntil ?? 0} days (90-day cooldown)';
+            : 'Eligible in ${daysUntil ?? 0} days (${DonorEligibility.minGapDays}-day cooldown)';
 
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),

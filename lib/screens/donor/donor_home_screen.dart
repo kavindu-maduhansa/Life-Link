@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/lifelink_design.dart';
+import '../../utils/request_status.dart';
 import '../../widgets/lifelink/ll_brand.dart';
 import '../../widgets/lifelink/ll_components.dart';
 import '../../widgets/lifelink/ll_states.dart';
@@ -205,7 +206,17 @@ class DonorHomeTab extends StatelessWidget {
     final rawLocation = data?['location'] as String?;
     final location = (rawLocation != null && rawLocation.trim().isNotEmpty) ? rawLocation.trim() : 'Not set';
 
-    final lastDonation = _formatLastDonationDate(data?['lastDonationDate']);
+    final rawLastDonation = data?['lastDonationDate'];
+    DateTime? lastDonationDate;
+    if (rawLastDonation is Timestamp) {
+      lastDonationDate = rawLastDonation.toDate();
+    } else if (rawLastDonation is DateTime) {
+      lastDonationDate = rawLastDonation;
+    } else if (rawLastDonation is String) {
+      lastDonationDate = DateTime.tryParse(rawLastDonation);
+    }
+    final daysUntil = DonorEligibility.daysUntilEligible(lastDonationDate);
+    final lastDonation = _formatLastDonationDate(rawLastDonation);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: LLSpacing.xl, vertical: LLSpacing.xl),
@@ -214,7 +225,7 @@ class DonorHomeTab extends StatelessWidget {
         children: [
           _buildWelcomeSection(context, firstName),
           const SizedBox(height: 18),
-          _buildAvailabilityCard(context, isAvailable),
+          _buildAvailabilityCard(context, isAvailable, daysUntil: daysUntil),
           const SizedBox(height: LLSpacing.xxl),
           _buildProfileSummary(context, bloodGroup, location, lastDonation),
           const SizedBox(height: LLSpacing.xxl),
@@ -283,14 +294,16 @@ class DonorHomeTab extends StatelessWidget {
     }
   }
 
-  Widget _buildAvailabilityCard(BuildContext context, bool isAvailable) {
+  Widget _buildAvailabilityCard(BuildContext context, bool isAvailable, {int? daysUntil}) {
     final colors = context.colors;
     final tone = isAvailable ? LLTone.success : LLTone.warning;
     final (fg, bg) = tone.resolve(context);
 
     final title = isAvailable ? 'Available to Donate' : 'Currently Unavailable';
     final subtitle = isAvailable
-        ? 'You are currently available to help save lives.'
+        ? (daysUntil != null && daysUntil > 0
+            ? 'Available · Recovery window active (${daysUntil}d remaining).'
+            : 'You are currently available to help save lives.')
         : 'You are currently not available for donation.';
     final icon = isAvailable ? Icons.check_circle_rounded : Icons.pause_circle_rounded;
 

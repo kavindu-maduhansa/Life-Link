@@ -335,18 +335,35 @@ class DonationHistoryScreen extends StatefulWidget {
                                 ),
                                 'status': 'Completed',
                                 'clinicalNote': noteController.text.trim(),
+                                'notes': noteController.text.trim(),
                                 'isSelfLogged': true,
                                 'createdAt': FieldValue.serverTimestamp(),
                               });
 
-                          await FirebaseFirestore.instance
+                          final userDoc = await FirebaseFirestore.instance
                               .collection('users')
                               .doc(uid)
-                              .set({
-                                'lastDonationDate': Timestamp.fromDate(
-                                  selectedDate,
-                                ),
-                              }, SetOptions(merge: true));
+                              .get();
+                          final existingRaw = userDoc.data()?['lastDonationDate'];
+                          DateTime? existingDate;
+                          if (existingRaw is Timestamp) {
+                            existingDate = existingRaw.toDate();
+                          } else if (existingRaw is DateTime) {
+                            existingDate = existingRaw;
+                          } else if (existingRaw is String) {
+                            existingDate = DateTime.tryParse(existingRaw);
+                          }
+
+                          if (existingDate == null || selectedDate.isAfter(existingDate)) {
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(uid)
+                                .set({
+                                  'lastDonationDate': Timestamp.fromDate(
+                                    selectedDate,
+                                  ),
+                                }, SetOptions(merge: true));
+                          }
 
                           if (ctx.mounted) Navigator.pop(ctx);
                           if (context.mounted) {
@@ -478,6 +495,7 @@ class DonationHistoryScreen extends StatefulWidget {
                     await doc.reference.update({
                       'hospitalName': centerController.text.trim(),
                       'clinicalNote': noteController.text.trim(),
+                      'notes': noteController.text.trim(),
                       'updatedAt': FieldValue.serverTimestamp(),
                     });
                     if (ctx.mounted) Navigator.pop(ctx);
@@ -566,7 +584,28 @@ class DonationHistoryScreen extends StatefulWidget {
 
     if (confirmed == true && context.mounted) {
       try {
+        final donorId = doc.data()?['donorId'] as String?;
         await doc.reference.delete();
+        if (donorId != null) {
+          try {
+            final remainingSnap = await FirebaseFirestore.instance
+                .collection('donation_history')
+                .where('donorId', isEqualTo: donorId)
+                .get();
+            DateTime? latestDate;
+            for (final d in remainingSnap.docs) {
+              final dt = DonationHistoryScreen.parseDateTime(d.data()['donationDate'] ?? d.data()['createdAt']);
+              if (dt != null && (latestDate == null || dt.isAfter(latestDate))) {
+                latestDate = dt;
+              }
+            }
+            if (latestDate != null) {
+              await FirebaseFirestore.instance.collection('users').doc(donorId).update({
+                'lastDonationDate': Timestamp.fromDate(latestDate),
+              });
+            }
+          } catch (_) {}
+        }
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -955,7 +994,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
                       data['donationDate'] ?? data['createdAt'],
                     );
 
-                final rawNotes = data['notes'] as String?;
+                final rawNotes = (data['clinicalNote'] ?? data['notes'] ?? data['note']) as String?;
                 final hasNotes = rawNotes != null && rawNotes.trim().isNotEmpty;
 
                 return Padding(
@@ -1684,7 +1723,7 @@ class _DonationHistoryTabState extends State<DonationHistoryTab> {
                 data['donationDate'] ?? data['createdAt'],
               );
 
-              final rawNotes = data['notes'] as String?;
+              final rawNotes = (data['clinicalNote'] ?? data['notes'] ?? data['note']) as String?;
               final hasNotes = rawNotes != null && rawNotes.trim().isNotEmpty;
 
               return Padding(

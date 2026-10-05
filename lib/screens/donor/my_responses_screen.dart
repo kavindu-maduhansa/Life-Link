@@ -879,24 +879,32 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.access_time_rounded,
-                                size: 14,
-                                color: colors.textSecondary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                respondedDateStr,
-                                style: TextStyle(
-                                  fontSize: 12,
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.access_time_rounded,
+                                  size: 14,
                                   color: colors.textSecondary,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    respondedDateStr,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          if (requestIdDisplay != null)
+                          if (requestIdDisplay != null) ...[
+                            const SizedBox(width: 8),
                             Text(
                               requestIdDisplay,
                               style: TextStyle(
@@ -905,6 +913,7 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                                 color: colors.textSecondary,
                               ),
                             ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -1454,24 +1463,32 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time_rounded,
-                              size: 14,
-                              color: colors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              respondedDateStr,
-                              style: TextStyle(
-                                fontSize: 12,
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.access_time_rounded,
+                                size: 14,
                                 color: colors.textSecondary,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  respondedDateStr,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        if (requestIdDisplay != null)
+                        if (requestIdDisplay != null) ...[
+                          const SizedBox(width: 8),
                           Text(
                             requestIdDisplay,
                             style: TextStyle(
@@ -1480,6 +1497,7 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
                               color: colors.textSecondary,
                             ),
                           ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 8),

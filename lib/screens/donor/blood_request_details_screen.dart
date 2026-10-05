@@ -18,6 +18,17 @@ class BloodRequestDetailsScreen extends StatefulWidget {
     required this.requestData,
   });
 
+  /// Helper to check if request is open for donor response.
+  static bool isRequestOpen(dynamic status) {
+    if (status == null) return true;
+    final s = status.toString().trim().toLowerCase();
+    return s == 'active' ||
+        s == 'pending' ||
+        s == 'urgent' ||
+        s == 'verified' ||
+        s == 'matched';
+  }
+
   /// Helper to safely format timestamp or date string.
   static String formatRequestDate(dynamic value) {
     if (value == null) return 'Not specified';
@@ -138,6 +149,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
   bool _hasAlreadyResponded = false;
   bool _isSubmitting = false;
   String? _donorBloodGroup;
+  int _daysUntilEligible = 0;
 
   @override
   void initState() {
@@ -170,13 +182,26 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       final results = await Future.wait([docFuture, userFuture]);
       final docSnapshot = results[0];
       final userSnapshot = results[1];
-      final rawBlood = userSnapshot.data()?['bloodGroup'] as String?;
+      final userData = userSnapshot.data() ?? {};
+      final rawBlood = userData['bloodGroup'] as String?;
+
+      final rawLastDonation = userData['lastDonationDate'];
+      DateTime? lastDonationDate;
+      if (rawLastDonation is Timestamp) {
+        lastDonationDate = rawLastDonation.toDate();
+      } else if (rawLastDonation is DateTime) {
+        lastDonationDate = rawLastDonation;
+      } else if (rawLastDonation is String) {
+        lastDonationDate = DateTime.tryParse(rawLastDonation);
+      }
+      final daysUntil = DonorEligibility.daysUntilEligible(lastDonationDate) ?? 0;
 
       if (mounted) {
         setState(() {
           _donorBloodGroup = (rawBlood != null && rawBlood.trim().isNotEmpty)
               ? rawBlood.trim()
               : null;
+          _daysUntilEligible = daysUntil;
           _hasAlreadyResponded = docSnapshot.exists;
           _isCheckingResponse = false;
         });
@@ -203,6 +228,46 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         ),
       );
       return;
+    }
+
+    if (_daysUntilEligible > 0) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.health_and_safety_rounded, color: colors.warning),
+              const SizedBox(width: 8),
+              const Text(
+                'Recovery Cooldown',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Text(
+            'Safety guidelines recommend waiting ${DonorEligibility.minGapDays} days between blood donations.\n\n'
+            'Your recovery period has $_daysUntilEligible day${_daysUntilEligible > 1 ? 's' : ''} remaining. '
+            'Are you sure you wish to submit this donation offer?',
+            style: const TextStyle(fontSize: 14, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: colors.textSecondary),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(backgroundColor: colors.primary),
+              child: const Text('Proceed Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
     }
 
     setState(() => _isSubmitting = true);
@@ -398,6 +463,19 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
             'status': 'withdrawn',
             'withdrawnAt': FieldValue.serverTimestamp(),
           });
+        }
+        // Best-effort decrement to parent request counts so hospital dashboard reflects withdrawal
+        try {
+          await FirebaseFirestore.instance
+              .collection('requests')
+              .doc(widget.requestId)
+              .update({
+                'donorsAcceptedCount': FieldValue.increment(-1),
+                'unitsConfirmed': FieldValue.increment(-1),
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+        } catch (e) {
+          debugPrint('Could not decrement request counts on withdraw: $e');
         }
         if (mounted) {
           setState(() {
@@ -999,6 +1077,29 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                                   : colors.critical,
                             ),
                           ),
+                          if (_daysUntilEligible > 0) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.schedule_rounded,
+                                  size: 14,
+                                  color: colors.warning,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'Recovery period active: Eligible in $_daysUntilEligible days (${DonorEligibility.minGapDays}-day rule).',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: colors.warning,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ],
                     ),
@@ -1070,6 +1171,46 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
   /// Builds the dynamic bottom response action button according to state.
   Widget _buildActionButton() {
     final colors = context.colors;
+    final data = widget.requestData;
+    final rawStatus = data['status'] as String?;
+    final statusDisplay = (rawStatus != null && rawStatus.trim().isNotEmpty)
+        ? rawStatus.trim()[0].toUpperCase() +
+              rawStatus.trim().substring(1).toLowerCase()
+        : 'Active';
+
+    final isOpen = BloodRequestDetailsScreen.isRequestOpen(data['status']);
+    if (!isOpen && !_hasAlreadyResponded) {
+      return Container(
+        height: 52,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: colors.elevatedSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline_rounded, size: 18, color: colors.textSecondary),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'This request is ${statusDisplay.toLowerCase()} and no longer accepting donations.',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (_isCheckingResponse) {
       return SizedBox(
         height: 52,
