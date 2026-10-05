@@ -368,4 +368,28 @@ class LLNeumorphism {
       ),
     );
   }
+
+  /// Generates raised shadows using the application's [colors] palette.
+  static List<BoxShadow> raisedShadows(
+    AppColors colors, {
+    NeumorphicElevationLevel elevation = NeumorphicElevationLevel.card,
+  }) {
+    return [
+      BoxShadow(
+        color: colors.highlightShadow,
+        offset: const Offset(-2, -2),
+        blurRadius: 4,
+        spreadRadius: 0,
+      ),
+      BoxShadow(
+        color: colors.darkShadow,
+        offset: const Offset(2, 3),
+        blurRadius: 6,
+        spreadRadius: 0,
+      ),
+    ];
+  }
 }
+
+/// Alias for [LLNeumorphism] providing intuitive access to Neumorphic tokens.
+typedef NeumorphicTokens = LLNeumorphism;

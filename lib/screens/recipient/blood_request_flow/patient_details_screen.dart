@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
+import '../../../widgets/neumorphic/neumorphic_widgets.dart';
 import 'blood_details_screen.dart';
 
 /// Patient details form screen (HF 03)
@@ -59,13 +61,27 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828);
+    final colors = context.colors;
+    final primaryColor = colors.accent;
 
     return Scaffold(
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Patient Details'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        title: Text(
+          'Patient Details',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: colors.surface,
+        foregroundColor: colors.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: colors.border, height: 1),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -75,25 +91,29 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Progress Indicator
-              LinearProgressIndicator(
-                value: 0.25,
-                backgroundColor: Colors.grey.shade300,
-                valueColor: const AlwaysStoppedAnimation<Color>(primaryColor),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: 0.25,
+                  minHeight: 6,
+                  backgroundColor: colors.border,
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Step 1 of 4',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 12, color: colors.textSecondary),
               ),
               const SizedBox(height: 24),
 
               // Requesting For Section
-              const Text(
+              Text(
                 'Requesting For',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -117,20 +137,17 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                           });
                         },
                         borderRadius: BorderRadius.circular(12),
-                        child: Container(
+                        child: NeumorphicSurface(
+                          isPressed: isSelected,
+                          elevation: isSelected
+                              ? NeumorphicElevationLevel.inset
+                              : NeumorphicElevationLevel.raised,
+                          borderRadius: BorderRadius.circular(12),
+                          borderColor: isSelected
+                              ? primaryColor
+                              : colors.border,
+                          borderWidth: isSelected ? 1.8 : 1.0,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? primaryColor.withValues(alpha: 0.1)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? primaryColor
-                                  : Colors.grey.shade300,
-                              width: isSelected ? 2 : 1,
-                            ),
-                          ),
                           child: Center(
                             child: Text(
                               option,
@@ -141,7 +158,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                                     : FontWeight.w500,
                                 color: isSelected
                                     ? primaryColor
-                                    : const Color(0xFF374151),
+                                    : colors.textPrimary,
                               ),
                             ),
                           ),
@@ -155,30 +172,52 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
 
               // Relationship (only show if requesting for other)
               if (_requestingFor == 'Other') ...[
-                const Text(
+                Text(
                   'Relationship',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
+                    color: colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  initialValue: _relationshipOptions.contains(_relationship) ? _relationship : null,
+                  initialValue: _relationshipOptions.contains(_relationship)
+                      ? _relationship
+                      : null,
+                  style: TextStyle(color: colors.textPrimary),
+                  dropdownColor: colors.surface,
                   decoration: InputDecoration(
                     hintText: 'Select relationship',
-                    prefixIcon: const Icon(Icons.people_outline_rounded),
+                    hintStyle: TextStyle(
+                      color: colors.textSecondary.withValues(alpha: 0.7),
+                    ),
+                    prefixIcon: Icon(
+                      Icons.people_outline_rounded,
+                      color: colors.textSecondary,
+                    ),
                     filled: true,
-                    fillColor: const Color(0xFFF9FAFB),
+                    fillColor: colors.elevatedSurface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primaryColor, width: 1.8),
                     ),
                   ),
                   items: _relationshipOptions.map((relationship) {
                     return DropdownMenuItem(
                       value: relationship,
-                      child: Text(relationship),
+                      child: Text(
+                        relationship,
+                        style: TextStyle(color: colors.textPrimary),
+                      ),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -201,18 +240,35 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                 controller: _patientNameController,
                 keyboardType: TextInputType.name,
                 textCapitalization: TextCapitalization.words,
+                style: TextStyle(color: colors.textPrimary),
                 decoration: InputDecoration(
                   labelText: _requestingFor == 'Self'
                       ? 'Your Name'
                       : 'Patient\'s Full Name',
+                  labelStyle: TextStyle(color: colors.textSecondary),
                   hintText: _requestingFor == 'Self'
                       ? 'Enter your name'
                       : 'Enter patient\'s full name',
-                  prefixIcon: const Icon(Icons.person_outline_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.person_outline_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 validator: (value) {
@@ -228,18 +284,35 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
               TextFormField(
                 controller: _ageController,
                 keyboardType: TextInputType.number,
+                style: TextStyle(color: colors.textPrimary),
                 decoration: InputDecoration(
                   labelText: _requestingFor == 'Self'
                       ? 'Your Age'
                       : 'Patient\'s Age',
+                  labelStyle: TextStyle(color: colors.textSecondary),
                   hintText: _requestingFor == 'Self'
                       ? 'Enter your age'
                       : 'Enter patient\'s age',
-                  prefixIcon: const Icon(Icons.cake_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.cake_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 validator: (value) {
@@ -259,14 +332,31 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
               TextFormField(
                 controller: _patientIdController,
                 keyboardType: TextInputType.text,
+                style: TextStyle(color: colors.textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Patient ID / Hospital Number',
+                  labelStyle: TextStyle(color: colors.textSecondary),
                   hintText: 'Enter patient ID or hospital number',
-                  prefixIcon: const Icon(Icons.badge_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.badge_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 validator: (value) {
@@ -286,6 +376,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
+                    elevation: 2,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

@@ -343,4 +343,5 @@ class AppColors extends ThemeExtension<AppColors> {
 extension AppColorsX on BuildContext {
   AppColors get colors =>
       Theme.of(this).extension<AppColors>() ?? AppColors.light;
+  AppColors get appColors => colors;
 }

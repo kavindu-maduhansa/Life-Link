@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'emergency_requests_screen.dart';
 
 import '../../theme/app_colors.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Screen displaying all blood donation responses submitted by the currently logged-in donor.
 class MyResponsesScreen extends StatefulWidget {
@@ -30,7 +31,20 @@ class MyResponsesScreen extends StatefulWidget {
 
     if (date == null) return 'Recently submitted';
 
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
 
     final monthStr = months[date.month - 1];
     final dayStr = date.day.toString().padLeft(2, '0');
@@ -59,7 +73,10 @@ class MyResponsesScreen extends StatefulWidget {
   /// Takes a [BuildContext] so the badge colours come from the active
   /// theme. It previously returned hard-coded light-mode literals, which
   /// is why this screen had no Dark Mode.
-  static StatusBadgeConfig getStatusConfig(BuildContext context, dynamic rawStatus) {
+  static StatusBadgeConfig getStatusConfig(
+    BuildContext context,
+    dynamic rawStatus,
+  ) {
     final colors = context.colors;
     final status = rawStatus?.toString().trim().toLowerCase() ?? '';
 
@@ -72,7 +89,8 @@ class MyResponsesScreen extends StatefulWidget {
           backgroundColor: colors.successContainer,
           borderColor: colors.successContainer,
           icon: Icons.check_circle_outline_rounded,
-          description: 'The hospital coordinator has accepted your donation offer. They will contact you shortly.',
+          description:
+              'The hospital coordinator has accepted your donation offer. They will contact you shortly.',
         );
       case 'rejected':
       case 'declined':
@@ -93,7 +111,8 @@ class MyResponsesScreen extends StatefulWidget {
           backgroundColor: colors.border.withValues(alpha: 0.3),
           borderColor: colors.border,
           icon: Icons.remove_circle_outline_rounded,
-          description: 'You have withdrawn your donation offer for this emergency request.',
+          description:
+              'You have withdrawn your donation offer for this emergency request.',
         );
       case 'pending':
       default:
@@ -103,7 +122,8 @@ class MyResponsesScreen extends StatefulWidget {
           backgroundColor: colors.warningContainer,
           borderColor: colors.warningContainer,
           icon: Icons.hourglass_empty_rounded,
-          description: 'Your response has been sent to the hospital and is awaiting review by the medical team.',
+          description:
+              'Your response has been sent to the hospital and is awaiting review by the medical team.',
         );
     }
   }
@@ -116,8 +136,12 @@ class MyResponsesScreen extends StatefulWidget {
     final colors = context.colors;
     final data = doc.data() ?? {};
     int units = (data['unitsPledged'] as num?)?.toInt() ?? 1;
-    final phoneController = TextEditingController(text: (data['phoneNumber'] ?? data['donorPhone'] ?? '') as String);
-    final noteController = TextEditingController(text: (data['note'] ?? data['notes'] ?? '') as String);
+    final phoneController = TextEditingController(
+      text: (data['phoneNumber'] ?? data['donorPhone'] ?? '') as String,
+    );
+    final noteController = TextEditingController(
+      text: (data['note'] ?? data['notes'] ?? '') as String,
+    );
 
     await showModalBottomSheet<void>(
       context: context,
@@ -145,7 +169,11 @@ class MyResponsesScreen extends StatefulWidget {
                     children: [
                       Text(
                         'Edit Donation Response',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close_rounded),
@@ -154,7 +182,14 @@ class MyResponsesScreen extends StatefulWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Text('Units Pledged', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textSecondary)),
+                  Text(
+                    'Units Pledged',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [1, 2, 3].map((u) {
@@ -181,7 +216,9 @@ class MyResponsesScreen extends StatefulWidget {
                     decoration: InputDecoration(
                       labelText: 'Contact Phone',
                       prefixIcon: const Icon(Icons.phone_rounded, size: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -191,7 +228,9 @@ class MyResponsesScreen extends StatefulWidget {
                     decoration: InputDecoration(
                       labelText: 'Note for Hospital Team (Optional)',
                       hintText: 'e.g. Can arrive by 3:00 PM',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -210,7 +249,9 @@ class MyResponsesScreen extends StatefulWidget {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text('Response updated successfully.'),
+                              content: const Text(
+                                'Response updated successfully.',
+                              ),
                               backgroundColor: colors.success,
                               behavior: SnackBarBehavior.floating,
                             ),
@@ -232,9 +273,17 @@ class MyResponsesScreen extends StatefulWidget {
                     style: FilledButton.styleFrom(
                       backgroundColor: colors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    child: const Text(
+                      'Save Changes',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -259,7 +308,10 @@ class MyResponsesScreen extends StatefulWidget {
           children: [
             Icon(Icons.warning_amber_rounded, color: colors.critical),
             const SizedBox(width: 8),
-            const Text('Withdraw Response', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Withdraw Response',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: const Text(
@@ -269,7 +321,10 @@ class MyResponsesScreen extends StatefulWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, false),
-            child: Text('Keep Response', style: TextStyle(color: colors.textSecondary)),
+            child: Text(
+              'Keep Response',
+              style: TextStyle(color: colors.textSecondary),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogCtx, true),
@@ -363,7 +418,10 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
       return Scaffold(
         backgroundColor: colors.background,
         appBar: AppBar(
-          title: const Text('My Responses', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+          title: const Text(
+            'My Responses',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
+          ),
           backgroundColor: colors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
@@ -374,11 +432,19 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.account_circle_outlined, size: 56, color: colors.textSecondary),
+                Icon(
+                  Icons.account_circle_outlined,
+                  size: 56,
+                  color: colors.textSecondary,
+                ),
                 SizedBox(height: 16),
                 Text(
                   'Please Sign In',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                  ),
                 ),
                 SizedBox(height: 8),
                 Text(
@@ -399,13 +465,19 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
       return Scaffold(
         backgroundColor: colors.background,
         appBar: AppBar(
-          title: const Text('My Responses', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+          title: const Text(
+            'My Responses',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
+          ),
           backgroundColor: colors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
         ),
         body: Center(
-          child: Text('Database is not connected.', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+          child: Text(
+            'Database is not connected.',
+            style: TextStyle(color: colors.textSecondary, fontSize: 14),
+          ),
         ),
       );
     }
@@ -413,7 +485,10 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('My Responses', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+        title: const Text(
+          'My Responses',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
+        ),
         backgroundColor: colors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -430,11 +505,18 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: colors.primary, strokeWidth: 3),
+                    CircularProgressIndicator(
+                      color: colors.primary,
+                      strokeWidth: 3,
+                    ),
                     SizedBox(height: 16),
                     Text(
                       'Loading your responses...',
-                      style: TextStyle(fontSize: 14, color: colors.textSecondary, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: colors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -445,7 +527,10 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
             if (snapshot.hasError) {
               return Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32.0,
+                    vertical: 24.0,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -456,19 +541,31 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                           shape: BoxShape.circle,
                           border: Border.all(color: colors.criticalContainer),
                         ),
-                        child: Icon(Icons.error_outline_rounded, size: 46, color: colors.critical),
+                        child: Icon(
+                          Icons.error_outline_rounded,
+                          size: 46,
+                          color: colors.critical,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       Text(
                         'Unable to load your responses',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'We encountered an issue retrieving your response history. Please check your connection and try again.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.4),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colors.textSecondary,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton.icon(
@@ -478,8 +575,13 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 0,
                         ),
                       ),
@@ -494,8 +596,12 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
             // 3. Sort by respondedAt descending in memory (newest first, nulls at the end)
             // This avoids requiring a Firestore composite index while keeping sorting reliable.
             docs.sort((a, b) {
-              final dateA = MyResponsesScreen.parseDateTime(a.data()['respondedAt']);
-              final dateB = MyResponsesScreen.parseDateTime(b.data()['respondedAt']);
+              final dateA = MyResponsesScreen.parseDateTime(
+                a.data()['respondedAt'],
+              );
+              final dateB = MyResponsesScreen.parseDateTime(
+                b.data()['respondedAt'],
+              );
 
               if (dateA == null && dateB == null) return 0;
               if (dateA == null) return 1;
@@ -507,7 +613,10 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
             if (docs.isEmpty) {
               return Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32.0,
+                    vertical: 24.0,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -517,26 +626,41 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                           color: colors.primary.withValues(alpha: 0.08),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.assignment_outlined, size: 56, color: colors.primary),
+                        child: Icon(
+                          Icons.assignment_outlined,
+                          size: 56,
+                          color: colors.primary,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       Text(
                         'No Responses Yet',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         "You haven't responded to any emergency blood requests yet.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colors.textSecondary,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 22),
                       ElevatedButton.icon(
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const EmergencyRequestsScreen()),
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const EmergencyRequestsScreen(),
+                            ),
                           );
                         },
                         icon: const Icon(Icons.emergency_rounded, size: 18),
@@ -544,8 +668,13 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 22,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 0,
                         ),
                       ),
@@ -557,204 +686,283 @@ class _MyResponsesScreenState extends State<MyResponsesScreen> {
 
             // 5. Response Cards List View
             return ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 16.0,
+              ),
               itemCount: docs.length,
               separatorBuilder: (context, index) => const SizedBox(height: 14),
               itemBuilder: (context, index) {
                 final doc = docs[index];
                 final data = doc.data();
 
-                final rawBloodGroup = data['bloodGroup'] as String? ?? data['requestBloodGroup'] as String?;
-                final bloodGroup = (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
+                final rawBloodGroup =
+                    data['bloodGroup'] as String? ??
+                    data['requestBloodGroup'] as String?;
+                final bloodGroup =
+                    (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
                     ? rawBloodGroup.trim()
                     : 'Blood Donor';
 
-                final rawHospital = (data['hospitalName'] ?? data['organizationName']) as String?;
-                final hospitalName = (rawHospital != null && rawHospital.trim().isNotEmpty)
+                final rawHospital =
+                    (data['hospitalName'] ?? data['organizationName'])
+                        as String?;
+                final hospitalName =
+                    (rawHospital != null && rawHospital.trim().isNotEmpty)
                     ? rawHospital.trim()
                     : 'Emergency Blood Request';
 
-                final rawRequestId = data['requestId'] as String? ?? doc.reference.parent.parent?.id;
-                final requestIdDisplay = (rawRequestId != null && rawRequestId.trim().isNotEmpty)
-                    ? (rawRequestId.length > 10 ? 'Ref: #${rawRequestId.substring(0, 8)}...' : 'Ref: #$rawRequestId')
+                final rawRequestId =
+                    data['requestId'] as String? ??
+                    doc.reference.parent.parent?.id;
+                final requestIdDisplay =
+                    (rawRequestId != null && rawRequestId.trim().isNotEmpty)
+                    ? (rawRequestId.length > 10
+                          ? 'Ref: #${rawRequestId.substring(0, 8)}...'
+                          : 'Ref: #$rawRequestId')
                     : null;
 
                 final rawStatus = data['status'];
-                final statusConfig = MyResponsesScreen.getStatusConfig(context, rawStatus);
-                final respondedDateStr = MyResponsesScreen.formatResponseDate(data['respondedAt']);
+                final statusConfig = MyResponsesScreen.getStatusConfig(
+                  context,
+                  rawStatus,
+                );
+                final respondedDateStr = MyResponsesScreen.formatResponseDate(
+                  data['respondedAt'],
+                );
 
-                return Card(
-                  elevation: 0,
-                  margin: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: colors.border),
-                  ),
-                  color: Colors.white,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header: Blood Group Badge + Status Badge
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: colors.primary,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colors.primary.withValues(alpha: 0.25),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
+                return NeumorphicCard(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header: Blood Group Badge + Status Badge
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colors.primary.withValues(alpha: 0.25),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.water_drop_rounded,
+                                  size: 15,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  bloodGroup,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
                                   ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.water_drop_rounded, size: 15, color: Colors.white),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    bloodGroup,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Status Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusConfig.backgroundColor,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: statusConfig.borderColor,
                               ),
                             ),
-                            // Status Badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: statusConfig.backgroundColor,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: statusConfig.borderColor),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(statusConfig.icon, size: 14, color: statusConfig.textColor),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    statusConfig.label,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: statusConfig.textColor,
-                                    ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  statusConfig.icon,
+                                  size: 14,
+                                  color: statusConfig.textColor,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  statusConfig.label,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: statusConfig.textColor,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Hospital Name
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.local_hospital_rounded,
+                            size: 18,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              hospitalName,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: colors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Response status note
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colors.background,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: colors.border),
                         ),
-
-                        const SizedBox(height: 12),
-
-                        // Hospital Name
-                        Row(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.local_hospital_rounded, size: 18, color: colors.primary),
+                            Icon(
+                              Icons.info_outline_rounded,
+                              size: 15,
+                              color: statusConfig.textColor,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                hospitalName,
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                statusConfig.description,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colors.textSecondary,
+                                  height: 1.35,
+                                ),
                               ),
                             ),
                           ],
                         ),
+                      ),
 
-                        const SizedBox(height: 8),
+                      const SizedBox(height: 12),
+                      Divider(height: 1, color: colors.border),
+                      const SizedBox(height: 10),
 
-                        // Response status note
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: colors.background,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: colors.border),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      // Footer: Timestamp & Request Reference
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
                             children: [
-                              Icon(Icons.info_outline_rounded, size: 15, color: statusConfig.textColor),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  statusConfig.description,
-                                  style: TextStyle(fontSize: 12, color: colors.textSecondary, height: 1.35),
+                              Icon(
+                                Icons.access_time_rounded,
+                                size: 14,
+                                color: colors.textSecondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                respondedDateStr,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colors.textSecondary,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-
-                        const SizedBox(height: 12),
-                        Divider(height: 1, color: colors.border),
-                        const SizedBox(height: 10),
-
-                        // Footer: Timestamp & Request Reference
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.access_time_rounded, size: 14, color: colors.textSecondary),
-                                const SizedBox(width: 4),
-                                Text(respondedDateStr, style: TextStyle(fontSize: 12, color: colors.textSecondary)),
-                              ],
+                          if (requestIdDisplay != null)
+                            Text(
+                              requestIdDisplay,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: colors.textSecondary,
+                              ),
                             ),
-                            if (requestIdDisplay != null)
-                              Text(
-                                requestIdDisplay,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: colors.textSecondary,
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Divider(height: 1, color: colors.border),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                MyResponsesScreen.showEditResponseDialog(
+                                  context,
+                                  doc,
                                 ),
+                            icon: const Icon(Icons.edit_outlined, size: 14),
+                            label: const Text('Edit Details'),
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Divider(height: 1, color: colors.border),
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: () => MyResponsesScreen.showEditResponseDialog(context, doc),
-                              icon: const Icon(Icons.edit_outlined, size: 14),
-                              label: const Text('Edit Details'),
-                              style: OutlinedButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            TextButton.icon(
-                              onPressed: () => MyResponsesScreen.showWithdrawConfirmDialog(context, doc),
-                              icon: Icon(Icons.delete_outline_rounded, size: 15, color: colors.critical),
-                              label: Text('Withdraw', style: TextStyle(color: colors.critical, fontSize: 13, fontWeight: FontWeight.w600)),
-                              style: TextButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            onPressed: () =>
+                                MyResponsesScreen.showWithdrawConfirmDialog(
+                                  context,
+                                  doc,
+                                ),
+                            icon: Icon(
+                              Icons.delete_outline_rounded,
+                              size: 15,
+                              color: colors.critical,
+                            ),
+                            label: Text(
+                              'Withdraw',
+                              style: TextStyle(
+                                color: colors.critical,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 );
               },
@@ -837,11 +1045,19 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.account_circle_outlined, size: 56, color: colors.textSecondary),
+              Icon(
+                Icons.account_circle_outlined,
+                size: 56,
+                color: colors.textSecondary,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Please Sign In',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: colors.textPrimary,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -859,7 +1075,10 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
 
     if (stream == null) {
       return Center(
-        child: Text('Database is not connected.', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+        child: Text(
+          'Database is not connected.',
+          style: TextStyle(color: colors.textSecondary, fontSize: 14),
+        ),
       );
     }
 
@@ -874,11 +1093,18 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(color: colors.primary, strokeWidth: 3),
+                  CircularProgressIndicator(
+                    color: colors.primary,
+                    strokeWidth: 3,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Loading your responses...',
-                    style: TextStyle(fontSize: 14, color: colors.textSecondary, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -889,7 +1115,10 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
           if (snapshot.hasError) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32.0,
+                  vertical: 24.0,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -899,19 +1128,31 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
                         color: colors.criticalContainer,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.error_outline_rounded, size: 46, color: colors.critical),
+                      child: Icon(
+                        Icons.error_outline_rounded,
+                        size: 46,
+                        color: colors.critical,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       'Unable to load your responses',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'We encountered an issue retrieving your response history. Please check your connection and try again.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.4),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colors.textSecondary,
+                        height: 1.4,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton.icon(
@@ -921,8 +1162,13 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.primary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
                     ),
@@ -936,8 +1182,12 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
 
           // 3. Sort by respondedAt descending (newest first, nulls last)
           docs.sort((a, b) {
-            final dateA = MyResponsesScreen.parseDateTime(a.data()['respondedAt']);
-            final dateB = MyResponsesScreen.parseDateTime(b.data()['respondedAt']);
+            final dateA = MyResponsesScreen.parseDateTime(
+              a.data()['respondedAt'],
+            );
+            final dateB = MyResponsesScreen.parseDateTime(
+              b.data()['respondedAt'],
+            );
             if (dateA == null && dateB == null) return 0;
             if (dateA == null) return 1;
             if (dateB == null) return -1;
@@ -948,7 +1198,10 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
           if (docs.isEmpty) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32.0,
+                  vertical: 24.0,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -958,26 +1211,41 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
                         color: colors.primary.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.assignment_outlined, size: 56, color: colors.primary),
+                      child: Icon(
+                        Icons.assignment_outlined,
+                        size: 56,
+                        color: colors.primary,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       'No Responses Yet',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       "You haven't responded to any emergency blood requests yet.",
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: colors.textSecondary,
+                        height: 1.4,
+                      ),
                     ),
                     const SizedBox(height: 22),
                     ElevatedButton.icon(
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const EmergencyRequestsScreen()),
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const EmergencyRequestsScreen(),
+                          ),
                         );
                       },
                       icon: const Icon(Icons.emergency_rounded, size: 18),
@@ -985,8 +1253,13 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.primary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
                     ),
@@ -998,185 +1271,273 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
 
           // 5. Response card list
           return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 16.0,
+            ),
             itemCount: docs.length,
             separatorBuilder: (context, index) => const SizedBox(height: 14),
             itemBuilder: (context, index) {
               final doc = docs[index];
               final data = doc.data();
 
-              final rawBloodGroup = data['bloodGroup'] as String? ?? data['requestBloodGroup'] as String?;
-              final bloodGroup = (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
+              final rawBloodGroup =
+                  data['bloodGroup'] as String? ??
+                  data['requestBloodGroup'] as String?;
+              final bloodGroup =
+                  (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
                   ? rawBloodGroup.trim()
                   : 'Blood Donor';
 
-              final rawHospital = (data['hospitalName'] ?? data['organizationName']) as String?;
-              final hospitalName = (rawHospital != null && rawHospital.trim().isNotEmpty)
+              final rawHospital =
+                  (data['hospitalName'] ?? data['organizationName']) as String?;
+              final hospitalName =
+                  (rawHospital != null && rawHospital.trim().isNotEmpty)
                   ? rawHospital.trim()
                   : 'Emergency Blood Request';
 
-              final rawRequestId = data['requestId'] as String? ?? doc.reference.parent.parent?.id;
-              final requestIdDisplay = (rawRequestId != null && rawRequestId.trim().isNotEmpty)
-                  ? (rawRequestId.length > 10 ? 'Ref: #${rawRequestId.substring(0, 8)}...' : 'Ref: #$rawRequestId')
+              final rawRequestId =
+                  data['requestId'] as String? ??
+                  doc.reference.parent.parent?.id;
+              final requestIdDisplay =
+                  (rawRequestId != null && rawRequestId.trim().isNotEmpty)
+                  ? (rawRequestId.length > 10
+                        ? 'Ref: #${rawRequestId.substring(0, 8)}...'
+                        : 'Ref: #$rawRequestId')
                   : null;
 
               final rawStatus = data['status'];
-              final statusConfig = MyResponsesScreen.getStatusConfig(context, rawStatus);
-              final respondedDateStr = MyResponsesScreen.formatResponseDate(data['respondedAt']);
+              final statusConfig = MyResponsesScreen.getStatusConfig(
+                context,
+                rawStatus,
+              );
+              final respondedDateStr = MyResponsesScreen.formatResponseDate(
+                data['respondedAt'],
+              );
 
-              return Card(
-                elevation: 0,
-                margin: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: colors.border),
-                ),
-                color: colors.surface,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header: Blood Group Badge + Status Badge
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: colors.primary,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: colors.primary.withValues(alpha: 0.25),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.water_drop_rounded, size: 15, color: Colors.white),
-                                const SizedBox(width: 4),
-                                Text(
-                                  bloodGroup,
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                                ),
-                              ],
-                            ),
+              return NeumorphicCard(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header: Blood Group Badge + Status Badge
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: statusConfig.backgroundColor,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: statusConfig.borderColor),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(statusConfig.icon, size: 14, color: statusConfig.textColor),
-                                const SizedBox(width: 5),
-                                Text(
-                                  statusConfig.label,
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusConfig.textColor),
-                                ),
-                              ],
-                            ),
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: colors.primary.withValues(alpha: 0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.water_drop_rounded,
+                                size: 15,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                bloodGroup,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusConfig.backgroundColor,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: statusConfig.borderColor),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                statusConfig.icon,
+                                size: 14,
+                                color: statusConfig.textColor,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                statusConfig.label,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusConfig.textColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Hospital Name
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.local_hospital_rounded,
+                          size: 18,
+                          color: colors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            hospitalName,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: colors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Status description note
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: colors.background,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: colors.border),
                       ),
-                      const SizedBox(height: 12),
-                      // Hospital Name
-                      Row(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.local_hospital_rounded, size: 18, color: colors.primary),
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 15,
+                            color: statusConfig.textColor,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              hospitalName,
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              statusConfig.description,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colors.textSecondary,
+                                height: 1.35,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      // Status description note
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: colors.background,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: colors.border),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                    const SizedBox(height: 12),
+                    Divider(height: 1, color: colors.border),
+                    const SizedBox(height: 10),
+                    // Footer: Timestamp & Request Reference
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
                           children: [
-                            Icon(Icons.info_outline_rounded, size: 15, color: statusConfig.textColor),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                statusConfig.description,
-                                style: TextStyle(fontSize: 12, color: colors.textSecondary, height: 1.35),
+                            Icon(
+                              Icons.access_time_rounded,
+                              size: 14,
+                              color: colors.textSecondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              respondedDateStr,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colors.textSecondary,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Divider(height: 1, color: colors.border),
-                      const SizedBox(height: 10),
-                      // Footer: Timestamp & Request Reference
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.access_time_rounded, size: 14, color: colors.textSecondary),
-                              const SizedBox(width: 4),
-                              Text(respondedDateStr, style: TextStyle(fontSize: 12, color: colors.textSecondary)),
-                            ],
-                          ),
-                          if (requestIdDisplay != null)
-                            Text(
-                              requestIdDisplay,
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: colors.textSecondary),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Divider(height: 1, color: colors.border),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () => MyResponsesScreen.showEditResponseDialog(context, doc),
-                            icon: const Icon(Icons.edit_outlined, size: 14),
-                            label: const Text('Edit Details'),
-                            style: OutlinedButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        if (requestIdDisplay != null)
+                          Text(
+                            requestIdDisplay,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: colors.textSecondary,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          TextButton.icon(
-                            onPressed: () => MyResponsesScreen.showWithdrawConfirmDialog(context, doc),
-                            icon: Icon(Icons.delete_outline_rounded, size: 15, color: colors.critical),
-                            label: Text('Withdraw', style: TextStyle(color: colors.critical, fontSize: 13, fontWeight: FontWeight.w600)),
-                            style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Divider(height: 1, color: colors.border),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              MyResponsesScreen.showEditResponseDialog(
+                                context,
+                                doc,
+                              ),
+                          icon: const Icon(Icons.edit_outlined, size: 14),
+                          label: const Text('Edit Details'),
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: () =>
+                              MyResponsesScreen.showWithdrawConfirmDialog(
+                                context,
+                                doc,
+                              ),
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            size: 15,
+                            color: colors.critical,
+                          ),
+                          label: Text(
+                            'Withdraw',
+                            style: TextStyle(
+                              color: colors.critical,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               );
             },
@@ -1186,4 +1547,3 @@ class _MyResponsesTabState extends State<MyResponsesTab> {
     );
   }
 }
-

@@ -4,6 +4,9 @@ import '../../theme/app_colors.dart';
 import '../../theme/lifelink_design.dart';
 import '../lifelink/ll_components.dart';
 
+export '../../theme/neumorphic_theme.dart';
+export '../lifelink/ll_components.dart' show LLTone;
+
 // -----------------------------------------------------------------------------
 // NeumorphicSurface
 // -----------------------------------------------------------------------------

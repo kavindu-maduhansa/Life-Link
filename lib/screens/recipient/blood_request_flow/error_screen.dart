@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../theme/app_colors.dart';
+import '../../../widgets/neumorphic/neumorphic_widgets.dart';
+
 /// Error screen (HF 13)
 class ErrorScreen extends StatelessWidget {
   final String title;
@@ -17,10 +20,10 @@ class ErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828);
+    final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -28,17 +31,15 @@ class ErrorScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Error Icon
-                Container(
+                // Error Icon with soft neumorphic surface
+                NeumorphicSurface(
+                  borderRadius: BorderRadius.circular(60),
+                  elevation: NeumorphicElevationLevel.raised,
                   padding: const EdgeInsets.all(32),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.error_outline_rounded,
-                    size: 100,
-                    color: Colors.red,
+                    size: 80,
+                    color: colors.critical,
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -46,20 +47,21 @@ class ErrorScreen extends StatelessWidget {
                 // Error Title
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 32,
+                  style: TextStyle(
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
+                    color: colors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
                 // Error Message
                 Text(
                   message,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF6B7280),
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: colors.textSecondary,
+                    height: 1.4,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -69,26 +71,21 @@ class ErrorScreen extends StatelessWidget {
                 if (onRetry != null)
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: NeumorphicButton(
                       onPressed: onRetry,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      isPrimary: true,
+                      height: 52,
                       child: const Text(
                         'Retry',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ),
                   ),
-                if (onRetry != null) const SizedBox(height: 12),
+                if (onRetry != null) const SizedBox(height: 14),
 
                 // Back Button
                 SizedBox(
@@ -96,12 +93,14 @@ class ErrorScreen extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: onBack ?? () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: primaryColor,
+                      foregroundColor: colors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      side: const BorderSide(color: primaryColor),
+                      side: BorderSide(
+                        color: colors.primary.withValues(alpha: 0.5),
+                      ),
                     ),
                     child: const Text(
                       'Go Back',
