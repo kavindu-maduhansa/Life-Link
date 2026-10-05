@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/lifelink_design.dart';
 
+export '../neumorphic/neumorphic_widgets.dart';
+
 /// Shared LifeLink visual primitives.
 ///
 /// These carry no business logic on purpose: a role module passes in what
@@ -75,7 +77,10 @@ class LLCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final borderColor = emphasised && tone != null ? tone!.resolve(context).$1.withValues(alpha: 0.55) : colors.border;
+    final brightness = Theme.of(context).brightness;
+    final borderColor = emphasised && tone != null
+        ? tone!.resolve(context).$1.withValues(alpha: 0.55)
+        : colors.border;
 
     final card = Container(
       padding: padding,
@@ -83,13 +88,21 @@ class LLCard extends StatelessWidget {
         color: colors.surface,
         borderRadius: BorderRadius.circular(LLRadius.card),
         border: Border.all(color: borderColor),
-        boxShadow: LLElevation.card(Theme.of(context).brightness),
+        boxShadow: LLElevation.card(brightness),
+        gradient: LLNeumorphism.convexGradient(
+          brightness: brightness,
+          baseColor: colors.surface,
+        ),
       ),
       child: child,
     );
 
     if (onTap == null) return card;
-    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(LLRadius.card), child: card);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(LLRadius.card),
+      child: card,
+    );
   }
 }
 
@@ -119,11 +132,15 @@ class LLStatusBadge extends StatelessWidget {
     final (fg, bg) = tone.resolve(context);
 
     final badge = Container(
-      padding: EdgeInsets.symmetric(horizontal: dense ? LLSpacing.sm : 9, vertical: dense ? 3 : 5),
+      padding: EdgeInsets.symmetric(
+        horizontal: dense ? LLSpacing.sm : 9,
+        vertical: dense ? 3 : 5,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(LLRadius.pill),
         border: Border.all(color: fg.withValues(alpha: 0.42)),
+        boxShadow: LLElevation.low(Theme.of(context).brightness),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -135,7 +152,11 @@ class LLStatusBadge extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: dense ? 10 : 10.5, fontWeight: FontWeight.w700, color: fg),
+              style: TextStyle(
+                fontSize: dense ? 10 : 10.5,
+                fontWeight: FontWeight.w700,
+                color: fg,
+              ),
             ),
           ),
         ],
@@ -150,7 +171,12 @@ class LLStatusBadge extends StatelessWidget {
 ///
 /// Selection is shown with a check icon as well as the accent colour.
 class LLFilterChip extends StatelessWidget {
-  const LLFilterChip({super.key, required this.label, required this.selected, required this.onTap});
+  const LLFilterChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -173,12 +199,28 @@ class LLFilterChip extends StatelessWidget {
             color: selected ? colors.accentContainer : colors.surface,
             borderRadius: BorderRadius.circular(LLRadius.chip),
             border: Border.all(color: selected ? colors.accent : colors.border),
+            boxShadow: selected
+                ? const []
+                : LLElevation.low(Theme.of(context).brightness),
+            gradient: selected
+                ? LLNeumorphism.concaveGradient(
+                    brightness: Theme.of(context).brightness,
+                    baseColor: colors.accentContainer,
+                  )
+                : LLNeumorphism.convexGradient(
+                    brightness: Theme.of(context).brightness,
+                    baseColor: colors.surface,
+                  ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (selected) ...[
-                Icon(Icons.check_rounded, size: LLIconSize.inline, color: colors.accent),
+                Icon(
+                  Icons.check_rounded,
+                  size: LLIconSize.inline,
+                  color: colors.accent,
+                ),
                 const SizedBox(width: LLSpacing.xs),
               ],
               Text(
@@ -253,7 +295,13 @@ class LLSearchField extends StatelessWidget {
 /// A section heading with an icon and optional supporting line, used to
 /// break a long dashboard into labelled areas in both modules.
 class LLSectionHeader extends StatelessWidget {
-  const LLSectionHeader({super.key, required this.icon, required this.title, this.subtitle, this.trailing});
+  const LLSectionHeader({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
 
   final IconData icon;
   final String title;
@@ -274,12 +322,23 @@ class LLSectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: colors.textPrimary,
+                ),
               ),
               if (subtitle != null)
                 Padding(
                   padding: const EdgeInsets.only(top: LLSpacing.xxs),
-                  child: Text(subtitle!, style: TextStyle(fontSize: 11.5, color: colors.textSecondary, height: 1.3)),
+                  child: Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: colors.textSecondary,
+                      height: 1.3,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -292,7 +351,13 @@ class LLSectionHeader extends StatelessWidget {
 
 /// A labelled key/value row, used in profile and detail screens.
 class LLInfoRow extends StatelessWidget {
-  const LLInfoRow({super.key, required this.icon, required this.label, required this.value, this.valueColor});
+  const LLInfoRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
 
   final IconData icon;
   final String label;
@@ -311,14 +376,21 @@ class LLInfoRow extends StatelessWidget {
           const SizedBox(width: LLSpacing.md),
           Expanded(
             flex: 2,
-            child: Text(label, style: TextStyle(fontSize: 12.5, color: colors.textSecondary)),
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
+            ),
           ),
           Expanded(
             flex: 3,
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: valueColor ?? colors.textPrimary),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: valueColor ?? colors.textPrimary,
+              ),
             ),
           ),
         ],
