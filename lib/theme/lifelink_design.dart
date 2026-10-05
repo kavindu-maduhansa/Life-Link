@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'neumorphic_theme.dart';
+
+export 'neumorphic_theme.dart';
+
 /// Non-colour design tokens shared by every LifeLink role module.
 ///
 /// Colour lives in [AppColors] (`theme/app_colors.dart`); everything else
@@ -78,9 +82,11 @@ class LLBreakpoints {
   /// horizontal scroll strip.
   static const double statRow = 560;
 
-  static bool isWide(BuildContext context) => MediaQuery.sizeOf(context).width >= wide;
+  static bool isWide(BuildContext context) =>
+      MediaQuery.sizeOf(context).width >= wide;
 
-  static bool isCompact(BuildContext context) => MediaQuery.sizeOf(context).width < compactActions;
+  static bool isCompact(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < compactActions;
 }
 
 /// Accessibility floors that apply everywhere.
@@ -97,7 +103,8 @@ class LLA11y {
   /// Every LifeLink animation must check this. Entrance animations are
   /// skipped outright rather than merely shortened, because a staggered
   /// list entrance is exactly the effect the setting exists to stop.
-  static bool reduceMotion(BuildContext context) => MediaQuery.disableAnimationsOf(context);
+  static bool reduceMotion(BuildContext context) =>
+      MediaQuery.disableAnimationsOf(context);
 }
 
 /// Motion durations. Short by policy: this is an emergency-coordination
@@ -119,14 +126,34 @@ class LLMotion {
       LLA11y.reduceMotion(context) ? Duration.zero : duration;
 }
 
-/// The soft neutral card shadow used across modules. Kept at a low alpha
-/// so a white card lifts off the porcelain background without a hard
-/// grey edge.
+/// Soft neutral Neumorphic dual shadows used across modules. Combines
+/// a light top-left directional highlight with a diffuse bottom-right shadow
+/// for a tactile, calm healthcare interface.
 class LLElevation {
   const LLElevation._();
 
-  static List<BoxShadow> card(Brightness brightness) {
-    if (brightness == Brightness.dark) return const [];
-    return [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 2))];
-  }
+  static List<BoxShadow> flat(Brightness brightness) => LLNeumorphism.shadows(
+    brightness: brightness,
+    elevation: NeumorphicElevationLevel.flat,
+  );
+
+  static List<BoxShadow> low(Brightness brightness) => LLNeumorphism.shadows(
+    brightness: brightness,
+    elevation: NeumorphicElevationLevel.low,
+  );
+
+  static List<BoxShadow> card(Brightness brightness) => LLNeumorphism.shadows(
+    brightness: brightness,
+    elevation: NeumorphicElevationLevel.card,
+  );
+
+  static List<BoxShadow> raised(Brightness brightness) => LLNeumorphism.shadows(
+    brightness: brightness,
+    elevation: NeumorphicElevationLevel.raised,
+  );
+
+  static List<BoxShadow> high(Brightness brightness) => LLNeumorphism.shadows(
+    brightness: brightness,
+    elevation: NeumorphicElevationLevel.high,
+  );
 }
