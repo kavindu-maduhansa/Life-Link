@@ -73,12 +73,18 @@ class _LLAppShellState extends State<LLAppShell> {
                 NavigationRail(
                   selectedIndex: _index,
                   onDestinationSelected: (i) => setState(() => _index = i),
+                  backgroundColor: colors.surface,
+                  indicatorColor: colors.primary.withValues(alpha: 0.15),
                   labelType: NavigationRailLabelType.all,
+                  selectedIconTheme: IconThemeData(color: colors.primary),
+                  unselectedIconTheme: IconThemeData(color: colors.textSecondary),
+                  selectedLabelTextStyle: TextStyle(color: colors.primary, fontWeight: FontWeight.bold),
+                  unselectedLabelTextStyle: TextStyle(color: colors.textSecondary),
                   destinations: [
                     for (final d in destinations)
                       NavigationRailDestination(
                         icon: Icon(d.icon),
-                        selectedIcon: Icon(d.selectedIcon),
+                        selectedIcon: Icon(d.selectedIcon, color: colors.primary),
                         label: Text(d.label),
                       ),
                   ],
@@ -89,18 +95,37 @@ class _LLAppShellState extends State<LLAppShell> {
             )
           : content,
       bottomNavigationBar: !isWide && widget.nav.hasNavigation
-          ? NavigationBar(
-              selectedIndex: _index,
-              onDestinationSelected: (i) => setState(() => _index = i),
-              destinations: [
-                for (final d in destinations)
-                  NavigationDestination(
-                    icon: Icon(d.icon),
-                    selectedIcon: Icon(d.selectedIcon),
-                    label: d.label,
-                    tooltip: d.tooltip ?? d.label,
+          ? NavigationBarTheme(
+              data: NavigationBarThemeData(
+                indicatorColor: colors.primary.withValues(alpha: 0.15),
+                iconTheme: WidgetStateProperty.resolveWith(
+                  (states) => IconThemeData(
+                    color: states.contains(WidgetState.selected) ? colors.primary : colors.textSecondary,
                   ),
-              ],
+                ),
+                labelTextStyle: WidgetStateProperty.resolveWith(
+                  (states) => TextStyle(
+                    fontSize: 12,
+                    fontWeight: states.contains(WidgetState.selected) ? FontWeight.bold : FontWeight.w500,
+                    color: states.contains(WidgetState.selected) ? colors.primary : colors.textSecondary,
+                  ),
+                ),
+              ),
+              child: NavigationBar(
+                selectedIndex: _index,
+                onDestinationSelected: (i) => setState(() => _index = i),
+                backgroundColor: colors.surface,
+                indicatorColor: colors.primary.withValues(alpha: 0.15),
+                destinations: [
+                  for (final d in destinations)
+                    NavigationDestination(
+                      icon: Icon(d.icon),
+                      selectedIcon: Icon(d.selectedIcon, color: colors.primary),
+                      label: d.label,
+                      tooltip: d.tooltip ?? d.label,
+                    ),
+                ],
+              ),
             )
           : null,
     );

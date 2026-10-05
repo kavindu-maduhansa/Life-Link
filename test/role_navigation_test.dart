@@ -133,4 +133,29 @@ void main() {
       expect(resolveRoleScreen('organisation coordinator'), isA<OrganisationHomeScreen>());
     });
   });
+
+  group('DonorShell 4-Destination Navigation Bar', () {
+    testWidgets('renders 4 navigation destinations aligned with Doctor module styling', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: DonorShell(),
+        ),
+      );
+
+      // Verify exactly 4 NavigationDestination widgets exist in the navigation bar
+      expect(find.byType(NavigationDestination), findsNWidgets(4));
+      final navBar = find.byType(NavigationBar);
+      expect(find.descendant(of: navBar, matching: find.text('Home')), findsOneWidget);
+      expect(find.descendant(of: navBar, matching: find.text('Requests')), findsOneWidget);
+      expect(find.descendant(of: navBar, matching: find.text('My Responses')), findsOneWidget);
+      expect(find.descendant(of: navBar, matching: find.text('History')), findsOneWidget);
+
+      // Verify Profile is in the top AppBar actions
+      expect(find.byTooltip('My Profile'), findsOneWidget);
+    });
+  });
 }
