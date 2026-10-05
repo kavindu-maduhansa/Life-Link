@@ -35,11 +35,33 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   /// The tab that was active before switching to the Donors tab.
   /// Used so the back button returns to the correct previous tab.
   int _previousIndex = 0;
+  
+  /// Accepted donor responses across the open requests. Counted from the
+  /// responses themselves, because the counter stored on each request is
+  /// not updated when a donor accepts from the donor app.
+  int? _acceptedCount;
 
-  @override
+  /// Last tab shown. Used to refresh the count when returning to Home.
+  int _lastIndex = -1;
+
+    @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
+    _lastIndex = widget.initialIndex;
+    _refreshAcceptedCount();
+  }
+
+  Future<void> _refreshAcceptedCount() async {
+    try {
+      final events = await _service.recentResponses();
+      if (!mounted) return;
+      setState(() {
+        _acceptedCount = events.where((e) => e.isAccepted).length;
+      });
+    } catch (_) {
+      // Keep the previous value; the card falls back to the stored counter.
+    }
   }
 
   /// Switches to the Donors tab. Passing a request selects it; passing
@@ -70,6 +92,13 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+      // Re-count when the coordinator returns to the Home tab.
+    if (_selectedIndex == 0 && _lastIndex != 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _refreshAcceptedCount();
+      });
+    }
+    _lastIndex = _selectedIndex;
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
@@ -97,6 +126,8 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
               },
             ),
             OrganisationResponseTrackingScreen(
+              selectedRequest: _selectedRequest,
+            
               onBack: () {
                 setState(() {
                   _selectedIndex = 0;
@@ -131,9 +162,9 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
         final hasError = snapshot.hasError;
         final loading = !snapshot.hasData && !hasError;
 
-        // Donors who accepted across all verified requests
-        // (denormalised counter maintained by the hospital module).
-        final acceptedCount =
+        // Counted from the responses themselves. Until the first count
+        // arrives, fall back to the counter stored on the requests.
+        final acceptedCount = _acceptedCount ??
             requests.fold<int>(0, (sum, r) => sum + r.donorsAcceptedCount);
 
         return SingleChildScrollView(
@@ -374,11 +405,11 @@ class _OrganisationHomeScreenState extends State<OrganisationHomeScreen> {
   // ============================================================
 
   Widget _buildQuickActions(int acceptedCount) {
-    final responsesText = acceptedCount == 0
+        final responsesText = acceptedCount == 0
         ? 'No accepted donor\nresponses yet'
         : acceptedCount == 1
-            ? '1 donor has accepted\nyour requests'
-            : '$acceptedCount donors have accepted\nyour requests';
+            ? '1 accepted donor\nresponse'
+            : '$acceptedCount accepted donor\nresponses';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),

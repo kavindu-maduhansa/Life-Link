@@ -899,7 +899,7 @@ class _OrganisationFindMatchDonorsScreenState
   // NOTIFY
   // ============================================================
 
-  Future<void> _notifyDonor(CoordinatorDonor donor) async {
+    Future<void> _notifyDonor(CoordinatorDonor donor) async {
     final request = _request;
 
     if (request == null) {
@@ -914,19 +914,30 @@ class _OrganisationFindMatchDonorsScreenState
       _sending.add(donor.uid);
     });
 
-    // Show the success popup immediately so the UI flow is never blocked
-    // by backend latency or errors (HCI prototype behaviour).
-    _showNotificationMessage();
-
     try {
       await _service.notifyDonor(request: request, donor: donor);
-    } on StateError catch (e) {
+      if (!mounted) return;
+      _showNotificationMessage();
+    } on StateError {
+      // Already contacted, or the session expired. The service message can
+      // contain the donor's name, so a generic message is shown instead.
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
+        const SnackBar(
+          content: Text(
+            'Could not send. This donor may already be contacted for this '
+            'request, or you may need to sign in again.',
+          ),
+        ),
       );
-    } catch (_) {
-      // Service call failed silently — popup was already shown.
+    } catch (e, st) {
+      debugPrint('notify donor failed: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not send the request. Please try again.'),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {

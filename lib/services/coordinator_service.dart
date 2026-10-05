@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/blood_request.dart';
 import '../utils/donor_availability.dart';
@@ -49,39 +50,6 @@ class CoordinatorDonor {
       availability: DonorAvailabilityReader.read(data),
       lastDonationDate: last is Timestamp ? last.toDate() : null,
     );
-  }
-
-    /// One response per donor. A donor can have two documents for the same
-  /// request: an invitation written by the coordinator and an offer the
-  /// donor made from the Requests tab. Accepted/completed wins; otherwise
-  /// the most recent one wins.
-  static List<DonorResponseRecord> mergeByDonor(
-      List<DonorResponseRecord> records) {
-    bool isAccepted(DonorResponseRecord r) =>
-        r.status == 'accepted' || r.status == 'completed';
-
-    DateTime stamp(DonorResponseRecord r) =>
-        r.respondedAt ??
-        r.notifiedAt ??
-        DateTime.fromMillisecondsSinceEpoch(0);
-
-    final byDonor = <String, DonorResponseRecord>{};
-    for (final r in records) {
-      final current = byDonor[r.donorId];
-      if (current == null) {
-        byDonor[r.donorId] = r;
-        continue;
-      }
-      final currentAccepted = isAccepted(current);
-      final nextAccepted = isAccepted(r);
-      if (nextAccepted && !currentAccepted) {
-        byDonor[r.donorId] = r;
-      } else if (nextAccepted == currentAccepted &&
-          stamp(r).isAfter(stamp(current))) {
-        byDonor[r.donorId] = r;
-      }
-    }
-    return byDonor.values.toList();
   }
 }
 
@@ -266,7 +234,7 @@ class CoordinatorService {
   ///
   /// The donor's phone is intentionally NOT copied into the response.
   /// LifeLink sends no SMS/email/push: the donor sees the request in the app.
-  Future<void> notifyDonor({
+    Future<void> notifyDonor({
     required BloodRequest request,
     required CoordinatorDonor donor,
   }) async {
@@ -292,7 +260,51 @@ class CoordinatorService {
       doctorId: user.uid,
       doctorName: actorName,
     );
+
+    // The invitation now exists. Adding the request details is best effort.
+    await _addRequestDetailsToInvitation(
+      request: request,
+      donorUid: donor.uid,
+    );
   }
+
+  /// The hospital module saves the invitation without a hospital name, so
+  /// the donor app shows a generic "Emergency Blood Request" title. This
+  /// adds a title that says it is a coordinator request, plus the same
+  /// request fields the donor app saves on its own offers. If it fails the
+  /// invitation is still recorded, so the failure is only logged.
+  Future<void> _addRequestDetailsToInvitation({
+    required BloodRequest request,
+    required String donorUid,
+  }) async {
+    try {
+    final snap = await _db
+        .collection('requests')
+        .doc(request.id)
+        .collection('responses')
+        .where('donorId', isEqualTo: donorUid)
+        .get();
+
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      if (data['status'] != 'notified') continue;
+      if (data['hospitalName'] != null ||
+          data['organizationName'] != null) {
+        continue;
+      }
+      await doc.reference.update({
+        'organizationName': 'Coordinator request · ${request.hospitalName}',
+        'requestId': request.id,
+        'requestBloodGroup': request.bloodGroup,
+        'urgency': request.urgency,
+      });
+    }
+  } catch (e) {
+    debugPrint('add request details to invitation failed: $e');
+  }
+}
+
+  
 
   // ------------------------------------------------------------
   // Helpers
