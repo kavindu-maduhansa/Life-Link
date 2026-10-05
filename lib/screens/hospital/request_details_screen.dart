@@ -15,6 +15,7 @@ import '../../widgets/common_states.dart';
 import '../../widgets/request_health_badge.dart';
 import '../../widgets/request_timeline.dart';
 import '../../widgets/entrance_fade_slide.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Full detail view for a single emergency blood request - the
 /// "Emergency Blood Request Verification & Donor Coordination"
@@ -154,9 +155,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
       if (!mounted) return;
       final message = e is StateError
           ? e.message
-          : (e is FirebaseException && e.message != null
-              ? 'Could not notify this donor: ${e.message}'
-              : 'Could not notify this donor: $e');
+          : (e is FirebaseException && e.message != null ? 'Could not notify this donor: ${e.message}' : 'Could not notify this donor: $e');
       showErrorSnack(context, message);
     }
   }
@@ -313,10 +312,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           controller: controller,
           maxLines: 2,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Reminder message',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Reminder message', border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
@@ -325,17 +321,11 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               final message = controller.text.trim();
               Navigator.pop(context);
               _safeRun(
-                () => _service.createFollowUpReminder(
-                  requestId: request.id,
-                  message: message,
-                  doctorId: _doctorId,
-                  doctorName: _doctorName,
-                ),
+                () =>
+                    _service.createFollowUpReminder(requestId: request.id, message: message, doctorId: _doctorId, doctorName: _doctorName),
               );
               if (mounted) {
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(content: Text('Follow-up reminder created')),
-                );
+                ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Follow-up reminder created')));
               }
             },
             child: const Text('Create Reminder'),
@@ -728,20 +718,12 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   // Phase 4 — Safe cancellation for any active request
                   if (RequestStatus.activeStatuses.contains(request.status)) ...[
                     const SizedBox(height: 16),
-                    staggered(
-                      _CancelRequestButton(
-                        onCancel: () => _showCancelDialog(request),
-                      ),
-                    ),
+                    staggered(_CancelRequestButton(onCancel: () => _showCancelDialog(request))),
                   ],
                   // Phase 7 — Follow-up reminder
                   if (RequestStatus.activeStatuses.contains(request.status)) ...[
                     const SizedBox(height: 8),
-                    staggered(
-                      _FollowUpReminderButton(
-                        onPressed: () => _showFollowUpDialog(request),
-                      ),
-                    ),
+                    staggered(_FollowUpReminderButton(onPressed: () => _showFollowUpDialog(request))),
                   ],
                   const SizedBox(height: 16),
                   staggered(_TimelineCard(request: request, responses: responses)),
@@ -788,13 +770,9 @@ class _PatientCaseSummaryCard extends StatelessWidget {
         ? _notProvided
         : '${request.createdAt!.day.toString().padLeft(2, '0')}/${request.createdAt!.month.toString().padLeft(2, '0')}/${request.createdAt!.year}  ${request.createdAt!.hour.toString().padLeft(2, '0')}:${request.createdAt!.minute.toString().padLeft(2, '0')}';
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -997,13 +975,9 @@ class _AssignmentCard extends StatelessWidget {
       ),
     };
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1084,13 +1058,10 @@ class _EscalationCard extends StatelessWidget {
     final current = request.escalationLevel;
     final isClosed = RequestStatus.historyStatuses.contains(request.status);
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: current == EscalationLevel.critical ? colors.critical.withValues(alpha: 0.5) : colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
+      borderColor: current == EscalationLevel.critical ? colors.critical.withValues(alpha: 0.5) : colors.border,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1369,13 +1340,9 @@ class _ChecklistCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1511,13 +1478,9 @@ class _ReVerificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1595,13 +1558,9 @@ class _CoordinationCard extends StatelessWidget {
     final progress = request.unitsNeeded == 0 ? 0.0 : (confirmedUnits / request.unitsNeeded).clamp(0.0, 1.0);
     final remaining = (request.unitsNeeded - confirmedUnits).clamp(0, request.unitsNeeded);
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1851,13 +1810,9 @@ class _TimelineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1887,13 +1842,9 @@ class _AuditTrailCardState extends State<_AuditTrailCard> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

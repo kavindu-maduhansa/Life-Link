@@ -20,6 +20,7 @@ import '../../../widgets/entrance_fade_slide.dart';
 import '../../../widgets/live_pulse_dot.dart';
 import '../../../widgets/pressable_scale.dart';
 import '../../../widgets/skeleton_loader.dart';
+import '../../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// FR08 - Staff verification dashboard.
 ///
@@ -272,10 +273,7 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
             OutlinedButton(
               onPressed: () async {
                 final patient = patientController.text.trim();
@@ -407,10 +405,7 @@ class _VerifyRequestsTabState extends State<VerifyRequestsTab> {
                     child: Container(
                       height: 48,
                       width: 48,
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      decoration: BoxDecoration(color: colors.primary, borderRadius: BorderRadius.circular(12)),
                       child: const Icon(Icons.add_rounded, color: Colors.white),
                     ),
                   ),
@@ -1066,6 +1061,7 @@ class _CriticalHandlingPreview extends StatelessWidget {
         color: colors.critical.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.critical.withValues(alpha: 0.25)),
+        boxShadow: LLNeumorphism.shadows(brightness: Theme.of(context).brightness, elevation: NeumorphicElevationLevel.low),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1212,17 +1208,18 @@ class _PendingRequestCard extends StatelessWidget {
             color: urgencyColor.withValues(alpha: isCritical ? 0.6 : 0.35),
             width: isCritical ? 1.5 : 1,
           ),
+          boxShadow: LLNeumorphism.shadows(
+            brightness: Theme.of(context).brightness,
+            elevation: isCritical ? NeumorphicElevationLevel.raised : NeumorphicElevationLevel.card,
+          ),
+          gradient: LLNeumorphism.convexGradient(
+            brightness: Theme.of(context).brightness,
+            baseColor: isCritical ? urgencyColor.withValues(alpha: 0.05) : colors.surface,
+          ),
         ),
         child: Stack(
           children: [
-            if (isCritical)
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 4,
-                child: Container(color: urgencyColor),
-              ),
+            if (isCritical) Positioned(left: 0, top: 0, bottom: 0, width: 4, child: Container(color: urgencyColor)),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(

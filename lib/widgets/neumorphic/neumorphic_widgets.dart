@@ -111,6 +111,8 @@ class NeumorphicCard extends StatefulWidget {
     this.emphasised = false,
     this.elevation = NeumorphicElevationLevel.card,
     this.color,
+    this.borderColor,
+    this.borderWidth = 1.0,
     this.onTap,
   });
 
@@ -122,6 +124,8 @@ class NeumorphicCard extends StatefulWidget {
   final bool emphasised;
   final NeumorphicElevationLevel elevation;
   final Color? color;
+  final Color? borderColor;
+  final double borderWidth;
   final VoidCallback? onTap;
 
   @override
@@ -136,15 +140,18 @@ class _NeumorphicCardState extends State<NeumorphicCard> {
     final colors = context.colors;
     final radius = widget.borderRadius ?? BorderRadius.circular(LLRadius.card);
 
-    final borderColor = widget.emphasised && widget.tone != null
-        ? widget.tone!.resolve(context).$1.withValues(alpha: 0.55)
-        : colors.border;
+    final resolvedBorderColor =
+        widget.borderColor ??
+        (widget.emphasised && widget.tone != null
+            ? widget.tone!.resolve(context).$1.withValues(alpha: 0.55)
+            : colors.border);
 
     final card = NeumorphicSurface(
       elevation: _isDown ? NeumorphicElevationLevel.low : widget.elevation,
       borderRadius: radius,
       color: widget.color ?? colors.surface,
-      borderColor: borderColor,
+      borderColor: resolvedBorderColor,
+      borderWidth: widget.borderWidth,
       padding: widget.padding,
       margin: widget.margin,
       isPressed: _isDown,
