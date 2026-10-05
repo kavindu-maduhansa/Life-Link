@@ -208,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // App Title & Tagline
                     Text(
-                      'Blood Donation HCI',
+                      'Life Link',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 26,
