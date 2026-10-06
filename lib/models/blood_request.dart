@@ -124,6 +124,14 @@ class BloodRequest {
   final String? preferredUpdateMethod;
   final int verifiedDonorsCount;
 
+  // Phase 4 — cancellation fields (additive, backward compatible)
+  final String? cancellationReason;
+  final String? cancelledBy;
+  final DateTime? cancelledAt;
+
+  // Phase 5 — review/acknowledgement fields (additive, backward compatible)
+  final List<String> reviewedBy;
+
   const BloodRequest({
     this.id = '',
     required this.patientName,
@@ -179,6 +187,10 @@ class BloodRequest {
     this.contactNumber,
     this.preferredUpdateMethod,
     this.verifiedDonorsCount = 0,
+    this.cancellationReason,
+    this.cancelledBy,
+    this.cancelledAt,
+    this.reviewedBy = const [],
   });
 
   int get unitsRemaining => (unitsNeeded - unitsConfirmed).clamp(0, unitsNeeded);
@@ -215,8 +227,8 @@ class BloodRequest {
       id: id,
       patientName: (data['patientName'] as String?)?.trim().isNotEmpty == true ? data['patientName'] as String : 'Unknown Patient',
       bloodGroup: data['bloodGroup'] as String? ?? '-',
-      unitsNeeded: (data['unitsNeeded'] as num?)?.toInt() ?? (data['requiredUnits'] as num?)?.toInt() ?? 1,
-      urgency: data['urgency'] as String? ?? data['urgencyLevel'] as String? ?? 'Normal',
+      unitsNeeded: _toInt(data['unitsNeeded'] ?? data['requiredUnits'], 1),
+      urgency: _normalizeUrgency(data['urgency'] ?? data['urgencyLevel']),
       hospitalName: data['hospitalName'] as String? ?? '-',
       location: data['location'] as String? ?? data['hospitalLocation'] as String? ?? '-',
       notes: (data['notes'] ?? data['description'] ?? data['reason']) as String? ?? '',
@@ -228,9 +240,9 @@ class BloodRequest {
       rejectionReason: data['rejectionReason'] as String?,
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),
-      unitsConfirmed: (data['unitsConfirmed'] as num?)?.toInt() ?? 0,
-      donorsNotifiedCount: (data['donorsNotifiedCount'] as num?)?.toInt() ?? 0,
-      donorsAcceptedCount: (data['donorsAcceptedCount'] as num?)?.toInt() ?? 0,
+      unitsConfirmed: _toInt(data['unitsConfirmed'], 0),
+      donorsNotifiedCount: _toInt(data['donorsNotifiedCount'], 0),
+      donorsAcceptedCount: _toInt(data['donorsAcceptedCount'], 0),
       pinnedBy: (data['pinnedBy'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       firstApproverId: data['firstApproverId'] as String?,
       firstApproverName: data['firstApproverName'] as String?,
@@ -254,7 +266,7 @@ class BloodRequest {
       escalationNote: _text(data['escalationNote']),
       requestType: data['requestType'] as String?,
       requestingFor: data['requestingFor'] as String?,
-      patientAge: (data['patientAge'] as num?)?.toInt(),
+      patientAge: _toNullableInt(data['patientAge']),
       relationship: data['relationship'] as String?,
       patientId: _text(data['patientId']) ?? _text(data['patientReference']),
       reason: _text(data['reason']) ?? _text(data['notes']) ?? _text(data['description']),
@@ -265,7 +277,11 @@ class BloodRequest {
       bloodNeededBy: _text(data['bloodNeededBy']),
       contactNumber: _text(data['contactNumber']) ?? _text(data['contactExtension']),
       preferredUpdateMethod: _text(data['preferredUpdateMethod']),
-      verifiedDonorsCount: (data['verifiedDonorsCount'] as num?)?.toInt() ?? 0,
+      verifiedDonorsCount: _toInt(data['verifiedDonorsCount'], 0),
+      cancellationReason: data['cancellationReason'] as String?,
+      cancelledBy: data['cancelledBy'] as String?,
+      cancelledAt: _toDate(data['cancelledAt']),
+      reviewedBy: (data['reviewedBy'] as List?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
 
@@ -379,6 +395,10 @@ class BloodRequest {
     String? contactNumber,
     String? preferredUpdateMethod,
     int? verifiedDonorsCount,
+    String? cancellationReason,
+    String? cancelledBy,
+    DateTime? cancelledAt,
+    List<String>? reviewedBy,
   }) {
     return BloodRequest(
       id: id ?? this.id,
@@ -435,6 +455,10 @@ class BloodRequest {
       contactNumber: contactNumber ?? this.contactNumber,
       preferredUpdateMethod: preferredUpdateMethod ?? this.preferredUpdateMethod,
       verifiedDonorsCount: verifiedDonorsCount ?? this.verifiedDonorsCount,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
+      cancelledBy: cancelledBy ?? this.cancelledBy,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
+      reviewedBy: reviewedBy ?? this.reviewedBy,
     );
   }
 
@@ -453,6 +477,35 @@ class BloodRequest {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     return null;
+  }
+
+  /// Safely extracts an integer from [num] or [String]; falls back to [fallback]
+  /// for null, invalid types, or unparseable values.
+  static int _toInt(Object? value, [int fallback = 0]) {
+    if (value is num) return value.toInt();
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      if (parsed != null) return parsed;
+    }
+    return fallback;
+  }
+
+  /// Safely extracts a nullable integer from [num] or [String].
+  static int? _toNullableInt(Object? value) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  /// Normalizes urgency strings (case-insensitive) to canonical capitalized forms
+  /// ('Critical', 'High', 'Normal') matching UrgencyLevel.
+  static String _normalizeUrgency(dynamic val) {
+    if (val == null) return 'Normal';
+    final s = val.toString().trim().toLowerCase();
+    if (s == 'critical') return 'Critical';
+    if (s == 'high') return 'High';
+    if (s == 'normal' || s == 'standard' || s == 'low') return 'Normal';
+    return s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : 'Normal';
   }
 }
 

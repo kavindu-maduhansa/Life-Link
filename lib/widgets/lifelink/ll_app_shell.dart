@@ -22,7 +22,12 @@ import 'll_nav.dart';
 /// each screen's scroll position and open Firestore subscriptions rather
 /// than rebuilding them.
 class LLAppShell extends StatefulWidget {
-  const LLAppShell({super.key, required this.nav, this.initialIndex = 0, this.banner});
+  const LLAppShell({
+    super.key,
+    required this.nav,
+    this.initialIndex = 0,
+    this.banner,
+  });
 
   final LLRoleNav nav;
   final int initialIndex;
@@ -37,7 +42,10 @@ class LLAppShell extends StatefulWidget {
 }
 
 class _LLAppShellState extends State<LLAppShell> {
-  late int _index = widget.initialIndex.clamp(0, widget.nav.destinations.length - 1);
+  late int _index = widget.initialIndex.clamp(
+    0,
+    widget.nav.destinations.length - 1,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +62,10 @@ class _LLAppShellState extends State<LLAppShell> {
         Expanded(
           child: IndexedStack(
             index: _index,
-            children: [for (final destination in destinations) destination.builder(context)],
+            children: [
+              for (final destination in destinations)
+                destination.builder(context),
+            ],
           ),
         ),
       ],
@@ -64,7 +75,9 @@ class _LLAppShellState extends State<LLAppShell> {
       backgroundColor: colors.background,
       appBar: LLAppBar(
         roleLabel: widget.nav.roleLabel,
-        title: destinations.isEmpty ? widget.nav.roleLabel : destinations[_index].label,
+        title: destinations.isEmpty
+            ? widget.nav.roleLabel
+            : destinations[_index].label,
         actions: widget.nav.actions,
       ),
       body: isWide && widget.nav.hasNavigation
@@ -73,12 +86,28 @@ class _LLAppShellState extends State<LLAppShell> {
                 NavigationRail(
                   selectedIndex: _index,
                   onDestinationSelected: (i) => setState(() => _index = i),
+                  backgroundColor: colors.surface,
+                  indicatorColor: colors.primary.withValues(alpha: 0.15),
                   labelType: NavigationRailLabelType.all,
+                  selectedIconTheme: IconThemeData(color: colors.primary),
+                  unselectedIconTheme: IconThemeData(
+                    color: colors.textSecondary,
+                  ),
+                  selectedLabelTextStyle: TextStyle(
+                    color: colors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  unselectedLabelTextStyle: TextStyle(
+                    color: colors.textSecondary,
+                  ),
                   destinations: [
                     for (final d in destinations)
                       NavigationRailDestination(
                         icon: Icon(d.icon),
-                        selectedIcon: Icon(d.selectedIcon),
+                        selectedIcon: Icon(
+                          d.selectedIcon,
+                          color: colors.primary,
+                        ),
                         label: Text(d.label),
                       ),
                   ],
@@ -89,18 +118,67 @@ class _LLAppShellState extends State<LLAppShell> {
             )
           : content,
       bottomNavigationBar: !isWide && widget.nav.hasNavigation
-          ? NavigationBar(
-              selectedIndex: _index,
-              onDestinationSelected: (i) => setState(() => _index = i),
-              destinations: [
-                for (final d in destinations)
-                  NavigationDestination(
-                    icon: Icon(d.icon),
-                    selectedIcon: Icon(d.selectedIcon),
-                    label: d.label,
-                    tooltip: d.tooltip ?? d.label,
+          ? Container(
+              decoration: BoxDecoration(
+                color: colors.surface,
+                border: Border(top: BorderSide(color: colors.border)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.black.withValues(alpha: 0.5)
+                        : colors.darkShadow.withValues(alpha: 0.08),
+                    offset: const Offset(0, -3),
+                    blurRadius: 8,
                   ),
-              ],
+                ],
+              ),
+              child: NavigationBarTheme(
+                data: NavigationBarThemeData(
+                  backgroundColor: colors.surface,
+                  surfaceTintColor: Colors.transparent,
+                  indicatorColor: colors.primaryContainer,
+                  indicatorShape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  iconTheme: WidgetStateProperty.resolveWith(
+                    (states) => IconThemeData(
+                      color: states.contains(WidgetState.selected)
+                          ? colors.primary
+                          : colors.textSecondary,
+                    ),
+                  ),
+                  labelTextStyle: WidgetStateProperty.resolveWith(
+                    (states) => TextStyle(
+                      fontSize: 12,
+                      fontWeight: states.contains(WidgetState.selected)
+                          ? FontWeight.bold
+                          : FontWeight.w500,
+                      color: states.contains(WidgetState.selected)
+                          ? colors.primary
+                          : colors.textSecondary,
+                    ),
+                  ),
+                ),
+                child: NavigationBar(
+                  selectedIndex: _index,
+                  onDestinationSelected: (i) => setState(() => _index = i),
+                  backgroundColor: colors.surface,
+                  surfaceTintColor: Colors.transparent,
+                  indicatorColor: colors.primaryContainer,
+                  destinations: [
+                    for (final d in destinations)
+                      NavigationDestination(
+                        icon: Icon(d.icon),
+                        selectedIcon: Icon(
+                          d.selectedIcon,
+                          color: colors.primary,
+                        ),
+                        label: d.label,
+                        tooltip: d.tooltip ?? d.label,
+                      ),
+                  ],
+                ),
+              ),
             )
           : null,
     );
@@ -115,7 +193,12 @@ class _LLAppShellState extends State<LLAppShell> {
 /// both learned from a real overflow bug on a narrow phone, where an
 /// unconstrained title wrapped to one character per line.
 class LLAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const LLAppBar({super.key, required this.roleLabel, required this.title, this.actions = const []});
+  const LLAppBar({
+    super.key,
+    required this.roleLabel,
+    required this.title,
+    this.actions = const [],
+  });
 
   final String roleLabel;
   final String title;
@@ -130,10 +213,20 @@ class LLAppBar extends StatelessWidget implements PreferredSizeWidget {
     final compact = LLBreakpoints.isCompact(context);
 
     final primary = actions.where((a) => a.isPrimary || !compact).toList();
-    final overflow = compact ? actions.where((a) => !a.isPrimary).toList() : const <LLAppBarAction>[];
+    final overflow = compact
+        ? actions.where((a) => !a.isPrimary).toList()
+        : const <LLAppBarAction>[];
 
     return AppBar(
       titleSpacing: LLSpacing.md,
+      backgroundColor: colors.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1.0),
+        child: Container(color: colors.border, height: 1.0),
+      ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -149,14 +242,22 @@ class LLAppBar extends StatelessWidget implements PreferredSizeWidget {
                   maxLines: 1,
                   softWrap: false,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                  ),
                 ),
                 Text(
                   roleLabel,
                   maxLines: 1,
                   softWrap: false,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: colors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: colors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -165,11 +266,20 @@ class LLAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         for (final action in primary)
-          IconButton(tooltip: action.tooltip, icon: Icon(action.icon), onPressed: action.onPressed),
+          IconButton(
+            tooltip: action.tooltip,
+            icon: Icon(action.icon),
+            color: colors.textSecondary,
+            onPressed: action.onPressed,
+          ),
         if (overflow.isNotEmpty)
           PopupMenuButton<int>(
             tooltip: 'More actions',
-            icon: const Icon(Icons.more_vert_rounded),
+            icon: Icon(Icons.more_vert_rounded, color: colors.textSecondary),
+            color: colors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(LLRadius.control),
+            ),
             onSelected: (i) => overflow[i].onPressed(),
             itemBuilder: (context) => [
               for (var i = 0; i < overflow.length; i++)
@@ -178,8 +288,14 @@ class LLAppBar extends StatelessWidget implements PreferredSizeWidget {
                   child: ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(overflow[i].icon),
-                    title: Text(overflow[i].tooltip),
+                    leading: Icon(
+                      overflow[i].icon,
+                      color: colors.textSecondary,
+                    ),
+                    title: Text(
+                      overflow[i].tooltip,
+                      style: TextStyle(color: colors.textPrimary),
+                    ),
                   ),
                 ),
             ],

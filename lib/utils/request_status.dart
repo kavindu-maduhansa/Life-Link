@@ -16,9 +16,10 @@ class RequestStatus {
   static const fulfilled = 'fulfilled';
   static const rejected = 'rejected';
   static const expired = 'expired';
+  static const cancelled = 'cancelled';
 
   static const List<String> activeStatuses = [pending, verified, matched];
-  static const List<String> historyStatuses = [fulfilled, rejected, expired];
+  static const List<String> historyStatuses = [fulfilled, rejected, expired, cancelled];
 
   /// Allowed forward transitions for the Doctor-driven part of the
   /// workflow (operational validation only - see #20). Rejected and
@@ -26,12 +27,13 @@ class RequestStatus {
   /// become active again; a rejected request can only move forward
   /// through the explicit re-verification flow (back to `pending`).
   static const Map<String, List<String>> _allowedTransitions = {
-    pending: [verified, rejected],
-    verified: [matched, rejected],
-    matched: [verified, fulfilled], // verified = donor declined, back to search
+    pending: [verified, rejected, cancelled],
+    verified: [matched, rejected, cancelled],
+    matched: [verified, fulfilled, cancelled], // verified = donor declined, back to search
     fulfilled: [],
     rejected: [pending], // re-verification workflow only
     expired: [pending],
+    cancelled: [], // terminal state — soft-deleted
   };
 
   static bool isValidTransition(String from, String to) {
@@ -53,6 +55,8 @@ class RequestStatus {
         return 'Rejected';
       case expired:
         return 'Expired';
+      case cancelled:
+        return 'Cancelled';
       default:
         return status;
     }
@@ -72,6 +76,8 @@ class RequestStatus {
         return const Color(0xFF6B7280); // grey
       case expired:
         return const Color(0xFF9CA3AF);
+      case cancelled:
+        return const Color(0xFF9E9E9E); // muted grey
       default:
         return const Color(0xFF6B7280);
     }
@@ -91,6 +97,8 @@ class RequestStatus {
         return Icons.cancel_rounded;
       case expired:
         return Icons.event_busy_rounded;
+      case cancelled:
+        return Icons.block_rounded;
       default:
         return Icons.info_outline_rounded;
     }
@@ -105,10 +113,10 @@ class UrgencyLevel {
   static const List<String> all = [critical, high, normal];
 
   static Color color(String urgency) {
-    switch (urgency) {
-      case critical:
+    switch (urgency.trim().toLowerCase()) {
+      case 'critical':
         return const Color(0xFFC62828);
-      case high:
+      case 'high':
         return const Color(0xFFEF6C00);
       default:
         return const Color(0xFF2E7D32);
@@ -118,10 +126,10 @@ class UrgencyLevel {
   /// Sort weight so critical requests can be surfaced first
   /// (lower = higher priority).
   static int weight(String urgency) {
-    switch (urgency) {
-      case critical:
+    switch (urgency.trim().toLowerCase()) {
+      case 'critical':
         return 0;
-      case high:
+      case 'high':
         return 1;
       default:
         return 2;
@@ -216,7 +224,7 @@ class RequestHealth {
     required int unitsNeeded,
     required int unitsConfirmed,
   }) {
-    if ([RequestStatus.fulfilled, RequestStatus.rejected, RequestStatus.expired].contains(status)) {
+    if ([RequestStatus.fulfilled, RequestStatus.rejected, RequestStatus.expired, RequestStatus.cancelled].contains(status)) {
       return onTrack;
     }
     final fullyConfirmed = unitsNeeded > 0 && unitsConfirmed >= unitsNeeded;
@@ -268,7 +276,7 @@ class RequestHealth {
     final coveragePct = unitsNeeded <= 0 ? 0 : ((unitsConfirmed / unitsNeeded) * 100).clamp(0, 100).round();
     final waitingLabel = WaitingTime.format(createdAt);
 
-    if ([RequestStatus.fulfilled, RequestStatus.rejected, RequestStatus.expired].contains(status)) {
+    if ([RequestStatus.fulfilled, RequestStatus.rejected, RequestStatus.expired, RequestStatus.cancelled].contains(status)) {
       return ['Request is closed (${RequestStatus.label(status)}) - no longer tracked for waiting time.'];
     }
     if (unitsNeeded > 0 && unitsConfirmed >= unitsNeeded) {

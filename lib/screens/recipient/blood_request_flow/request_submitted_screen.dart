@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'my_requests_screen.dart';
 
+import '../../../theme/app_colors.dart';
+import '../../../theme/lifelink_design.dart';
+import '../../../widgets/neumorphic/neumorphic_widgets.dart';
+
 /// Request submitted confirmation screen (HF 08)
 class RequestSubmittedScreen extends StatefulWidget {
   final String requestId;
@@ -20,13 +24,19 @@ class RequestSubmittedScreen extends StatefulWidget {
 class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828);
+    final colors = context.colors;
 
     return Scaffold(
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Request Submitted'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Request Submitted',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: colors.surface,
+        foregroundColor: colors.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -36,11 +46,18 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: CircularProgressIndicator(color: colors.primary),
+            );
           }
 
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Request not found'));
+            return Center(
+              child: Text(
+                'Request not found',
+                style: TextStyle(color: colors.textSecondary, fontSize: 16),
+              ),
+            );
           }
 
           final data = snapshot.data!.data();
@@ -50,28 +67,26 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                // Success Icon
-                Container(
+                // Success Icon with dual soft shadows
+                NeumorphicSurface(
+                  borderRadius: BorderRadius.circular(50),
+                  elevation: NeumorphicElevationLevel.raised,
                   padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.check_circle_rounded,
-                    size: 80,
-                    color: Colors.green,
+                    size: 72,
+                    color: colors.success,
                   ),
                 ),
                 const SizedBox(height: 24),
 
                 // Success Message
-                const Text(
+                Text(
                   'Request Submitted Successfully!',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
+                    color: colors.textPrimary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -80,52 +95,57 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
                   widget.isEmergency
                       ? 'Your emergency blood request has been submitted and is being processed.'
                       : 'Your blood request has been submitted successfully.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF6B7280),
+                    color: colors.textSecondary,
+                    height: 1.4,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
                 // Status Cards
                 _buildStatusCard(
+                  context: context,
                   icon: Icons.people_rounded,
-                  title: '$verifiedDonorsCount Competitive Donors Verified',
+                  title: '$verifiedDonorsCount Compatible Donors Verified',
                   description:
                       'Donors matching your blood group have been identified',
-                  color: Colors.blue,
+                  color: colors.accent,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 _buildStatusCard(
+                  context: context,
                   icon: Icons.send_rounded,
                   title: 'Request Submitted',
                   description: 'Your request has been sent to the coordinator',
-                  color: Colors.green,
+                  color: colors.success,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 _buildStatusCard(
+                  context: context,
                   icon: Icons.notifications_active_rounded,
                   title: 'Donors Automatically Notified',
                   description: 'Matching donors will receive notifications',
-                  color: Colors.orange,
+                  color: colors.warning,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 _buildStatusCard(
+                  context: context,
                   icon: Icons.medical_services_rounded,
                   title: 'Awaiting Doctor Verification',
                   description: 'A doctor will verify the request details',
-                  color: Colors.purple,
+                  color: colors.primary,
                 ),
                 const SizedBox(height: 32),
 
                 // View Requests Button
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: NeumorphicButton(
                     onPressed: () {
                       Navigator.pushAndRemoveUntil(
                         context,
@@ -135,24 +155,19 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
                         (route) => false,
                       );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                    isPrimary: true,
+                    height: 52,
                     child: const Text(
                       'View My Requests',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
 
                 // Home Button
                 SizedBox(
@@ -162,12 +177,14 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
                       Navigator.popUntil(context, (route) => route.isFirst);
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: primaryColor,
+                      foregroundColor: colors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(LLRadius.control),
                       ),
-                      side: const BorderSide(color: primaryColor),
+                      side: BorderSide(
+                        color: colors.primary.withValues(alpha: 0.5),
+                      ),
                     ),
                     child: const Text(
                       'Back to Home',
@@ -187,55 +204,47 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
   }
 
   Widget _buildStatusCard({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String description,
     required Color color,
   }) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: color.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 24),
+    final colors = context.colors;
+    return NeumorphicCard(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937),
-                    ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6B7280),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

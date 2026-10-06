@@ -1,6 +1,7 @@
 // FirebaseException (used to tell a permission-denied read apart from a
 // connection failure) is re-exported by firebase_auth, so cloud_firestore
 // does not need importing here.
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -9,6 +10,7 @@ import '../../services/request_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/stock_readiness.dart';
 import '../../widgets/entrance_fade_slide.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Blood Stock Readiness - what is actually on the shelf, per blood
 /// group and component, so staff can see whether the units are already
@@ -50,7 +52,17 @@ class _BloodStockScreenState extends State<BloodStockScreen> {
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(title: const Text('Blood Stock Readiness', maxLines: 1, overflow: TextOverflow.ellipsis)),
+      appBar: AppBar(
+        title: const Text('Blood Stock Readiness', maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(
+            tooltip: 'Stock change history',
+            icon: const Icon(Icons.history_rounded),
+            onPressed: () =>
+                showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (_) => const _StockTransactionHistory()),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           _StockFilters(
@@ -133,16 +145,11 @@ class _StockLineCardState extends State<StockLineCard> {
     final verdict = StockReadiness.verdictFor(widget.item);
     final (Color tone, Color container, IconData icon) = _toneFor(verdict.level, colors);
 
-    return Container(
+    return NeumorphicCard(
       padding: EdgeInsets.all(widget.compact ? 11 : 14),
-      decoration: BoxDecoration(
-        // Stock cards stay on the white surface; only the status badge
-        // carries the tint, so a shelf full of warnings never becomes a
-        // wall of solid red.
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: verdict.level.isCritical ? tone.withValues(alpha: 0.55) : colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.low,
+      borderRadius: BorderRadius.circular(14),
+      borderColor: verdict.level.isCritical ? tone.withValues(alpha: 0.55) : colors.border,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -303,13 +310,9 @@ class _BloodStockReadinessCardState extends State<BloodStockReadinessCard> {
             ? snapshot.data!.where((i) => StockReadiness.verdictFor(i).needsAttention).take(2).toList()
             : const <BloodInventoryItem>[];
 
-        return Container(
+        return NeumorphicCard(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.border),
-          ),
+          elevation: NeumorphicElevationLevel.card,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -733,17 +736,36 @@ class _StockUpdateSheetState extends State<_StockUpdateSheet> {
 
     setState(() => _saving = true);
     try {
+      final facilityId = _facilityController.text.trim();
+      final available = int.tryParse(_availableController.text.trim()) ?? 0;
+      final doctorId = user.uid;
+      final doctorName = user.displayName ?? user.email ?? 'Staff';
+
       await RequestService.instance.upsertInventoryLine(
-        facilityId: _facilityController.text.trim(),
+        facilityId: facilityId,
         bloodGroup: _group,
         component: _component,
-        availableUnits: int.tryParse(_availableController.text.trim()) ?? 0,
+        availableUnits: available,
         reservedUnits: int.tryParse(_reservedController.text.trim()) ?? 0,
         minimumThreshold: int.tryParse(_minimumController.text.trim()) ?? 0,
         expiryRiskUnits: int.tryParse(_expiryController.text.trim()) ?? 0,
-        doctorId: user.uid,
-        doctorName: user.displayName ?? user.email ?? 'Staff',
+        doctorId: doctorId,
+        doctorName: doctorName,
       );
+
+      // Phase 6 — Record the stock transaction in the audit-style
+      // stockTransactions collection so every change is traceable.
+      await RequestService.instance.createStockTransaction(
+        facilityId: facilityId,
+        bloodGroup: _group,
+        component: _component,
+        transactionType: 'stock_update',
+        quantity: available,
+        doctorId: doctorId,
+        doctorName: doctorName,
+        note: 'Stock line updated via Update Stock sheet',
+      );
+
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Stock line saved.')));
@@ -851,5 +873,177 @@ class _NumberField extends StatelessWidget {
         return null;
       },
     );
+  }
+}
+
+// ---------------------------------------------------------------
+// Stock Transaction History  (Phase 6 — CREATE trail for stock)
+// ---------------------------------------------------------------
+
+/// Bottom sheet showing a live Firestore stream of the
+/// `stockTransactions` collection, so every stock change is traceable.
+class _StockTransactionHistory extends StatelessWidget {
+  const _StockTransactionHistory();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65,
+      minChildSize: 0.3,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Row(
+                children: [
+                  Icon(Icons.history_rounded, size: 18, color: colors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Stock Change History',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                    ),
+                  ),
+                  IconButton(icon: const Icon(Icons.close_rounded, size: 20), onPressed: () => Navigator.pop(context)),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: RequestService.instance.stockTransactionsStream(limit: 50),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text(
+                        'Could not load history.\n${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
+                      ),
+                    );
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final docs = snapshot.data!.docs;
+                  if (docs.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.history_rounded, size: 36, color: colors.textSecondary),
+                          const SizedBox(height: 10),
+                          Text('No stock transactions recorded yet.', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                    itemCount: docs.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (context, index) {
+                      final data = docs[index].data();
+                      final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+                      final bloodGroup = data['bloodGroup'] as String? ?? '?';
+                      final component = data['component'] as String? ?? '';
+                      final type = data['transactionType'] as String? ?? 'unknown';
+                      final quantity = data['quantity'] as int? ?? 0;
+                      final doctorName = data['doctorName'] as String? ?? 'Staff';
+                      final note = data['note'] as String?;
+
+                      return EntranceFadeSlide(
+                        delay: Duration(milliseconds: 20 * index.clamp(0, 10)),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: colors.border),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(color: colors.primaryContainer, borderRadius: BorderRadius.circular(9)),
+                                child: Text(
+                                  bloodGroup,
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: colors.primary),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$component — ${_transactionLabel(type)} ($quantity units)',
+                                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'by $doctorName${createdAt != null ? ' · ${_formatDate(createdAt)}' : ''}',
+                                      style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                                    ),
+                                    if (note != null && note.isNotEmpty) ...[
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        note,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: colors.textSecondary),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static String _transactionLabel(String type) {
+    switch (type) {
+      case 'stock_update':
+        return 'Updated';
+      case 'stock_add':
+        return 'Added';
+      case 'stock_remove':
+        return 'Removed';
+      case 'stock_reserve':
+        return 'Reserved';
+      case 'stock_release':
+        return 'Released';
+      default:
+        return type;
+    }
+  }
+
+  static String _formatDate(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 }

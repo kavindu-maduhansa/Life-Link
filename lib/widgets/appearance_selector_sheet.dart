@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/theme_controller.dart';
 import '../theme/app_colors.dart';
+import '../theme/lifelink_design.dart';
 
 /// Polished Light / Dark / System appearance picker, shown as a modal
 /// bottom sheet. Reusable from any Doctor screen's profile/settings
@@ -35,7 +36,9 @@ class AppearanceSelectorSheet extends StatelessWidget {
               children: [
                 Text(
                   'Appearance',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -47,7 +50,8 @@ class AppearanceSelectorSheet extends StatelessWidget {
                   icon: Icons.light_mode_rounded,
                   label: 'Light',
                   selected: current == ThemeMode.light,
-                  onTap: () => ThemeController.instance.setMode(ThemeMode.light),
+                  onTap: () =>
+                      ThemeController.instance.setMode(ThemeMode.light),
                 ),
                 const SizedBox(height: 10),
                 _AppearanceOption(
@@ -62,7 +66,8 @@ class AppearanceSelectorSheet extends StatelessWidget {
                   label: 'System',
                   subtitle: 'Follows your device setting',
                   selected: current == ThemeMode.system,
-                  onTap: () => ThemeController.instance.setMode(ThemeMode.system),
+                  onTap: () =>
+                      ThemeController.instance.setMode(ThemeMode.system),
                 ),
               ],
             ),
@@ -91,15 +96,34 @@ class _AppearanceOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final brightness = Theme.of(context).brightness;
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? colors.primary.withValues(alpha: 0.12) : colors.elevatedSurface,
+          color: selected ? colors.primaryContainer : colors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: selected ? colors.primary : colors.border),
+          border: Border.all(
+            color: selected ? colors.primary : colors.border,
+            width: selected ? 1.5 : 1.0,
+          ),
+          boxShadow: selected
+              ? const []
+              : LLNeumorphism.shadows(
+                  brightness: brightness,
+                  elevation: NeumorphicElevationLevel.low,
+                ),
+          gradient: selected
+              ? LLNeumorphism.concaveGradient(
+                  brightness: brightness,
+                  baseColor: colors.primaryContainer,
+                )
+              : LLNeumorphism.convexGradient(
+                  brightness: brightness,
+                  baseColor: colors.surface,
+                ),
         ),
         child: Row(
           children: [
@@ -117,11 +141,18 @@ class _AppearanceOption extends StatelessWidget {
                     ),
                   ),
                   if (subtitle != null)
-                    Text(subtitle!, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                 ],
               ),
             ),
-            if (selected) Icon(Icons.check_circle_rounded, color: colors.primary),
+            if (selected)
+              Icon(Icons.check_circle_rounded, color: colors.primary),
           ],
         ),
       ),

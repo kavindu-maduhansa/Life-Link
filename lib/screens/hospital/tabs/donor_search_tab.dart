@@ -11,6 +11,7 @@ import '../../../widgets/common_states.dart';
 import '../../../widgets/entrance_fade_slide.dart';
 import '../../../widgets/pressable_scale.dart';
 import '../../../widgets/skeleton_loader.dart';
+import '../../../theme/neumorphic_theme.dart';
 
 /// FR09 - Donor availability search, upgraded into a professional
 /// donor-matching workspace.
@@ -1117,7 +1118,8 @@ class _DonorCard extends StatelessWidget {
             color: compareSelected ? colors.primary : (tier != null ? tier.color(colors).withValues(alpha: 0.5) : colors.border),
             width: compareSelected ? 1.8 : (tier != null ? 1.4 : 1),
           ),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3))],
+          boxShadow: LLNeumorphism.shadows(brightness: Theme.of(context).brightness, elevation: NeumorphicElevationLevel.card),
+          gradient: LLNeumorphism.convexGradient(brightness: Theme.of(context).brightness, baseColor: colors.surface),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1481,15 +1483,29 @@ class _DonorCard extends StatelessWidget {
               onPressed: (selectedGroup == null || locationController.text.trim().isEmpty)
                   ? null
                   : () async {
-                      final doctor = FirebaseAuth.instance.currentUser;
-                      await FirebaseFirestore.instance.collection('users').doc(donorId).update({
-                        'bloodGroup': selectedGroup,
-                        'location': locationController.text.trim(),
-                        'verified': true,
-                        'verifiedBy': doctor?.email ?? 'Hospital Staff',
-                        'verifiedAt': FieldValue.serverTimestamp(),
-                      });
-                      if (context.mounted) Navigator.pop(context);
+                      try {
+                        final doctor = FirebaseAuth.instance.currentUser;
+                        await FirebaseFirestore.instance.collection('users').doc(donorId).update({
+                          'bloodGroup': selectedGroup,
+                          'location': locationController.text.trim(),
+                          'verified': true,
+                          'verifiedBy': doctor?.email ?? 'Hospital Staff',
+                          'verifiedAt': FieldValue.serverTimestamp(),
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        });
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Donor verified successfully.')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Could not verify donor: $e')),
+                          );
+                        }
+                      }
                     },
               child: const Text('Confirm Verification'),
             ),

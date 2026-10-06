@@ -5,6 +5,7 @@ import 'blood_request_details_screen.dart';
 
 import '../../theme/app_colors.dart';
 import '../../utils/request_status.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Screen displaying active emergency blood requests for donors in real time.
 class EmergencyRequestsScreen extends StatefulWidget {
@@ -31,7 +32,20 @@ class EmergencyRequestsScreen extends StatefulWidget {
 
     if (date == null) return 'Date not specified';
 
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
 
     final monthStr = months[date.month - 1];
     final dayStr = date.day.toString().padLeft(2, '0');
@@ -79,7 +93,13 @@ class EmergencyRequestsScreen extends StatefulWidget {
       return false;
     }
 
-    const activeStatuses = {'verified', 'matched', 'active', 'open', 'approved'};
+    const activeStatuses = {
+      'verified',
+      'matched',
+      'active',
+      'open',
+      'approved',
+    };
     if (activeStatuses.contains(status)) return true;
     if (status.startsWith('verified') ||
         status.startsWith('matched') ||
@@ -94,7 +114,10 @@ class EmergencyRequestsScreen extends StatefulWidget {
   /// Takes a [BuildContext] so the badge colours come from the active
   /// theme. It previously returned hard-coded light-mode literals, which
   /// is why this screen had no Dark Mode.
-  static UrgencyBadgeConfig getUrgencyConfig(BuildContext context, dynamic rawUrgency) {
+  static UrgencyBadgeConfig getUrgencyConfig(
+    BuildContext context,
+    dynamic rawUrgency,
+  ) {
     final colors = context.colors;
     final urgency = rawUrgency?.toString().trim().toLowerCase() ?? '';
 
@@ -140,7 +163,8 @@ class EmergencyRequestsScreen extends StatefulWidget {
           icon: Icons.info_outline_rounded,
         );
       default:
-        final displayLabel = rawUrgency != null && rawUrgency.toString().trim().isNotEmpty
+        final displayLabel =
+            rawUrgency != null && rawUrgency.toString().trim().isNotEmpty
             ? rawUrgency.toString().trim()
             : 'Standard';
         return UrgencyBadgeConfig(
@@ -154,7 +178,8 @@ class EmergencyRequestsScreen extends StatefulWidget {
   }
 
   @override
-  State<EmergencyRequestsScreen> createState() => _EmergencyRequestsScreenState();
+  State<EmergencyRequestsScreen> createState() =>
+      _EmergencyRequestsScreenState();
 }
 
 class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
@@ -173,7 +198,10 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
         if (mounted && doc.exists) {
           final data = doc.data() ?? {};
           final bg = data['bloodGroup'] as String?;
@@ -208,8 +236,14 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isSaved ? 'Request removed from bookmarks.' : 'Request saved to bookmarks.'),
-          backgroundColor: isSaved ? context.colors.textSecondary : context.colors.success,
+          content: Text(
+            isSaved
+                ? 'Request removed from bookmarks.'
+                : 'Request saved to bookmarks.',
+          ),
+          backgroundColor: isSaved
+              ? context.colors.textSecondary
+              : context.colors.success,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -239,11 +273,16 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
     }
   }
 
-  void _navigateToDetails(BuildContext context, Map<String, dynamic> data, String requestId) {
+  void _navigateToDetails(
+    BuildContext context,
+    Map<String, dynamic> data,
+    String requestId,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BloodRequestDetailsScreen(requestId: requestId, requestData: data),
+        builder: (context) =>
+            BloodRequestDetailsScreen(requestId: requestId, requestData: data),
       ),
     );
   }
@@ -257,14 +296,20 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
       return Scaffold(
         backgroundColor: colors.background,
         appBar: AppBar(
-          title: const Text('Emergency Requests', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+          title: const Text(
+            'Emergency Requests',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
+          ),
           backgroundColor: colors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: false,
         ),
         body: Center(
-          child: Text('Database is not connected.', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+          child: Text(
+            'Database is not connected.',
+            style: TextStyle(color: colors.textSecondary, fontSize: 14),
+          ),
         ),
       );
     }
@@ -272,7 +317,10 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Emergency Requests', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
+        title: const Text(
+          'Emergency Requests',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
+        ),
         backgroundColor: colors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -289,11 +337,18 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: colors.primary, strokeWidth: 3),
+                    CircularProgressIndicator(
+                      color: colors.primary,
+                      strokeWidth: 3,
+                    ),
                     SizedBox(height: 16),
                     Text(
                       'Loading emergency requests...',
-                      style: TextStyle(fontSize: 14, color: colors.textSecondary, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: colors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -304,7 +359,10 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
             if (snapshot.hasError) {
               return Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32.0,
+                    vertical: 24.0,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -315,19 +373,31 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                           shape: BoxShape.circle,
                           border: Border.all(color: colors.criticalContainer),
                         ),
-                        child: Icon(Icons.error_outline_rounded, size: 46, color: colors.critical),
+                        child: Icon(
+                          Icons.error_outline_rounded,
+                          size: 46,
+                          color: colors.critical,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       Text(
                         'Unable to load emergency requests',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'We encountered an issue while connecting to the blood requests registry. Please check your internet connection and try again.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.4),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colors.textSecondary,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton.icon(
@@ -337,8 +407,13 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 0,
                         ),
                       ),
@@ -357,13 +432,19 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
             }).toList();
 
             if (_showSavedOnly) {
-              activeDocs = activeDocs.where((doc) => _savedRequestIds.contains(doc.id)).toList();
+              activeDocs = activeDocs
+                  .where((doc) => _savedRequestIds.contains(doc.id))
+                  .toList();
             }
 
             // 4. Sort by createdAt descending (newest first, nulls at the end)
             activeDocs.sort((a, b) {
-              final dateA = EmergencyRequestsScreen.parseDateTime(a.data()['createdAt']);
-              final dateB = EmergencyRequestsScreen.parseDateTime(b.data()['createdAt']);
+              final dateA = EmergencyRequestsScreen.parseDateTime(
+                a.data()['createdAt'],
+              );
+              final dateB = EmergencyRequestsScreen.parseDateTime(
+                b.data()['createdAt'],
+              );
 
               if (dateA == null && dateB == null) return 0;
               if (dateA == null) return 1;
@@ -387,7 +468,9 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                       const SizedBox(width: 8),
                       FilterChip(
                         avatar: Icon(
-                          _showSavedOnly ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                          _showSavedOnly
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_outline_rounded,
                           size: 16,
                           color: _showSavedOnly ? Colors.white : colors.primary,
                         ),
@@ -395,10 +478,13 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                         selected: _showSavedOnly,
                         selectedColor: colors.primary,
                         labelStyle: TextStyle(
-                          color: _showSavedOnly ? Colors.white : colors.textPrimary,
+                          color: _showSavedOnly
+                              ? Colors.white
+                              : colors.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
-                        onSelected: (val) => setState(() => _showSavedOnly = val),
+                        onSelected: (val) =>
+                            setState(() => _showSavedOnly = val),
                       ),
                     ],
                   ),
@@ -407,23 +493,38 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                   child: activeDocs.isEmpty
                       ? Center(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32.0,
+                              vertical: 24.0,
+                            ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(22),
                                   decoration: BoxDecoration(
-                                    color: colors.primary.withValues(alpha: 0.08),
+                                    color: colors.primary.withValues(
+                                      alpha: 0.08,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: Icon(Icons.bookmark_outline_rounded, size: 56, color: colors.primary),
+                                  child: Icon(
+                                    Icons.bookmark_outline_rounded,
+                                    size: 56,
+                                    color: colors.primary,
+                                  ),
                                 ),
                                 const SizedBox(height: 20),
                                 Text(
-                                  _showSavedOnly ? 'No Saved Requests' : 'No Emergency Requests',
+                                  _showSavedOnly
+                                      ? 'No Saved Requests'
+                                      : 'No Emergency Requests',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: colors.textPrimary,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
@@ -431,316 +532,461 @@ class _EmergencyRequestsScreenState extends State<EmergencyRequestsScreen> {
                                       ? 'You have not saved any requests yet. Tap the bookmark icon on any request card to save it.'
                                       : 'There are currently no active blood requests. Please check again later.',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: colors.textSecondary,
+                                    height: 1.4,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 12.0,
+                          ),
                           itemCount: activeDocs.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) {
-                final doc = activeDocs[index];
-                final data = doc.data();
-                final requestId = doc.id;
+                            final doc = activeDocs[index];
+                            final data = doc.data();
+                            final requestId = doc.id;
 
-                final rawBloodGroup = data['bloodGroup'] as String?;
-                final bloodGroup = (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
-                    ? rawBloodGroup.trim()
-                    : 'Not specified';
+                            final rawBloodGroup = data['bloodGroup'] as String?;
+                            final bloodGroup =
+                                (rawBloodGroup != null &&
+                                    rawBloodGroup.trim().isNotEmpty)
+                                ? rawBloodGroup.trim()
+                                : 'Not specified';
 
-                final rawHospital = (data['hospitalName'] ?? data['organizationName']) as String?;
-                final hospitalName = (rawHospital != null && rawHospital.trim().isNotEmpty)
-                    ? rawHospital.trim()
-                    : 'Hospital not specified';
+                            final rawHospital =
+                                (data['hospitalName'] ??
+                                        data['organizationName'])
+                                    as String?;
+                            final hospitalName =
+                                (rawHospital != null &&
+                                    rawHospital.trim().isNotEmpty)
+                                ? rawHospital.trim()
+                                : 'Hospital not specified';
 
-                final rawLocation = data['location'] as String?;
-                final location = (rawLocation != null && rawLocation.trim().isNotEmpty)
-                    ? rawLocation.trim()
-                    : 'Location not specified';
+                            final rawLocation = data['location'] as String?;
+                            final location =
+                                (rawLocation != null &&
+                                    rawLocation.trim().isNotEmpty)
+                                ? rawLocation.trim()
+                                : 'Location not specified';
 
-                final urgencyConfig = EmergencyRequestsScreen.getUrgencyConfig(
-                  context,
-                  data['urgency'] ?? data['urgencyLevel'],
-                );
+                            final urgencyConfig =
+                                EmergencyRequestsScreen.getUrgencyConfig(
+                                  context,
+                                  data['urgency'] ?? data['urgencyLevel'],
+                                );
 
-                final rawUnits = data['requiredUnits'] ?? data['unitsNeeded'];
-                final unitsString = rawUnits != null
-                    ? '$rawUnits ${rawUnits == 1 ? 'Unit' : 'Units'} required'
-                    : 'Units: Not specified';
+                            final rawUnits =
+                                data['requiredUnits'] ?? data['unitsNeeded'];
+                            final unitsString = rawUnits != null
+                                ? '$rawUnits ${rawUnits == 1 ? 'Unit' : 'Units'} required'
+                                : 'Units: Not specified';
 
-                final rawStatus = data['status'] as String?;
-                final isVerified = (rawStatus != null && rawStatus.trim().toLowerCase() == 'verified') ||
-                    data['verified'] == true ||
-                    (data['verifiedBy'] != null && data['verifiedBy'].toString().trim().isNotEmpty);
-                final statusDisplay = (rawStatus != null && rawStatus.trim().isNotEmpty)
-                    ? rawStatus.trim()[0].toUpperCase() + rawStatus.trim().substring(1).toLowerCase()
-                    : 'Active';
+                            final rawStatus = data['status'] as String?;
+                            final isVerified =
+                                (rawStatus != null &&
+                                    rawStatus.trim().toLowerCase() ==
+                                        'verified') ||
+                                data['verified'] == true ||
+                                (data['verifiedBy'] != null &&
+                                    data['verifiedBy']
+                                        .toString()
+                                        .trim()
+                                        .isNotEmpty);
+                            final statusDisplay =
+                                (rawStatus != null &&
+                                    rawStatus.trim().isNotEmpty)
+                                ? rawStatus.trim()[0].toUpperCase() +
+                                      rawStatus
+                                          .trim()
+                                          .substring(1)
+                                          .toLowerCase()
+                                : 'Active';
 
-                final compatibleGroups = BloodCompatibility.compatibleDonorGroups(bloodGroup);
-                final donorBloodUpper = _donorBloodGroup?.trim().toUpperCase();
-                final isCompatible = donorBloodUpper != null &&
-                    compatibleGroups.map((g) => g.toUpperCase()).contains(donorBloodUpper);
+                            final compatibleGroups =
+                                BloodCompatibility.compatibleDonorGroups(
+                                  bloodGroup,
+                                );
+                            final donorBloodUpper = _donorBloodGroup
+                                ?.trim()
+                                .toUpperCase();
+                            final isCompatible =
+                                donorBloodUpper != null &&
+                                compatibleGroups
+                                    .map((g) => g.toUpperCase())
+                                    .contains(donorBloodUpper);
 
-                return Card(
-                  elevation: 0,
-                  margin: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: colors.border),
-                  ),
-                  color: colors.surface,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => _navigateToDetails(context, data, requestId),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header: Blood Group Badge + Urgency Badge
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
+                            return NeumorphicCard(
+                              onTap: () =>
+                                  _navigateToDetails(context, data, requestId),
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: colors.primary,
-                                      borderRadius: BorderRadius.circular(10),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: colors.primary.withValues(alpha: 0.25),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
+                                  // Header: Blood Group Badge + Urgency Badge
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Expanded(
+                                        child: Wrap(
+                                          spacing: 8,
+                                          runSpacing: 4,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 6,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: colors.primary,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: colors.primary
+                                                        .withValues(alpha: 0.25),
+                                                    blurRadius: 6,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.water_drop_rounded,
+                                                    size: 16,
+                                                    color: Colors.white,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    bloodGroup,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 15,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            if (isCompatible)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: colors.successContainer,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: colors.success
+                                                        .withValues(alpha: 0.3),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.check_circle_rounded,
+                                                      size: 12,
+                                                      color: colors.success,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'Compatible',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: colors.success,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          bloodGroup,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (isCompatible) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: colors.successContainer,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: colors.success.withValues(alpha: 0.3)),
                                       ),
-                                      child: Row(
+                                      const SizedBox(width: 8),
+                                      // Urgency badge & Bookmark
+                                      Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.check_circle_rounded, size: 12, color: colors.success),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Compatible',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: colors.success,
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  urgencyConfig.backgroundColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color:
+                                                    urgencyConfig.borderColor,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  urgencyConfig.icon,
+                                                  size: 14,
+                                                  color:
+                                                      urgencyConfig.textColor,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  urgencyConfig.label,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color:
+                                                        urgencyConfig.textColor,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: Icon(
+                                              _savedRequestIds.contains(
+                                                    requestId,
+                                                  )
+                                                  ? Icons.bookmark_rounded
+                                                  : Icons
+                                                        .bookmark_outline_rounded,
+                                              size: 20,
+                                              color:
+                                                  _savedRequestIds.contains(
+                                                    requestId,
+                                                  )
+                                                  ? colors.primary
+                                                  : colors.textSecondary,
+                                            ),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(
+                                              minWidth: 32,
+                                              minHeight: 32,
+                                            ),
+                                            tooltip:
+                                                _savedRequestIds.contains(
+                                                  requestId,
+                                                )
+                                                ? 'Remove Bookmark'
+                                                : 'Save Request',
+                                            onPressed: () =>
+                                                _toggleBookmark(requestId),
+                                          ),
                                         ],
                                       ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              // Urgency badge & Bookmark
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: urgencyConfig.backgroundColor,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: urgencyConfig.borderColor),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(urgencyConfig.icon, size: 14, color: urgencyConfig.textColor),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          urgencyConfig.label,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: urgencyConfig.textColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  IconButton(
-                                    icon: Icon(
-                                      _savedRequestIds.contains(requestId)
-                                          ? Icons.bookmark_rounded
-                                          : Icons.bookmark_outline_rounded,
-                                      size: 20,
-                                      color: _savedRequestIds.contains(requestId)
-                                          ? colors.primary
-                                          : colors.textSecondary,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                    tooltip: _savedRequestIds.contains(requestId)
-                                        ? 'Remove Bookmark'
-                                        : 'Save Request',
-                                    onPressed: () => _toggleBookmark(requestId),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
 
-                          const SizedBox(height: 14),
+                                  const SizedBox(height: 14),
 
-                          // Hospital Name
-                          Row(
-                            children: [
-                              Icon(Icons.local_hospital_rounded, size: 18, color: colors.primary),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  hospitalName,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: colors.textPrimary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          // Location
-                          Row(
-                            children: [
-                              Icon(Icons.location_on_outlined, size: 16, color: colors.textSecondary),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  location,
-                                  style: TextStyle(fontSize: 13, color: colors.textSecondary),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          // Required Units
-                          Row(
-                            children: [
-                              Icon(Icons.medical_services_outlined, size: 16, color: colors.textSecondary),
-                              const SizedBox(width: 8),
-                              Text(
-                                unitsString,
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.textPrimary),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 12),
-                          Divider(height: 1, color: colors.border),
-                          const SizedBox(height: 10),
-
-                          // Footer: Status Tag & View Details Indicator
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: colors.successContainer,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: colors.successContainer),
-                                    ),
-                                    child: Text(
-                                      statusDisplay,
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.success),
-                                    ),
-                                  ),
-                                  if (isVerified) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: colors.primary.withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                                  // Hospital Name
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.local_hospital_rounded,
+                                        size: 18,
+                                        color: colors.primary,
                                       ),
-                                      child: Row(
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          hospitalName,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: colors.textPrimary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 6),
+
+                                  // Location
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.location_on_outlined,
+                                        size: 16,
+                                        color: colors.textSecondary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          location,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: colors.textSecondary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 6),
+
+                                  // Required Units
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.medical_services_outlined,
+                                        size: 16,
+                                        color: colors.textSecondary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        unitsString,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: colors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 12),
+                                  Divider(height: 1, color: colors.border),
+                                  const SizedBox(height: 10),
+
+                                  // Footer: Status Tag & View Details Indicator
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 3,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: colors.successContainer,
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: colors.successContainer,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                statusDisplay,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: colors.success,
+                                                ),
+                                              ),
+                                            ),
+                                            if (isVerified)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 3,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: colors.primary
+                                                      .withValues(alpha: 0.08),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                    color: colors.primary
+                                                        .withValues(alpha: 0.2),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.verified_rounded,
+                                                      size: 12,
+                                                      color: colors.primary,
+                                                    ),
+                                                    const SizedBox(width: 3),
+                                                    Text(
+                                                      'Verified',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: colors.primary,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.verified_rounded, size: 12, color: colors.primary),
-                                          const SizedBox(width: 3),
                                           Text(
-                                            'Verified',
-                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.primary),
+                                            'View Details',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: colors.primary,
+                                            ),
+                                          ),
+                                          SizedBox(width: 2),
+                                          Icon(
+                                            Icons.chevron_right_rounded,
+                                            size: 16,
+                                            color: colors.primary,
                                           ),
                                         ],
                                       ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'View Details',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.primary),
+                                    ],
                                   ),
-                                  SizedBox(width: 2),
-                                  Icon(Icons.chevron_right_rounded, size: 16, color: colors.primary),
                                 ],
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      );
-    },
-  ),
-),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -794,7 +1040,10 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
         if (mounted && doc.exists) {
           final data = doc.data() ?? {};
           final bg = data['bloodGroup'] as String?;
@@ -829,8 +1078,14 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isSaved ? 'Request removed from bookmarks.' : 'Request saved to bookmarks.'),
-          backgroundColor: isSaved ? context.colors.textSecondary : context.colors.success,
+          content: Text(
+            isSaved
+                ? 'Request removed from bookmarks.'
+                : 'Request saved to bookmarks.',
+          ),
+          backgroundColor: isSaved
+              ? context.colors.textSecondary
+              : context.colors.success,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -856,11 +1111,16 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
     }
   }
 
-  void _navigateToDetails(BuildContext context, Map<String, dynamic> data, String requestId) {
+  void _navigateToDetails(
+    BuildContext context,
+    Map<String, dynamic> data,
+    String requestId,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BloodRequestDetailsScreen(requestId: requestId, requestData: data),
+        builder: (context) =>
+            BloodRequestDetailsScreen(requestId: requestId, requestData: data),
       ),
     );
   }
@@ -872,7 +1132,10 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
 
     if (stream == null) {
       return Center(
-        child: Text('Database is not connected.', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+        child: Text(
+          'Database is not connected.',
+          style: TextStyle(color: colors.textSecondary, fontSize: 14),
+        ),
       );
     }
 
@@ -887,11 +1150,18 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(color: colors.primary, strokeWidth: 3),
+                  CircularProgressIndicator(
+                    color: colors.primary,
+                    strokeWidth: 3,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Loading emergency requests...',
-                    style: TextStyle(fontSize: 14, color: colors.textSecondary, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -902,7 +1172,10 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
           if (snapshot.hasError) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32.0,
+                  vertical: 24.0,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -912,19 +1185,31 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                         color: colors.criticalContainer,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.error_outline_rounded, size: 46, color: colors.critical),
+                      child: Icon(
+                        Icons.error_outline_rounded,
+                        size: 46,
+                        color: colors.critical,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       'Unable to load emergency requests',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'We encountered an issue connecting to the blood requests registry. Please check your connection and try again.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.4),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colors.textSecondary,
+                        height: 1.4,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton.icon(
@@ -934,8 +1219,13 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.primary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
                     ),
@@ -954,13 +1244,19 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
           }).toList();
 
           if (_showSavedOnly) {
-            activeDocs = activeDocs.where((doc) => _savedRequestIds.contains(doc.id)).toList();
+            activeDocs = activeDocs
+                .where((doc) => _savedRequestIds.contains(doc.id))
+                .toList();
           }
 
           // 4. Sort by createdAt descending (newest first)
           activeDocs.sort((a, b) {
-            final dateA = EmergencyRequestsScreen.parseDateTime(a.data()['createdAt']);
-            final dateB = EmergencyRequestsScreen.parseDateTime(b.data()['createdAt']);
+            final dateA = EmergencyRequestsScreen.parseDateTime(
+              a.data()['createdAt'],
+            );
+            final dateB = EmergencyRequestsScreen.parseDateTime(
+              b.data()['createdAt'],
+            );
             if (dateA == null && dateB == null) return 0;
             if (dateA == null) return 1;
             if (dateB == null) return -1;
@@ -983,7 +1279,9 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                     const SizedBox(width: 8),
                     FilterChip(
                       avatar: Icon(
-                        _showSavedOnly ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                        _showSavedOnly
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_outline_rounded,
                         size: 16,
                         color: _showSavedOnly ? Colors.white : colors.primary,
                       ),
@@ -991,7 +1289,9 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                       selected: _showSavedOnly,
                       selectedColor: colors.primary,
                       labelStyle: TextStyle(
-                        color: _showSavedOnly ? Colors.white : colors.textPrimary,
+                        color: _showSavedOnly
+                            ? Colors.white
+                            : colors.textPrimary,
                         fontWeight: FontWeight.w600,
                       ),
                       onSelected: (val) => setState(() => _showSavedOnly = val),
@@ -1003,7 +1303,10 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                 child: activeDocs.isEmpty
                     ? Center(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32.0,
+                            vertical: 24.0,
+                          ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -1013,13 +1316,23 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                                   color: colors.primary.withValues(alpha: 0.08),
                                   shape: BoxShape.circle,
                                 ),
-                                child: Icon(Icons.bookmark_outline_rounded, size: 56, color: colors.primary),
+                                child: Icon(
+                                  Icons.bookmark_outline_rounded,
+                                  size: 56,
+                                  color: colors.primary,
+                                ),
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                _showSavedOnly ? 'No Saved Requests' : 'No Emergency Requests',
+                                _showSavedOnly
+                                    ? 'No Saved Requests'
+                                    : 'No Emergency Requests',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: colors.textPrimary,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -1027,299 +1340,438 @@ class _EmergencyRequestsTabState extends State<EmergencyRequestsTab> {
                                     ? 'You have not saved any requests yet. Tap the bookmark icon on any request card to save it.'
                                     : 'There are currently no active blood requests. Please check again later.',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: colors.textSecondary,
+                                  height: 1.4,
+                                ),
                               ),
                             ],
                           ),
                         ),
                       )
                     : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 12.0,
+                        ),
                         itemCount: activeDocs.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
                         itemBuilder: (context, index) {
-              final doc = activeDocs[index];
-              final data = doc.data();
-              final requestId = doc.id;
+                          final doc = activeDocs[index];
+                          final data = doc.data();
+                          final requestId = doc.id;
 
-              final rawBloodGroup = data['bloodGroup'] as String?;
-              final bloodGroup = (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
-                  ? rawBloodGroup.trim()
-                  : 'Not specified';
+                          final rawBloodGroup = data['bloodGroup'] as String?;
+                          final bloodGroup =
+                              (rawBloodGroup != null &&
+                                  rawBloodGroup.trim().isNotEmpty)
+                              ? rawBloodGroup.trim()
+                              : 'Not specified';
 
-              final rawHospital = (data['hospitalName'] ?? data['organizationName']) as String?;
-              final hospitalName = (rawHospital != null && rawHospital.trim().isNotEmpty)
-                  ? rawHospital.trim()
-                  : 'Hospital not specified';
+                          final rawHospital =
+                              (data['hospitalName'] ?? data['organizationName'])
+                                  as String?;
+                          final hospitalName =
+                              (rawHospital != null &&
+                                  rawHospital.trim().isNotEmpty)
+                              ? rawHospital.trim()
+                              : 'Hospital not specified';
 
-              final rawLocation = data['location'] as String?;
-              final location = (rawLocation != null && rawLocation.trim().isNotEmpty)
-                  ? rawLocation.trim()
-                  : 'Location not specified';
+                          final rawLocation = data['location'] as String?;
+                          final location =
+                              (rawLocation != null &&
+                                  rawLocation.trim().isNotEmpty)
+                              ? rawLocation.trim()
+                              : 'Location not specified';
 
-              final urgencyConfig = EmergencyRequestsScreen.getUrgencyConfig(
-                context,
-                data['urgency'] ?? data['urgencyLevel'],
-              );
+                          final urgencyConfig =
+                              EmergencyRequestsScreen.getUrgencyConfig(
+                                context,
+                                data['urgency'] ?? data['urgencyLevel'],
+                              );
 
-              final rawUnits = data['requiredUnits'] ?? data['unitsNeeded'];
-              final unitsString = rawUnits != null
-                  ? '$rawUnits ${rawUnits == 1 ? 'Unit' : 'Units'} required'
-                  : 'Units: Not specified';
+                          final rawUnits =
+                              data['requiredUnits'] ?? data['unitsNeeded'];
+                          final unitsString = rawUnits != null
+                              ? '$rawUnits ${rawUnits == 1 ? 'Unit' : 'Units'} required'
+                              : 'Units: Not specified';
 
-              final rawStatus = data['status'] as String?;
-              final isVerified = (rawStatus != null && rawStatus.trim().toLowerCase() == 'verified') ||
-                  data['verified'] == true ||
-                  (data['verifiedBy'] != null && data['verifiedBy'].toString().trim().isNotEmpty);
-              final statusDisplay = (rawStatus != null && rawStatus.trim().isNotEmpty)
-                  ? rawStatus.trim()[0].toUpperCase() + rawStatus.trim().substring(1).toLowerCase()
-                  : 'Active';
+                          final rawStatus = data['status'] as String?;
+                          final isVerified =
+                              (rawStatus != null &&
+                                  rawStatus.trim().toLowerCase() ==
+                                      'verified') ||
+                              data['verified'] == true ||
+                              (data['verifiedBy'] != null &&
+                                  data['verifiedBy']
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty);
+                          final statusDisplay =
+                              (rawStatus != null && rawStatus.trim().isNotEmpty)
+                              ? rawStatus.trim()[0].toUpperCase() +
+                                    rawStatus.trim().substring(1).toLowerCase()
+                              : 'Active';
 
-              final compatibleGroups = BloodCompatibility.compatibleDonorGroups(bloodGroup);
-              final donorBloodUpper = _donorBloodGroup?.trim().toUpperCase();
-              final isCompatible = donorBloodUpper != null &&
-                  compatibleGroups.map((g) => g.toUpperCase()).contains(donorBloodUpper);
+                          final compatibleGroups =
+                              BloodCompatibility.compatibleDonorGroups(
+                                bloodGroup,
+                              );
+                          final donorBloodUpper = _donorBloodGroup
+                              ?.trim()
+                              .toUpperCase();
+                          final isCompatible =
+                              donorBloodUpper != null &&
+                              compatibleGroups
+                                  .map((g) => g.toUpperCase())
+                                  .contains(donorBloodUpper);
 
-              return Card(
-                elevation: 0,
-                margin: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: colors.border),
-                ),
-                color: colors.surface,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => _navigateToDetails(context, data, requestId),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header: Blood Group + Urgency Badge
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
+                          return NeumorphicCard(
+                            onTap: () =>
+                                _navigateToDetails(context, data, requestId),
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: colors.primary,
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: colors.primary.withValues(alpha: 0.25),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
+                                // Header: Blood Group + Urgency Badge
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Wrap(
+                                        spacing: 8,
+                                        runSpacing: 4,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: colors.primary,
+                                              borderRadius: BorderRadius.circular(
+                                                10,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: colors.primary
+                                                      .withValues(alpha: 0.25),
+                                                  blurRadius: 6,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.water_drop_rounded,
+                                                  size: 16,
+                                                  color: Colors.white,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  bloodGroup,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          if (isCompatible)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: colors.successContainer,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: colors.success
+                                                      .withValues(alpha: 0.3),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.check_circle_rounded,
+                                                    size: 12,
+                                                    color: colors.success,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Compatible',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: colors.success,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        bloodGroup,
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (isCompatible) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: colors.successContainer,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: colors.success.withValues(alpha: 0.3)),
                                     ),
-                                    child: Row(
+                                    const SizedBox(width: 8),
+                                    // Urgency badge & Bookmark
+                                    Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.check_circle_rounded, size: 12, color: colors.success),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Compatible',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: colors.success,
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                urgencyConfig.backgroundColor,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: urgencyConfig.borderColor,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                urgencyConfig.icon,
+                                                size: 14,
+                                                color: urgencyConfig.textColor,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                urgencyConfig.label,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      urgencyConfig.textColor,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          icon: Icon(
+                                            _savedRequestIds.contains(requestId)
+                                                ? Icons.bookmark_rounded
+                                                : Icons
+                                                      .bookmark_outline_rounded,
+                                            size: 20,
+                                            color:
+                                                _savedRequestIds.contains(
+                                                  requestId,
+                                                )
+                                                ? colors.primary
+                                                : colors.textSecondary,
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(
+                                            minWidth: 32,
+                                            minHeight: 32,
+                                          ),
+                                          tooltip:
+                                              _savedRequestIds.contains(
+                                                requestId,
+                                              )
+                                              ? 'Remove Bookmark'
+                                              : 'Save Request',
+                                          onPressed: () =>
+                                              _toggleBookmark(requestId),
+                                        ),
                                       ],
                                     ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            // Urgency badge & Bookmark
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: urgencyConfig.backgroundColor,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: urgencyConfig.borderColor),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(urgencyConfig.icon, size: 14, color: urgencyConfig.textColor),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        urgencyConfig.label,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: urgencyConfig.textColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  icon: Icon(
-                                    _savedRequestIds.contains(requestId)
-                                        ? Icons.bookmark_rounded
-                                        : Icons.bookmark_outline_rounded,
-                                    size: 20,
-                                    color: _savedRequestIds.contains(requestId)
-                                        ? colors.primary
-                                        : colors.textSecondary,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                  tooltip: _savedRequestIds.contains(requestId)
-                                      ? 'Remove Bookmark'
-                                      : 'Save Request',
-                                  onPressed: () => _toggleBookmark(requestId),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        // Hospital Name
-                        Row(
-                          children: [
-                            Icon(Icons.local_hospital_rounded, size: 18, color: colors.primary),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                hospitalName,
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        // Location
-                        Row(
-                          children: [
-                            Icon(Icons.location_on_outlined, size: 16, color: colors.textSecondary),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                location,
-                                style: TextStyle(fontSize: 13, color: colors.textSecondary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        // Required Units
-                        Row(
-                          children: [
-                            Icon(Icons.medical_services_outlined, size: 16, color: colors.textSecondary),
-                            const SizedBox(width: 8),
-                            Text(
-                              unitsString,
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.textPrimary),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Divider(height: 1, color: colors.border),
-                        const SizedBox(height: 10),
-                        // Footer: Status + View Details
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: colors.successContainer,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    statusDisplay,
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.success),
-                                  ),
-                                ),
-                                if (isVerified) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: colors.primary.withValues(alpha: 0.08),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+                                const SizedBox(height: 14),
+                                // Hospital Name
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.local_hospital_rounded,
+                                      size: 18,
+                                      color: colors.primary,
                                     ),
-                                    child: Row(
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        hospitalName,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: colors.textPrimary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                // Location
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on_outlined,
+                                      size: 16,
+                                      color: colors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        location,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: colors.textSecondary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                // Required Units
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.medical_services_outlined,
+                                      size: 16,
+                                      color: colors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      unitsString,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: colors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Divider(height: 1, color: colors.border),
+                                const SizedBox(height: 10),
+                                // Footer: Status + View Details
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: colors.successContainer,
+                                              borderRadius: BorderRadius.circular(
+                                                6,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              statusDisplay,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: colors.success,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isVerified)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 3,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: colors.primary.withValues(
+                                                  alpha: 0.08,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: colors.primary
+                                                      .withValues(alpha: 0.2),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.verified_rounded,
+                                                    size: 12,
+                                                    color: colors.primary,
+                                                  ),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    'Verified',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: colors.primary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.verified_rounded, size: 12, color: colors.primary),
-                                        const SizedBox(width: 3),
                                         Text(
-                                          'Verified',
-                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.primary),
+                                          'View Details',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: colors.primary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Icon(
+                                          Icons.chevron_right_rounded,
+                                          size: 16,
+                                          color: colors.primary,
                                         ),
                                       ],
                                     ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'View Details',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.primary),
+                                  ],
                                 ),
-                                const SizedBox(width: 2),
-                                Icon(Icons.chevron_right_rounded, size: 16, color: colors.primary),
                               ],
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  },
-),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
-

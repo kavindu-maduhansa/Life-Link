@@ -14,7 +14,8 @@ import 'my_responses_screen.dart';
 ///
 /// Implements the same [LLAppShell] + [LLRoleNav] pattern used by the
 /// Hospital module so the Donor experience matches the rest of the app
-/// exactly: brand mark in the app bar, responsive bottom nav on mobile
+/// exactly: brand mark in the app bar, 4-destination navigation bar
+/// styled with primary color accents, responsive bottom nav on mobile
 /// and a navigation rail on wide screens.
 ///
 /// All Firebase logic lives in the individual Tab widgets:
@@ -22,7 +23,7 @@ import 'my_responses_screen.dart';
 ///  - [EmergencyRequestsTab] → Firestore `requests` collection
 ///  - [MyResponsesTab]       → Firestore `requests/{id}/responses` collection
 ///  - [DonationHistoryTab]   → Firestore `donation_history` collection
-///  - [DonorProfileTab]      → Firestore `users/{uid}` stream (profile)
+/// Profile is accessible via top AppBar action and Home Quick Actions.
 ///
 /// This file contains ONLY navigation wiring — no backend code.
 class DonorShell extends StatelessWidget {
@@ -62,15 +63,19 @@ class DonorShell extends StatelessWidget {
             tooltip: 'Donation History',
             builder: (_) => const DonationHistoryTab(),
           ),
-          LLNavDestination(
-            label: 'Profile',
-            icon: Icons.account_circle_outlined,
-            selectedIcon: Icons.account_circle_rounded,
-            tooltip: 'Donor Profile',
-            builder: (_) => const DonorProfileTab(),
-          ),
         ],
         actions: [
+          LLAppBarAction(
+            icon: Icons.account_circle_outlined,
+            tooltip: 'My Profile',
+            isPrimary: true,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DonorProfileScreen()),
+              );
+            },
+          ),
           LLAppBarAction(
             icon: Icons.palette_outlined,
             tooltip: 'Appearance',

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../theme/app_colors.dart';
 import '../../utils/request_status.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Screen displaying the full details of a blood request, allowing a donor
 /// to submit a response ("I Can Donate") while preventing duplicate responses.
@@ -11,7 +12,22 @@ class BloodRequestDetailsScreen extends StatefulWidget {
   final String requestId;
   final Map<String, dynamic> requestData;
 
-  const BloodRequestDetailsScreen({super.key, required this.requestId, required this.requestData});
+  const BloodRequestDetailsScreen({
+    super.key,
+    required this.requestId,
+    required this.requestData,
+  });
+
+  /// Helper to check if request is open for donor response.
+  static bool isRequestOpen(dynamic status) {
+    if (status == null) return true;
+    final s = status.toString().trim().toLowerCase();
+    return s == 'active' ||
+        s == 'pending' ||
+        s == 'urgent' ||
+        s == 'verified' ||
+        s == 'matched';
+  }
 
   /// Helper to safely format timestamp or date string.
   static String formatRequestDate(dynamic value) {
@@ -34,7 +50,20 @@ class BloodRequestDetailsScreen extends StatefulWidget {
 
     if (date == null) return 'Not specified';
 
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
 
     final monthStr = months[date.month - 1];
     final dayStr = date.day.toString().padLeft(2, '0');
@@ -47,7 +76,10 @@ class BloodRequestDetailsScreen extends StatefulWidget {
   /// Takes a [BuildContext] so the badge colours come from the active
   /// theme. It previously returned hard-coded light-mode literals, which
   /// is why this screen had no Dark Mode.
-  static UrgencyBadgeConfig getUrgencyConfig(BuildContext context, dynamic rawUrgency) {
+  static UrgencyBadgeConfig getUrgencyConfig(
+    BuildContext context,
+    dynamic rawUrgency,
+  ) {
     final colors = context.colors;
     final urgency = rawUrgency?.toString().trim().toLowerCase() ?? '';
 
@@ -93,7 +125,8 @@ class BloodRequestDetailsScreen extends StatefulWidget {
           icon: Icons.info_outline_rounded,
         );
       default:
-        final displayLabel = rawUrgency != null && rawUrgency.toString().trim().isNotEmpty
+        final displayLabel =
+            rawUrgency != null && rawUrgency.toString().trim().isNotEmpty
             ? rawUrgency.toString().trim()
             : 'Standard';
         return UrgencyBadgeConfig(
@@ -107,7 +140,8 @@ class BloodRequestDetailsScreen extends StatefulWidget {
   }
 
   @override
-  State<BloodRequestDetailsScreen> createState() => _BloodRequestDetailsScreenState();
+  State<BloodRequestDetailsScreen> createState() =>
+      _BloodRequestDetailsScreenState();
 }
 
 class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
@@ -115,6 +149,7 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
   bool _hasAlreadyResponded = false;
   bool _isSubmitting = false;
   String? _donorBloodGroup;
+  int _daysUntilEligible = 0;
 
   @override
   void initState() {
@@ -147,11 +182,26 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       final results = await Future.wait([docFuture, userFuture]);
       final docSnapshot = results[0];
       final userSnapshot = results[1];
-      final rawBlood = userSnapshot.data()?['bloodGroup'] as String?;
+      final userData = userSnapshot.data() ?? {};
+      final rawBlood = userData['bloodGroup'] as String?;
+
+      final rawLastDonation = userData['lastDonationDate'];
+      DateTime? lastDonationDate;
+      if (rawLastDonation is Timestamp) {
+        lastDonationDate = rawLastDonation.toDate();
+      } else if (rawLastDonation is DateTime) {
+        lastDonationDate = rawLastDonation;
+      } else if (rawLastDonation is String) {
+        lastDonationDate = DateTime.tryParse(rawLastDonation);
+      }
+      final daysUntil = DonorEligibility.daysUntilEligible(lastDonationDate) ?? 0;
 
       if (mounted) {
         setState(() {
-          _donorBloodGroup = (rawBlood != null && rawBlood.trim().isNotEmpty) ? rawBlood.trim() : null;
+          _donorBloodGroup = (rawBlood != null && rawBlood.trim().isNotEmpty)
+              ? rawBlood.trim()
+              : null;
+          _daysUntilEligible = daysUntil;
           _hasAlreadyResponded = docSnapshot.exists;
           _isCheckingResponse = false;
         });
@@ -180,6 +230,46 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       return;
     }
 
+    if (_daysUntilEligible > 0) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.health_and_safety_rounded, color: colors.warning),
+              const SizedBox(width: 8),
+              const Text(
+                'Recovery Cooldown',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Text(
+            'Safety guidelines recommend waiting ${DonorEligibility.minGapDays} days between blood donations.\n\n'
+            'Your recovery period has $_daysUntilEligible day${_daysUntilEligible > 1 ? 's' : ''} remaining. '
+            'Are you sure you wish to submit this donation offer?',
+            style: const TextStyle(fontSize: 14, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: colors.textSecondary),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(backgroundColor: colors.primary),
+              child: const Text('Proceed Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
@@ -200,7 +290,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('You have already responded to this blood request.'),
+              content: const Text(
+                'You have already responded to this blood request.',
+              ),
               backgroundColor: colors.warning,
               behavior: SnackBarBehavior.floating,
             ),
@@ -210,7 +302,10 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
       }
 
       // Step 2: Fetch current donor profile from users/{uid}
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
       final userData = userDoc.data() ?? {};
 
@@ -222,12 +317,15 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           : 'Anonymous Donor';
 
       final rawBloodGroup = userData['bloodGroup'] as String?;
-      final donorBloodGroup = (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
+      final donorBloodGroup =
+          (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
           ? rawBloodGroup.trim()
           : 'Not specified';
 
       final rawPhone = userData['phoneNumber'] as String?;
-      final donorPhone = (rawPhone != null && rawPhone.trim().isNotEmpty) ? rawPhone.trim() : 'Not specified';
+      final donorPhone = (rawPhone != null && rawPhone.trim().isNotEmpty)
+          ? rawPhone.trim()
+          : 'Not specified';
 
       final rawEmail = userData['email'] as String?;
       final donorEmail = (rawEmail != null && rawEmail.trim().isNotEmpty)
@@ -238,11 +336,18 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
 
       // Step 3: Save donor response to canonical requests/{requestId}/responses/{user.uid}
       final requestHospital =
-          ((widget.requestData['hospitalName'] ?? widget.requestData['organizationName']) as String?)?.trim() ??
+          ((widget.requestData['hospitalName'] ??
+                      widget.requestData['organizationName'])
+                  as String?)
+              ?.trim() ??
           'Unknown Hospital';
-      final requestedBloodGroup = (widget.requestData['bloodGroup'] as String?)?.trim() ?? 'Unknown';
+      final requestedBloodGroup =
+          (widget.requestData['bloodGroup'] as String?)?.trim() ?? 'Unknown';
       final requestUrgency =
-          ((widget.requestData['urgency'] ?? widget.requestData['urgencyLevel']) as String?)?.trim() ?? 'Standard';
+          ((widget.requestData['urgency'] ?? widget.requestData['urgencyLevel'])
+                  as String?)
+              ?.trim() ??
+          'Standard';
 
       await responseRef.set({
         'requestId': widget.requestId,
@@ -262,6 +367,22 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         'respondedAt': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Best-effort update to parent request counts so hospital dashboard shows coverage
+      try {
+        await FirebaseFirestore.instance
+            .collection('requests')
+            .doc(widget.requestId)
+            .update({
+              'donorsNotifiedCount': FieldValue.increment(1),
+              'donorsAcceptedCount': FieldValue.increment(1),
+              'unitsConfirmed': FieldValue.increment(1),
+              'status': RequestStatus.matched,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      } catch (e) {
+        debugPrint('Could not update request counts on donor response: $e');
+      }
 
       if (mounted) {
         setState(() {
@@ -300,7 +421,10 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           children: [
             Icon(Icons.warning_amber_rounded, color: colors.critical),
             const SizedBox(width: 8),
-            const Text('Withdraw Response', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Withdraw Response',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: const Text(
@@ -310,7 +434,10 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: colors.textSecondary)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: colors.textSecondary),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -332,7 +459,23 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         try {
           await ref.delete();
         } catch (_) {
-          await ref.update({'status': 'withdrawn', 'withdrawnAt': FieldValue.serverTimestamp()});
+          await ref.update({
+            'status': 'withdrawn',
+            'withdrawnAt': FieldValue.serverTimestamp(),
+          });
+        }
+        // Best-effort decrement to parent request counts so hospital dashboard reflects withdrawal
+        try {
+          await FirebaseFirestore.instance
+              .collection('requests')
+              .doc(widget.requestId)
+              .update({
+                'donorsAcceptedCount': FieldValue.increment(-1),
+                'unitsConfirmed': FieldValue.increment(-1),
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+        } catch (e) {
+          debugPrint('Could not decrement request counts on withdraw: $e');
         }
         if (mounted) {
           setState(() {
@@ -352,7 +495,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           setState(() => _isSubmitting = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Failed to withdraw offer. Please try again.'),
+              content: const Text(
+                'Failed to withdraw offer. Please try again.',
+              ),
               backgroundColor: colors.critical,
               behavior: SnackBarBehavior.floating,
             ),
@@ -376,8 +521,12 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     final snap = await ref.get();
     final data = snap.data() ?? {};
     int units = (data['unitsPledged'] as num?)?.toInt() ?? 1;
-    final noteController = TextEditingController(text: (data['note'] ?? data['notes'] ?? '') as String);
-    final phoneController = TextEditingController(text: (data['phoneNumber'] ?? data['donorPhone'] ?? '') as String);
+    final noteController = TextEditingController(
+      text: (data['note'] ?? data['notes'] ?? '') as String,
+    );
+    final phoneController = TextEditingController(
+      text: (data['phoneNumber'] ?? data['donorPhone'] ?? '') as String,
+    );
 
     if (!mounted) return;
 
@@ -407,7 +556,11 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                     children: [
                       Text(
                         'Update Donation Offer',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close_rounded),
@@ -416,7 +569,14 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Text('Units Pledged', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textSecondary)),
+                  Text(
+                    'Units Pledged',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [1, 2, 3].map((u) {
@@ -443,7 +603,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                     decoration: InputDecoration(
                       labelText: 'Contact Phone',
                       prefixIcon: const Icon(Icons.phone_rounded, size: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -452,7 +614,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                     maxLines: 2,
                     decoration: InputDecoration(
                       labelText: 'Arrival or availability note',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -471,7 +635,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text('Donation offer updated successfully.'),
+                              content: const Text(
+                                'Donation offer updated successfully.',
+                              ),
                               backgroundColor: colors.success,
                               behavior: SnackBarBehavior.floating,
                             ),
@@ -482,7 +648,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text('Failed to update donation offer.'),
+                              content: const Text(
+                                'Failed to update donation offer.',
+                              ),
                               backgroundColor: colors.critical,
                               behavior: SnackBarBehavior.floating,
                             ),
@@ -493,9 +661,17 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                     style: FilledButton.styleFrom(
                       backgroundColor: colors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Save Update', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    child: const Text(
+                      'Save Update',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -519,19 +695,34 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: colors.successContainer, shape: BoxShape.circle),
-              child: Icon(Icons.check_circle_rounded, size: 52, color: colors.success),
+              decoration: BoxDecoration(
+                color: colors.successContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.check_circle_rounded,
+                size: 52,
+                color: colors.success,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
               'Thank You, Donor!',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: colors.textPrimary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
             Text(
               'Your response has been submitted successfully. The hospital coordinator has been notified and may contact you soon.',
-              style: TextStyle(fontSize: 14, color: colors.textSecondary, height: 1.4),
+              style: TextStyle(
+                fontSize: 14,
+                color: colors.textSecondary,
+                height: 1.4,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -543,10 +734,15 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                   backgroundColor: colors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 0,
                 ),
-                child: const Text('Great, Understood', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Great, Understood',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],
@@ -561,11 +757,13 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
     final data = widget.requestData;
 
     final rawBloodGroup = data['bloodGroup'] as String?;
-    final bloodGroup = (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
+    final bloodGroup =
+        (rawBloodGroup != null && rawBloodGroup.trim().isNotEmpty)
         ? rawBloodGroup.trim()
         : 'Not specified';
 
-    final rawHospital = (data['hospitalName'] ?? data['organizationName']) as String?;
+    final rawHospital =
+        (data['hospitalName'] ?? data['organizationName']) as String?;
     final hospitalName = (rawHospital != null && rawHospital.trim().isNotEmpty)
         ? rawHospital.trim()
         : 'Hospital not specified';
@@ -575,47 +773,69 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         ? rawLocation.trim()
         : 'Location not specified';
 
-    final urgencyConfig = BloodRequestDetailsScreen.getUrgencyConfig(context, data['urgency'] ?? data['urgencyLevel']);
+    final urgencyConfig = BloodRequestDetailsScreen.getUrgencyConfig(
+      context,
+      data['urgency'] ?? data['urgencyLevel'],
+    );
 
     final rawUnits = data['requiredUnits'] ?? data['unitsNeeded'];
-    final unitsString = rawUnits != null ? '$rawUnits ${rawUnits == 1 ? 'Unit' : 'Units'}' : 'Not specified';
+    final unitsString = rawUnits != null
+        ? '$rawUnits ${rawUnits == 1 ? 'Unit' : 'Units'}'
+        : 'Not specified';
 
     final rawPatient = data['patientName'] as String?;
-    final patientName = (rawPatient != null && rawPatient.trim().isNotEmpty) ? rawPatient.trim() : 'Not specified';
+    final patientName = (rawPatient != null && rawPatient.trim().isNotEmpty)
+        ? rawPatient.trim()
+        : 'Not specified';
 
     final rawContact = data['contactNumber'] as String?;
-    final contactNumber = (rawContact != null && rawContact.trim().isNotEmpty) ? rawContact.trim() : 'Not specified';
+    final contactNumber = (rawContact != null && rawContact.trim().isNotEmpty)
+        ? rawContact.trim()
+        : 'Not specified';
 
     final rawDescription = (data['notes'] ?? data['description']) as String?;
-    final description = (rawDescription != null && rawDescription.trim().isNotEmpty)
+    final description =
+        (rawDescription != null && rawDescription.trim().isNotEmpty)
         ? rawDescription.trim()
         : 'No additional clinical notes or description provided.';
 
     final rawStatus = data['status'] as String?;
     final statusDisplay = (rawStatus != null && rawStatus.trim().isNotEmpty)
-        ? rawStatus.trim()[0].toUpperCase() + rawStatus.trim().substring(1).toLowerCase()
+        ? rawStatus.trim()[0].toUpperCase() +
+              rawStatus.trim().substring(1).toLowerCase()
         : 'Active';
 
-    final isVerified = (rawStatus?.toLowerCase() == 'verified') ||
+    final isVerified =
+        (rawStatus?.toLowerCase() == 'verified') ||
         (rawStatus?.toLowerCase() == 'matched') ||
         data['verified'] == true ||
         (data['verifiedBy'] as String?)?.trim().isNotEmpty == true;
     final verifiedBy = (data['verifiedBy'] as String?)?.trim();
     final verificationLabel = isVerified
-        ? (verifiedBy != null && verifiedBy.isNotEmpty ? 'Verified by $verifiedBy' : 'Hospital Verified')
+        ? (verifiedBy != null && verifiedBy.isNotEmpty
+              ? 'Verified by $verifiedBy'
+              : 'Hospital Verified')
         : 'Pending Staff Verification';
 
-    final compatibleGroups = BloodCompatibility.compatibleDonorGroups(bloodGroup);
+    final compatibleGroups = BloodCompatibility.compatibleDonorGroups(
+      bloodGroup,
+    );
     final donorBloodUpper = _donorBloodGroup?.trim().toUpperCase();
-    final isDonorCompatible = donorBloodUpper != null &&
+    final isDonorCompatible =
+        donorBloodUpper != null &&
         compatibleGroups.map((g) => g.toUpperCase()).contains(donorBloodUpper);
 
-    final createdDateStr = BloodRequestDetailsScreen.formatRequestDate(data['createdAt']);
+    final createdDateStr = BloodRequestDetailsScreen.formatRequestDate(
+      data['createdAt'],
+    );
 
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Emergency Request Details', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+        title: const Text(
+          'Emergency Request Details',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        ),
         backgroundColor: colors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -625,25 +845,16 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 20.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 1. Header Banner: Blood Group + Hospital + Urgency Badge
-                  Container(
+                  NeumorphicCard(
                     padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: colors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
                     child: Row(
                       children: [
                         // Blood group badge
@@ -669,11 +880,19 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
+                              const Icon(
+                                Icons.water_drop_rounded,
+                                size: 16,
+                                color: Colors.white,
+                              ),
                               const SizedBox(height: 2),
                               Text(
                                 bloodGroup,
-                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
@@ -685,20 +904,33 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                             children: [
                               Text(
                                 hospitalName,
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: colors.textPrimary),
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: colors.textPrimary,
+                                ),
                               ),
                               const SizedBox(height: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: urgencyConfig.backgroundColor,
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: urgencyConfig.borderColor),
+                                  border: Border.all(
+                                    color: urgencyConfig.borderColor,
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(urgencyConfig.icon, size: 13, color: urgencyConfig.textColor),
+                                    Icon(
+                                      urgencyConfig.icon,
+                                      size: 13,
+                                      color: urgencyConfig.textColor,
+                                    ),
                                     const SizedBox(width: 5),
                                     Text(
                                       urgencyConfig.label,
@@ -721,19 +953,8 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                   const SizedBox(height: 18),
 
                   // 2. Request Information Card
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: colors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+                  NeumorphicCard(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Column(
                       children: [
                         _DetailRow(
@@ -773,11 +994,17 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                         ),
                         Divider(height: 1, indent: 52, color: colors.border),
                         _DetailRow(
-                          icon: isVerified ? Icons.verified_rounded : Icons.pending_actions_rounded,
-                          iconColor: isVerified ? colors.success : colors.warning,
+                          icon: isVerified
+                              ? Icons.verified_rounded
+                              : Icons.pending_actions_rounded,
+                          iconColor: isVerified
+                              ? colors.success
+                              : colors.warning,
                           label: 'Hospital Verification',
                           value: verificationLabel,
-                          valueColor: isVerified ? colors.success : colors.warning,
+                          valueColor: isVerified
+                              ? colors.success
+                              : colors.warning,
                         ),
                         Divider(height: 1, indent: 52, color: colors.border),
                         _DetailRow(
@@ -793,31 +1020,26 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                   const SizedBox(height: 18),
 
                   // 3. Blood Compatibility Card
-                  Container(
+                  NeumorphicCard(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDonorCompatible ? colors.successContainer.withValues(alpha: 0.3) : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isDonorCompatible ? colors.successContainer : colors.border,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+                    color: isDonorCompatible
+                        ? colors.successContainer.withValues(alpha: 0.3)
+                        : colors.surface,
+                    tone: isDonorCompatible ? LLTone.success : null,
+                    emphasised: isDonorCompatible,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
                             Icon(
-                              isDonorCompatible ? Icons.check_circle_rounded : Icons.bloodtype_outlined,
+                              isDonorCompatible
+                                  ? Icons.check_circle_rounded
+                                  : Icons.bloodtype_outlined,
                               size: 18,
-                              color: isDonorCompatible ? colors.success : colors.primary,
+                              color: isDonorCompatible
+                                  ? colors.success
+                                  : colors.primary,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -825,7 +1047,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: isDonorCompatible ? colors.success : colors.textPrimary,
+                                color: isDonorCompatible
+                                    ? colors.success
+                                    : colors.textPrimary,
                               ),
                             ),
                           ],
@@ -833,7 +1057,11 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Compatible donor types: ${compatibleGroups.join(', ')}',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                          ),
                         ),
                         if (_donorBloodGroup != null) ...[
                           const SizedBox(height: 4),
@@ -844,9 +1072,34 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: isDonorCompatible ? colors.success : colors.critical,
+                              color: isDonorCompatible
+                                  ? colors.success
+                                  : colors.critical,
                             ),
                           ),
+                          if (_daysUntilEligible > 0) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.schedule_rounded,
+                                  size: 14,
+                                  color: colors.warning,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'Recovery period active: Eligible in $_daysUntilEligible days (${DonorEligibility.minGapDays}-day rule).',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: colors.warning,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ],
                     ),
@@ -855,35 +1108,38 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                   const SizedBox(height: 18),
 
                   // 3. Clinical Description / Notes Card
-                  Container(
+                  NeumorphicCard(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: colors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.description_outlined, size: 18, color: colors.textSecondary),
+                            Icon(
+                              Icons.description_outlined,
+                              size: 18,
+                              color: colors.textSecondary,
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'Clinical Notes & Instructions',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textSecondary),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: colors.textSecondary,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 10),
-                        Text(description, style: TextStyle(fontSize: 14, color: colors.textPrimary, height: 1.45)),
+                        Text(
+                          description,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: colors.textPrimary,
+                            height: 1.45,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -898,11 +1154,12 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: colors.surface,
               border: Border(top: BorderSide(color: colors.border)),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -3)),
-              ],
+              boxShadow: NeumorphicTokens.raisedShadows(
+                colors,
+                elevation: NeumorphicElevationLevel.low,
+              ),
             ),
             child: SafeArea(child: _buildActionButton()),
           ),
@@ -914,22 +1171,72 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
   /// Builds the dynamic bottom response action button according to state.
   Widget _buildActionButton() {
     final colors = context.colors;
+    final data = widget.requestData;
+    final rawStatus = data['status'] as String?;
+    final statusDisplay = (rawStatus != null && rawStatus.trim().isNotEmpty)
+        ? rawStatus.trim()[0].toUpperCase() +
+              rawStatus.trim().substring(1).toLowerCase()
+        : 'Active';
+
+    final isOpen = BloodRequestDetailsScreen.isRequestOpen(data['status']);
+    if (!isOpen && !_hasAlreadyResponded) {
+      return Container(
+        height: 52,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: colors.elevatedSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline_rounded, size: 18, color: colors.textSecondary),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'This request is ${statusDisplay.toLowerCase()} and no longer accepting donations.',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (_isCheckingResponse) {
       return SizedBox(
         height: 52,
         child: OutlinedButton(
           onPressed: null,
-          style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: colors.textSecondary),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colors.textSecondary,
+                ),
               ),
               SizedBox(width: 12),
-              Text('Checking response status...', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+              Text(
+                'Checking response status...',
+                style: TextStyle(color: colors.textSecondary, fontSize: 14),
+              ),
             ],
           ),
         ),
@@ -950,11 +1257,19 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.check_circle_rounded, color: colors.success, size: 20),
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: colors.success,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Offer Submitted - Pledged',
-                  style: TextStyle(color: colors.success, fontSize: 14, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: colors.success,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -968,7 +1283,9 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                   icon: const Icon(Icons.edit_outlined, size: 16),
                   label: const Text('Update Offer'),
                   style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -977,11 +1294,22 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _isSubmitting ? null : _handleWithdrawResponse,
-                  icon: Icon(Icons.delete_outline_rounded, size: 16, color: colors.critical),
-                  label: Text('Withdraw', style: TextStyle(color: colors.critical)),
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    size: 16,
+                    color: colors.critical,
+                  ),
+                  label: Text(
+                    'Withdraw',
+                    style: TextStyle(color: colors.critical),
+                  ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.critical.withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: BorderSide(
+                      color: colors.critical.withValues(alpha: 0.5),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -994,15 +1322,10 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
 
     return SizedBox(
       height: 52,
-      child: ElevatedButton(
+      child: NeumorphicButton(
         onPressed: _isSubmitting ? null : _handleDonateResponse,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colors.primary,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: colors.primary.withValues(alpha: 0.6),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          elevation: 2,
-        ),
+        isPrimary: true,
+        height: 52,
         child: _isSubmitting
             ? const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1010,19 +1333,30 @@ class _BloodRequestDetailsScreenState extends State<BloodRequestDetailsScreen> {
                   SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
                   ),
                   SizedBox(width: 12),
                   Text(
                     'Submitting Response...',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ],
               )
             : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.volunteer_activism_rounded, size: 20, color: Colors.white),
+                  Icon(
+                    Icons.volunteer_activism_rounded,
+                    size: 20,
+                    color: Colors.white,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'I Can Donate',
@@ -1065,7 +1399,13 @@ class _DetailRow extends StatelessWidget {
   final String value;
   final Color? valueColor;
 
-  const _DetailRow({required this.icon, this.iconColor, required this.label, required this.value, this.valueColor});
+  const _DetailRow({
+    required this.icon,
+    this.iconColor,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1081,7 +1421,11 @@ class _DetailRow extends StatelessWidget {
               color: (iconColor ?? colors.textSecondary).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 18, color: iconColor ?? colors.textSecondary),
+            child: Icon(
+              icon,
+              size: 18,
+              color: iconColor ?? colors.textSecondary,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1090,12 +1434,20 @@ class _DetailRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 12, color: colors.textSecondary, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   value,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor ?? colors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: valueColor ?? colors.textPrimary,
+                  ),
                 ),
               ],
             ),

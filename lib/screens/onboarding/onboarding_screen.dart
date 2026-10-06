@@ -1,41 +1,54 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_colors.dart';
-import '../../theme/lifelink_design.dart';
 import '../auth/auth_gate.dart';
-import 'onboarding_page.dart';
 
-/// The 3-screen LifeLink onboarding experience.
-///
-/// Features:
-/// 1. Connect Blood Donors with Those in Need (Healthcare matching illustration)
-/// 2. Trusted & Verified Requests (Request card with Blood group, Hospital, Urgency, Verified badge)
-/// 3. Respond and Stay Updated (4-step flow: Emergency Request -> Respond -> Status -> History)
-///
-/// Provides:
-/// - Skip button (immediate navigation to AuthGate / Login)
-/// - Back button (available on Screen 2 and 3)
-/// - Next button (Screen 1 & 2)
-/// - Get Started button (Screen 3)
-/// - Animated page dot indicators
+/// LIFE LINK - Premium 3-screen onboarding experience.
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback? onFinish;
-
-  const OnboardingScreen({
-    super.key,
-    this.onFinish,
-  });
-
+  const OnboardingScreen({super.key, this.onFinish});
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
+  late final AnimationController _pulseController;
+  late final AnimationController _floatController;
+  late final AnimationController _rotateController;
+  late final Animation<double> _pulseAnim;
+  late final Animation<double> _floatAnim;
+  late final Animation<double> _rotateAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1500))
+      ..repeat(reverse: true);
+    _floatController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 2800))
+      ..repeat(reverse: true);
+    _rotateController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 18))
+          ..repeat();
+    _pulseAnim = Tween<double>(begin: 0.92, end: 1.08).animate(
+        CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _floatAnim = Tween<double>(begin: -8.0, end: 8.0).animate(
+        CurvedAnimation(parent: _floatController, curve: Curves.easeInOut));
+    _rotateAnim = Tween<double>(begin: 0, end: 2 * math.pi).animate(
+        CurvedAnimation(parent: _rotateController, curve: Curves.linear));
+  }
+
   @override
   void dispose() {
+    _pulseController.dispose();
+    _floatController.dispose();
+    _rotateController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -43,12 +56,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('lifelink_has_seen_onboarding', true);
-
     if (widget.onFinish != null) {
       widget.onFinish!();
     } else if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AuthGate()),
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const AuthGate(),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
+          transitionDuration: const Duration(milliseconds: 500),
+        ),
       );
     }
   }
@@ -56,9 +73,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _nextPage() {
     if (_currentPage < 2) {
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeInOutCubic);
     } else {
       _completeOnboarding();
     }
@@ -67,875 +83,933 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _previousPage() {
     if (_currentPage > 0) {
       _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeInOutCubic);
     }
   }
 
   void _goToPage(int page) {
-    _pageController.animateToPage(
-      page,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    _pageController.animateToPage(page,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeInOutCubic);
   }
+
+  static const _gradients = [
+    [Color(0xFF8F1838), Color(0xFF6E1F3A)],
+    [Color(0xFF087F8C), Color(0xFF065F6A)],
+    [Color(0xFF267A5E), Color(0xFF1A5944)],
+  ];
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-
+    final size = MediaQuery.sizeOf(context);
+    final g = _gradients[_currentPage];
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: _currentPage > 0
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                tooltip: 'Back',
-                color: colors.textPrimary,
-                onPressed: _previousPage,
-              )
-            : const SizedBox.shrink(),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: colors.primaryContainer.withValues(alpha: 0.4),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.water_drop_rounded,
-                size: 16,
-                color: colors.primary,
-              ),
-            ),
-            const SizedBox(width: LLSpacing.xs),
-            Text(
-              'LifeLink',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-                color: colors.primary,
-              ),
-            ),
-          ],
-        ),
-        centerTitle: false,
-        actions: [
-          // Skip Button
-          TextButton(
-            onPressed: _completeOnboarding,
-            style: TextButton.styleFrom(
-              foregroundColor: colors.accent,
-              textStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: LLSpacing.lg),
-            ),
-            child: const Text('Skip'),
-          ),
-        ],
-      ),
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _currentPage = index;
-          });
-        },
+      body: Stack(
         children: [
-          // Screen 1: Connect People
-          OnboardingPage(
-            stepTag: 'STEP 1 OF 3 • CONNECT',
-            title: 'Connect Blood Donors with Those in Need',
-            description:
-                'Find suitable blood donors faster and help patients receive the blood they urgently need.',
-            visual: _buildConnectIllustration(context),
-          ),
-
-          // Screen 2: Verified Emergency Requests
-          OnboardingPage(
-            stepTag: 'STEP 2 OF 3 • TRUST & VERIFICATION',
-            title: 'Trusted & Verified Requests',
-            description:
-                'Receive verified emergency blood requests and easily identify requests that have been confirmed by hospitals or blood banks.',
-            visual: _buildVerifiedRequestIllustration(context),
-          ),
-
-          // Screen 3: Respond & Track
-          OnboardingPage(
-            stepTag: 'STEP 3 OF 3 • ACTION & HISTORY',
-            title: 'Respond and Stay Updated',
-            description:
-                'Respond to suitable blood requests and keep track of your responses and donation history in one place.',
-            visual: _buildTrackFlowIllustration(context),
-          ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: LLSpacing.pageH,
-            vertical: LLSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: colors.background,
-            border: Border(
-              top: BorderSide(
-                color: colors.border.withValues(alpha: 0.5),
-                width: 1,
-              ),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Navigation Controls Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Back Button (Bottom alternative / spacing anchor)
-                  if (_currentPage > 0)
-                    OutlinedButton.icon(
-                      onPressed: _previousPage,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: LLSpacing.md,
-                          vertical: LLSpacing.sm,
-                        ),
-                        side: BorderSide(color: colors.border),
-                        foregroundColor: colors.textSecondary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(LLRadius.control),
-                        ),
-                      ),
-                      icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                      label: const Text('Back'),
-                    )
-                  else
-                    const SizedBox(width: 80),
-
-                  // Page Dot Indicators
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(3, (index) {
-                      final isActive = index == _currentPage;
-                      return GestureDetector(
-                        key: ValueKey('dot_indicator_$index'),
-                        onTap: () => _goToPage(index),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          height: 8,
-                          width: isActive ? 26 : 8,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? colors.primary
-                                : colors.border.withValues(alpha: 0.8),
-                            borderRadius: BorderRadius.circular(LLRadius.pill),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-
-                  // Next / Get Started Button
-                  if (_currentPage < 2)
-                    FilledButton.icon(
-                      onPressed: _nextPage,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: LLSpacing.lg,
-                          vertical: LLSpacing.sm,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(LLRadius.control),
-                        ),
-                      ),
-                      icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                      label: const Text(
-                        'Next',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    )
-                  else
-                    FilledButton.icon(
-                      onPressed: _completeOnboarding,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: LLSpacing.lg,
-                          vertical: LLSpacing.sm,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(LLRadius.control),
-                        ),
-                      ),
-                      icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                      label: const Text(
-                        'Get Started',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // SCREEN 1 VISUAL: Donor & Recipient Connection
-  // ===========================================================================
-  Widget _buildConnectIllustration(BuildContext context) {
-    final colors = context.colors;
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 380, maxHeight: 260),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Background soft circles for depth
-          Positioned(
-            left: 20,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.primaryContainer.withValues(alpha: 0.18),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOut,
+            height: size.height * 0.52,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [g[0], g[1], colors.background],
+                stops: const [0.0, 0.55, 1.0],
               ),
             ),
           ),
           Positioned(
-            right: 20,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accentContainer.withValues(alpha: 0.25),
-              ),
-            ),
-          ),
-
-          // Central Connecting Flow Line
-          Positioned(
-            left: 80,
-            right: 80,
-            child: Container(
-              height: 3,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    colors.primary,
-                    colors.accent,
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-
-          // Central Glowing Heart/Drop Hub
-          Positioned(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
+            top: -60, right: -60,
+            child: AnimatedBuilder(
+              animation: _rotateAnim,
+              builder: (_, __) => Transform.rotate(
+                angle: _rotateAnim.value,
+                child: Container(
+                  width: 220, height: 220,
                   decoration: BoxDecoration(
-                    color: colors.surface,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.primary.withValues(alpha: 0.2),
-                        blurRadius: 16,
-                        spreadRadius: 2,
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.5),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: -20, right: -20,
+            child: AnimatedBuilder(
+              animation: _rotateAnim,
+              builder: (_, __) => Transform.rotate(
+                angle: -_rotateAnim.value * 0.6,
+                child: Container(
+                  width: 130, height: 130,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.13), width: 2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _currentPage > 0
+                          ? GestureDetector(
+                              onTap: _previousPage,
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.18),
+                                    shape: BoxShape.circle),
+                                child: const Icon(Icons.arrow_back_rounded,
+                                    color: Colors.white, size: 20),
+                              ),
+                            )
+                          : _buildLogoMark(),
+                      GestureDetector(
+                        onTap: _completeOnboarding,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20)),
+                          child: const Text('Skip',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.3)),
+                        ),
                       ),
                     ],
-                    border: Border.all(
-                      color: colors.primary.withValues(alpha: 0.4),
-                      width: 2,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.volunteer_activism_rounded,
-                    size: 26,
-                    color: colors.primary,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: colors.accentContainer,
-                    borderRadius: BorderRadius.circular(LLRadius.pill),
-                  ),
-                  child: Text(
-                    'Instant Match',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: colors.accent,
-                    ),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) => setState(() => _currentPage = index),
+                    children: [
+                      _buildPage1(context),
+                      _buildPage2(context),
+                      _buildPage3(context),
+                    ],
                   ),
                 ),
+                _buildBottomControls(context),
               ],
             ),
           ),
-
-          // Left Node: Blood Donor Card
-          Positioned(
-            left: 0,
-            child: _buildEntityCard(
-              context,
-              roleLabel: 'Blood Donor',
-              name: 'Active Volunteer',
-              bloodGroup: 'O+',
-              statusText: 'Available to Donate',
-              icon: Icons.person_rounded,
-              accentColor: colors.primary,
-              containerColor: colors.primaryContainer.withValues(alpha: 0.35),
-            ),
-          ),
-
-          // Right Node: Patient/Recipient Card
-          Positioned(
-            right: 0,
-            child: _buildEntityCard(
-              context,
-              roleLabel: 'Recipient Patient',
-              name: 'Urgent Care Unit',
-              bloodGroup: 'O+',
-              statusText: 'Request Matched',
-              icon: Icons.local_hospital_rounded,
-              accentColor: colors.accent,
-              containerColor: colors.accentContainer.withValues(alpha: 0.45),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildEntityCard(
-    BuildContext context, {
-    required String roleLabel,
-    required String name,
-    required String bloodGroup,
-    required String statusText,
-    required IconData icon,
-    required Color accentColor,
-    required Color containerColor,
-  }) {
-    final colors = context.colors;
+  Widget _buildLogoMark() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+          child: const Icon(Icons.water_drop_rounded, size: 16, color: Colors.white),
+        ),
+        const SizedBox(width: 8),
+        const Text('LIFE LINK',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2.5)),
+      ],
+    );
+  }
 
+  Widget _buildBottomControls(BuildContext context) {
+    final colors = context.colors;
+    final isLast = _currentPage == 2;
     return Container(
-      width: 132,
-      padding: const EdgeInsets.all(LLSpacing.sm),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(LLRadius.card),
-        border: Border.all(color: colors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: containerColor,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 20, color: accentColor),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            roleLabel,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            name,
-            style: TextStyle(
-              fontSize: 9,
-              color: colors.textSecondary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: accentColor,
-              borderRadius: BorderRadius.circular(LLRadius.pill),
-            ),
-            child: Text(
-              bloodGroup,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.success,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  statusText,
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w600,
-                    color: colors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // SCREEN 2 VISUAL: Verified Emergency Request Card
-  // ===========================================================================
-  Widget _buildVerifiedRequestIllustration(BuildContext context) {
-    final colors = context.colors;
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 360),
-      padding: const EdgeInsets.all(LLSpacing.lg),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(LLRadius.card),
-        border: Border.all(
-          color: colors.primary.withValues(alpha: 0.25),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: colors.primary.withValues(alpha: 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Badges Row: Urgency + Units
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: LLSpacing.sm,
-            runSpacing: LLSpacing.xs,
-            children: [
-              // Urgency Badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: LLSpacing.sm,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: colors.criticalContainer,
-                  borderRadius: BorderRadius.circular(LLRadius.pill),
-                  border: Border.all(color: colors.critical.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.emergency_rounded,
-                      size: 13,
-                      color: colors.critical,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'URGENT EMERGENCY',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                        color: colors.critical,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Units Required
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: LLSpacing.sm,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: colors.elevatedSurface,
-                  borderRadius: BorderRadius.circular(LLRadius.pill),
-                  border: Border.all(color: colors.border),
-                ),
-                child: Text(
-                  '2 Units Required',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: colors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: LLSpacing.md),
-
-          // Center Row: Large Blood Group + Patient Details
-          Row(
-            children: [
-              // Blood Group Container
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: colors.primary,
-                  borderRadius: BorderRadius.circular(LLRadius.control),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.primary.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text(
-                    'A+',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: LLSpacing.md),
-
-              // Request Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Emergency Surgery Case',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.local_hospital_rounded,
-                          size: 14,
-                          color: colors.accent,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            'City General Hospital',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: colors.accent,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Trauma Care Wing • 2.4 km away',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: LLSpacing.md),
-          const Divider(height: 1),
-          const SizedBox(height: LLSpacing.md),
-
-          // Prominent Verified Badge Banner
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: LLSpacing.md,
-              vertical: LLSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              color: colors.successContainer.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(LLRadius.control),
-              border: Border.all(
-                color: colors.success.withValues(alpha: 0.4),
-                width: 1.2,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
+            children: List.generate(3, (index) {
+              final isActive = index == _currentPage;
+              return GestureDetector(
+                key: ValueKey('dot_indicator_$index'),
+                onTap: () => _goToPage(index),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 6,
+                  width: isActive ? 28 : 6,
                   decoration: BoxDecoration(
-                    color: colors.success,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_rounded,
-                    size: 14,
-                    color: Colors.white,
+                    color: isActive
+                        ? colors.primary
+                        : colors.border.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
-                const SizedBox(width: LLSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Verified Hospital Request',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: colors.success,
-                        ),
-                      ),
-                      Text(
-                        'Confirmed by Blood Bank Authorization Desk',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.verified_user_rounded,
-                  size: 20,
-                  color: colors.success,
+              );
+            }),
+          ),
+          const SizedBox(height: 20),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isLast
+                    ? [const Color(0xFF267A5E), const Color(0xFF087F8C)]
+                    : [colors.primary, const Color(0xFFC62845)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: (isLast ? colors.success : colors.primary)
+                      .withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // SCREEN 3 VISUAL: Flow (Emergency Request -> Respond -> Status -> History)
-  // ===========================================================================
-  Widget _buildTrackFlowIllustration(BuildContext context) {
-    final colors = context.colors;
-
-    final steps = [
-      _FlowStep(
-        stepNumber: '1',
-        title: 'Emergency Request',
-        subtitle: 'Receive instant notification for matched blood groups',
-        icon: Icons.emergency_share_rounded,
-        accentColor: colors.critical,
-        containerColor: colors.criticalContainer,
-      ),
-      _FlowStep(
-        stepNumber: '2',
-        title: 'Respond',
-        subtitle: 'Confirm your availability in a single tap',
-        icon: Icons.touch_app_rounded,
-        accentColor: colors.primary,
-        containerColor: colors.primaryContainer.withValues(alpha: 0.4),
-      ),
-      _FlowStep(
-        stepNumber: '3',
-        title: 'Response Status',
-        subtitle: 'Coordinate with hospital staff in real-time',
-        icon: Icons.sync_alt_rounded,
-        accentColor: colors.accent,
-        containerColor: colors.accentContainer,
-      ),
-      _FlowStep(
-        stepNumber: '4',
-        title: 'Donation History',
-        subtitle: 'Track past donations, badges, and verified impact',
-        icon: Icons.history_edu_rounded,
-        accentColor: colors.success,
-        containerColor: colors.successContainer,
-      ),
-    ];
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 380),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (int i = 0; i < steps.length; i++) ...[
-            _buildFlowStepItem(context, steps[i]),
-            if (i < steps.length - 1)
-              Padding(
-                padding: const EdgeInsets.only(left: 24),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    width: 2,
-                    height: 12,
-                    color: colors.border,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: _nextPage,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        isLast ? 'Get Started' : 'Continue',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4),
+                      ),
+                      const SizedBox(width: 10),
+                      const Icon(Icons.arrow_forward_rounded,
+                          color: Colors.white, size: 20),
+                    ],
                   ),
                 ),
               ),
-          ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFlowStepItem(BuildContext context, _FlowStep step) {
+  // ===========================================================================
+  // SCREEN 1 - Every Drop Matters
+  // ===========================================================================
+  Widget _buildPage1(BuildContext context) {
     final colors = context.colors;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: LLSpacing.sm,
-        vertical: 6,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 280,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  AnimatedBuilder(
+                    animation: _pulseAnim,
+                    builder: (_, __) => Transform.scale(
+                      scale: _pulseAnim.value * 1.1,
+                      child: Container(
+                        width: 200, height: 200,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  AnimatedBuilder(
+                    animation: _pulseAnim,
+                    builder: (_, __) => Transform.scale(
+                      scale: _pulseAnim.value,
+                      child: Container(
+                        width: 150, height: 150,
+                        decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.08)),
+                      ),
+                    ),
+                  ),
+                  AnimatedBuilder(
+                    animation: _floatAnim,
+                    builder: (_, __) => Transform.translate(
+                      offset: Offset(0, _floatAnim.value),
+                      child: Container(
+                        width: 110, height: 110,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.white.withValues(alpha: 0.4),
+                                blurRadius: 30,
+                                spreadRadius: 5)
+                          ],
+                        ),
+                        child: Center(
+                          child: Icon(Icons.water_drop_rounded,
+                              size: 52, color: colors.primary),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 30, left: 10,
+                    child: AnimatedBuilder(
+                      animation: _floatAnim,
+                      builder: (_, __) => Transform.translate(
+                        offset: Offset(0, -_floatAnim.value * 0.6),
+                        child: _buildFloatingBadge(
+                            icon: Icons.person_rounded,
+                            label: '12.4K Donors',
+                            color: Colors.white,
+                            textColor: colors.primary),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 40, right: 10,
+                    child: AnimatedBuilder(
+                      animation: _floatAnim,
+                      builder: (_, __) => Transform.translate(
+                        offset: Offset(0, _floatAnim.value * 0.5),
+                        child: _buildFloatingBadge(
+                            icon: Icons.local_hospital_rounded,
+                            label: '280+ Hospitals',
+                            color: Colors.white,
+                            textColor: const Color(0xFF087F8C)),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 30,
+                    child: AnimatedBuilder(
+                      animation: _floatAnim,
+                      builder: (_, __) => Transform.translate(
+                        offset: Offset(0, -_floatAnim.value * 0.7),
+                        child: _buildFloatingBadge(
+                            icon: Icons.favorite_rounded,
+                            label: '3,800+ Lives Saved',
+                            color: Colors.white,
+                            textColor: const Color(0xFF267A5E)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildStepTag('01 / 03  \u2022  CONNECT', colors.primary),
+            const SizedBox(height: 14),
+            Text(
+              'Every Drop\nMatters',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
+                  height: 1.1,
+                  letterSpacing: -1,
+                  color: colors.textPrimary),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'LIFE LINK bridges blood donors with patients in urgent need \u2014 instantly, reliably, and with care.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, height: 1.55, color: colors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8, runSpacing: 8,
+              children: [
+                _buildFeaturePill(Icons.bolt_rounded, 'Instant Match', colors),
+                _buildFeaturePill(Icons.location_on_rounded, 'Near You', colors),
+                _buildFeaturePill(Icons.notifications_active_rounded, 'Live Alerts', colors),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
+    );
+  }
+
+  // ===========================================================================
+  // SCREEN 2 - Verified Requests, Real Lives
+  // ===========================================================================
+  Widget _buildPage2(BuildContext context) {
+    final colors = context.colors;
+    const teal = Color(0xFF087F8C);
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 280,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 220, height: 220,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                          colors: [teal.withValues(alpha: 0.18), Colors.transparent]),
+                    ),
+                  ),
+                  Positioned(
+                    top: 20,
+                    child: Transform.rotate(
+                      angle: -0.06,
+                      child: _buildRequestCardMini(colors,
+                          bloodGroup: 'B+',
+                          hospital: 'National Hospital',
+                          urgency: 'MODERATE',
+                          urgencyColor: colors.warning,
+                          isBack: true),
+                    ),
+                  ),
+                  AnimatedBuilder(
+                    animation: _floatAnim,
+                    builder: (_, __) => Transform.translate(
+                      offset: Offset(0, _floatAnim.value * 0.5),
+                      child: _buildRequestCardMini(colors,
+                          bloodGroup: 'A+',
+                          hospital: 'City General Hospital',
+                          urgency: 'URGENT',
+                          urgencyColor: colors.critical,
+                          isBack: false,
+                          showVerified: true),
+                    ),
+                  ),
+                  Positioned(
+                    top: 14, right: 30,
+                    child: AnimatedBuilder(
+                      animation: _pulseAnim,
+                      builder: (_, __) => Transform.scale(
+                        scale: 0.95 + (_pulseAnim.value - 0.92) * 0.5,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: colors.success,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: colors.success.withValues(alpha: 0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4))
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.verified_user_rounded,
+                                  color: Colors.white, size: 14),
+                              SizedBox(width: 5),
+                              Text('Verified',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildStepTag('02 / 03  \u2022  TRUST', teal),
+            const SizedBox(height: 14),
+            Text(
+              'Verified Requests,\nReal Lives',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
+                  height: 1.1,
+                  letterSpacing: -0.8,
+                  color: colors.textPrimary),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Every blood request is authenticated by hospitals and blood banks \u2014 so you always know your response saves a real life.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, height: 1.55, color: colors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            _buildTrustRow(
+                icon: Icons.shield_rounded,
+                color: colors.success,
+                label: 'Hospital-Verified',
+                sub: 'Confirmed by blood bank authorization',
+                colors: colors),
+            const SizedBox(height: 10),
+            _buildTrustRow(
+                icon: Icons.emergency_rounded,
+                color: colors.critical,
+                label: 'Urgency Levels',
+                sub: 'Critical, Urgent and Moderate - always clear',
+                colors: colors),
+            const SizedBox(height: 10),
+            _buildTrustRow(
+                icon: Icons.location_on_rounded,
+                color: teal,
+                label: 'Nearby Matches',
+                sub: 'Distance-aware request matching',
+                colors: colors),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // SCREEN 3 - Be the Link That Saves Lives
+  // ===========================================================================
+  Widget _buildPage3(BuildContext context) {
+    final colors = context.colors;
+    const green = Color(0xFF267A5E);
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 280,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  AnimatedBuilder(
+                    animation: _rotateAnim,
+                    builder: (_, __) => Transform.rotate(
+                      angle: _rotateAnim.value * 0.4,
+                      child: CustomPaint(
+                        size: const Size(220, 220),
+                        painter: _DashedCirclePainter(
+                            color: green.withValues(alpha: 0.25),
+                            dashCount: 20,
+                            strokeWidth: 2.5),
+                      ),
+                    ),
+                  ),
+                  AnimatedBuilder(
+                    animation: _pulseAnim,
+                    builder: (_, __) => Transform.scale(
+                      scale: _pulseAnim.value,
+                      child: Container(
+                        width: 100, height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                                color: green.withValues(alpha: 0.3),
+                                blurRadius: 28,
+                                spreadRadius: 4)
+                          ],
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.favorite_rounded,
+                              color: Color(0xFF8F1838), size: 46),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                      top: 10,
+                      child: _buildStatNode('3,800+', 'Lives Saved', green)),
+                  Positioned(
+                      left: 0,
+                      child: _buildStatNode(
+                          '12.4K', 'Donors', const Color(0xFF8F1838))),
+                  Positioned(
+                      right: 0,
+                      child: _buildStatNode(
+                          '280+', 'Hospitals', const Color(0xFF087F8C))),
+                  Positioned(
+                      bottom: 10,
+                      child: _buildStatNode(
+                          '48h', 'Avg. Response', colors.warning)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildStepTag('03 / 03  \u2022  IMPACT', green),
+            const SizedBox(height: 14),
+            Text(
+              'Be the Link\nThat Saves Lives',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
+                  height: 1.1,
+                  letterSpacing: -0.8,
+                  color: colors.textPrimary),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Join thousands of donors making a real difference. Track your impact, earn trust badges, and be a hero for someone today.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, height: 1.55, color: colors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            _buildJourneyStep(
+                step: '1',
+                icon: Icons.app_registration_rounded,
+                title: 'Sign Up in 60 Seconds',
+                sub: 'Create your donor profile instantly',
+                color: const Color(0xFF8F1838),
+                colors: colors),
+            const SizedBox(height: 8),
+            _buildJourneyStep(
+                step: '2',
+                icon: Icons.notifications_active_rounded,
+                title: 'Get Matched Requests',
+                sub: 'Alerts for your blood group and location',
+                color: const Color(0xFF087F8C),
+                colors: colors),
+            const SizedBox(height: 8),
+            _buildJourneyStep(
+                step: '3',
+                icon: Icons.volunteer_activism_rounded,
+                title: 'Donate and Track Impact',
+                sub: 'See lives you have touched, earn badges',
+                color: green,
+                colors: colors),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // SHARED HELPER WIDGETS
+  // ===========================================================================
+  Widget _buildStepTag(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(LLRadius.control),
-        border: Border.all(color: colors.border),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: color)),
+    );
+  }
+
+  Widget _buildFloatingBadge(
+      {required IconData icon,
+      required String label,
+      required Color color,
+      required Color textColor}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 12,
+              offset: const Offset(0, 4))
         ],
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Step Icon / Number Indicator
+          Icon(icon, size: 13, color: textColor),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w800, color: textColor)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeaturePill(IconData icon, String label, AppColors colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: colors.primary),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: colors.primary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequestCardMini(AppColors colors,
+      {required String bloodGroup,
+      required String hospital,
+      required String urgency,
+      required Color urgencyColor,
+      required bool isBack,
+      bool showVerified = false}) {
+    return Container(
+      width: 270,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:
+            isBack ? colors.surface.withValues(alpha: 0.7) : colors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+            color: isBack
+                ? colors.border.withValues(alpha: 0.5)
+                : colors.border),
+        boxShadow: isBack
+            ? []
+            : [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8))
+              ],
+      ),
+      child: Row(
+        children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 52, height: 52,
             decoration: BoxDecoration(
-              color: step.containerColor,
-              borderRadius: BorderRadius.circular(LLRadius.control),
-            ),
+                color: colors.primary,
+                borderRadius: BorderRadius.circular(14)),
             child: Center(
-              child: Icon(
-                step.icon,
-                size: 18,
-                color: step.accentColor,
-              ),
+              child: Text(bloodGroup,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900)),
             ),
           ),
-          const SizedBox(width: LLSpacing.sm),
-
-          // Titles
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      step.title,
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: urgencyColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(urgency,
                       style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: urgencyColor,
+                          letterSpacing: 0.5)),
+                ),
+                const SizedBox(height: 4),
+                Text(hospital,
+                    style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: step.accentColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(LLRadius.pill),
-                      ),
-                      child: Text(
-                        'Step ${step.stepNumber}',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: step.accentColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  step.subtitle,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: colors.textSecondary,
+                        color: colors.textPrimary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                if (showVerified) ...[
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(Icons.verified_rounded,
+                          size: 12, color: colors.success),
+                      const SizedBox(width: 3),
+                      Text('Hospital Verified',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: colors.success)),
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                ],
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          Icon(
-            Icons.chevron_right_rounded,
-            size: 16,
-            color: colors.textSecondary.withValues(alpha: 0.6),
+  Widget _buildTrustRow(
+      {required IconData icon,
+      required Color color,
+      required String label,
+      required String sub,
+      required AppColors colors}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border)),
+      child: Row(
+        children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary)),
+                Text(sub,
+                    style: TextStyle(
+                        fontSize: 11, color: colors.textSecondary)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatNode(String value, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+              color: color.withValues(alpha: 0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 3))
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(value,
+              style: TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w900, color: color)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B6064))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJourneyStep(
+      {required String step,
+      required IconData icon,
+      required String title,
+      required String sub,
+      required Color color,
+      required AppColors colors}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border)),
+      child: Row(
+        children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: [color, color.withValues(alpha: 0.7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary)),
+                Text(sub,
+                    style: TextStyle(
+                        fontSize: 11, color: colors.textSecondary)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8)),
+            child: Text(step,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: color)),
           ),
         ],
       ),
@@ -943,20 +1017,37 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-class _FlowStep {
-  final String stepNumber;
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color accentColor;
-  final Color containerColor;
+// =============================================================================
+// Dashed Circle Painter for Screen 3 rotating ring
+// =============================================================================
+class _DashedCirclePainter extends CustomPainter {
+  final Color color;
+  final int dashCount;
+  final double strokeWidth;
+  const _DashedCirclePainter(
+      {required this.color,
+      required this.dashCount,
+      required this.strokeWidth});
 
-  const _FlowStep({
-    required this.stepNumber,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.accentColor,
-    required this.containerColor,
-  });
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - strokeWidth;
+    const gapAngle = math.pi / 60;
+    final dashAngle = (2 * math.pi / dashCount) - gapAngle;
+    for (int i = 0; i < dashCount; i++) {
+      final startAngle = i * (2 * math.pi / dashCount);
+      canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
+          startAngle, dashAngle, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedCirclePainter old) =>
+      old.color != color || old.dashCount != dashCount;
 }

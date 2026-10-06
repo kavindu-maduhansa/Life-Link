@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'register_screen.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Login screen for the Blood Donation HCI application.
 /// Provides user interface and form validation connected to Firebase Authentication.
@@ -80,11 +82,11 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      debugPrint('[LifeLink Login] Attempting signInWithEmailAndPassword for $email');
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+      debugPrint(
+        '[LifeLink Login] Attempting signInWithEmailAndPassword for $email',
       );
+      final userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
 
       final user = userCredential.user ?? FirebaseAuth.instance.currentUser;
 
@@ -101,7 +103,9 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      debugPrint('[LifeLink Login] FirebaseAuthException (${e.code}): ${e.message}');
+      debugPrint(
+        '[LifeLink Login] FirebaseAuthException (${e.code}): ${e.message}',
+      );
       if (!mounted) return;
 
       final errorMessage = _getAuthErrorMessage(e.code, e.message);
@@ -146,23 +150,24 @@ class _LoginScreenState extends State<LoginScreen> {
   void _handleNavigateToRegister() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const RegisterScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const RegisterScreen()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828); // Deep Crimson Red
-    const surfaceColor = Color(0xFFF9FAFB);
+    final colors = context.colors;
+    final primaryColor = colors.primary;
 
     return Scaffold(
-      backgroundColor: surfaceColor,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: Form(
@@ -179,13 +184,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 90,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: primaryColor.withValues(alpha: 0.1),
+                          color: colors.primaryContainer,
                           border: Border.all(
-                            color: primaryColor.withValues(alpha: 0.2),
+                            color: primaryColor.withValues(alpha: 0.25),
                             width: 2,
                           ),
+                          boxShadow: LLNeumorphism.shadows(
+                            brightness: Theme.of(context).brightness,
+                            elevation: NeumorphicElevationLevel.low,
+                            darkShadowColor: primaryColor.withValues(
+                              alpha: 0.15,
+                            ),
+                          ),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.water_drop_rounded,
                           size: 52,
                           color: primaryColor,
@@ -195,50 +207,39 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 20),
 
                     // App Title & Tagline
-                    const Text(
-                      'Blood Donation HCI',
+                    Text(
+                      'Life Link',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
+                        color: colors.textPrimary,
                         letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Connecting donors and saving lives',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF6B7280),
+                        color: colors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 32),
 
-                    // Card Container for form fields
-                    Container(
+                    // Neumorphic Card Container for form fields
+                    NeumorphicCard(
                       padding: const EdgeInsets.all(24.0),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
+                          Text(
                             'Sign In',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1F2937),
+                              color: colors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -249,35 +250,49 @@ class _LoginScreenState extends State<LoginScreen> {
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             enabled: !_isLoading,
-                            style: const TextStyle(color: Color(0xFF1F2937)),
+                            style: TextStyle(color: colors.textPrimary),
                             decoration: InputDecoration(
                               labelText: 'Email Address',
+                              labelStyle: TextStyle(
+                                color: colors.textSecondary,
+                              ),
                               hintText: 'name@example.com',
-                              prefixIcon: const Icon(
+                              hintStyle: TextStyle(
+                                color: colors.textSecondary.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
+                              prefixIcon: Icon(
                                 Icons.email_outlined,
-                                color: Color(0xFF6B7280),
+                                color: colors.textSecondary,
                               ),
                               filled: true,
-                              fillColor: const Color(0xFFF9FAFB),
+                              fillColor: colors.elevatedSurface,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                borderSide: BorderSide(color: colors.border),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                borderSide: BorderSide(color: colors.border),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: primaryColor, width: 1.8),
+                                borderSide: BorderSide(
+                                  color: colors.accent,
+                                  width: 1.8,
+                                ),
                               ),
                               errorBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Colors.redAccent),
+                                borderSide: BorderSide(color: colors.critical),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+                                borderSide: BorderSide(
+                                  color: colors.critical,
+                                  width: 1.8,
+                                ),
                               ),
                             ),
                             validator: (value) {
@@ -301,21 +316,30 @@ class _LoginScreenState extends State<LoginScreen> {
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.done,
                             enabled: !_isLoading,
-                            onFieldSubmitted: (_) => _isLoading ? null : _handleLogin(),
-                            style: const TextStyle(color: Color(0xFF1F2937)),
+                            onFieldSubmitted: (_) =>
+                                _isLoading ? null : _handleLogin(),
+                            style: TextStyle(color: colors.textPrimary),
                             decoration: InputDecoration(
                               labelText: 'Password',
+                              labelStyle: TextStyle(
+                                color: colors.textSecondary,
+                              ),
                               hintText: 'Enter your password',
-                              prefixIcon: const Icon(
+                              hintStyle: TextStyle(
+                                color: colors.textSecondary.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
+                              prefixIcon: Icon(
                                 Icons.lock_outline_rounded,
-                                color: Color(0xFF6B7280),
+                                color: colors.textSecondary,
                               ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscurePassword
                                       ? Icons.visibility_off_outlined
                                       : Icons.visibility_outlined,
-                                  color: const Color(0xFF6B7280),
+                                  color: colors.textSecondary,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -324,26 +348,32 @@ class _LoginScreenState extends State<LoginScreen> {
                                 },
                               ),
                               filled: true,
-                              fillColor: const Color(0xFFF9FAFB),
+                              fillColor: colors.elevatedSurface,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                borderSide: BorderSide(color: colors.border),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                borderSide: BorderSide(color: colors.border),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: primaryColor, width: 1.8),
+                                borderSide: BorderSide(
+                                  color: colors.accent,
+                                  width: 1.8,
+                                ),
                               ),
                               errorBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Colors.redAccent),
+                                borderSide: BorderSide(color: colors.critical),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+                                borderSide: BorderSide(
+                                  color: colors.critical,
+                                  width: 1.8,
+                                ),
                               ),
                             ),
                             validator: (value) {
@@ -359,16 +389,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: _isLoading ? null : _handleForgotPassword,
+                              onPressed: _isLoading
+                                  ? null
+                                  : _handleForgotPassword,
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(50, 30),
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Forgot Password?',
                                 style: TextStyle(
-                                  color: primaryColor,
+                                  color: colors.accent,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                 ),
@@ -383,7 +415,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryColor,
                               foregroundColor: Colors.white,
-                              elevation: 1,
+                              elevation: 2,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -423,16 +455,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       alignment: WrapAlignment.center,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           "Don't have an account?",
                           style: TextStyle(
-                            color: Color(0xFF6B7280),
+                            color: colors.textSecondary,
                             fontSize: 14,
                           ),
                         ),
                         TextButton(
-                          onPressed: _isLoading ? null : _handleNavigateToRegister,
-                          child: const Text(
+                          onPressed: _isLoading
+                              ? null
+                              : _handleNavigateToRegister,
+                          child: Text(
                             'Register',
                             style: TextStyle(
                               color: primaryColor,

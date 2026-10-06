@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import 'review_request_screen.dart';
 
 /// Urgency & contact form screen (HF 06)
@@ -115,13 +116,27 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828);
+    final colors = context.colors;
+    final primaryColor = colors.accent;
 
     return Scaffold(
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Urgency & Contact'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        title: Text(
+          'Urgency & Contact',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: colors.surface,
+        foregroundColor: colors.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: colors.border, height: 1),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -131,41 +146,68 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Progress Indicator
-              LinearProgressIndicator(
-                value: 1.0,
-                backgroundColor: Colors.grey.shade300,
-                valueColor: const AlwaysStoppedAnimation<Color>(primaryColor),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: 1.0,
+                  minHeight: 6,
+                  backgroundColor: colors.border,
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Step 4 of 4',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 12, color: colors.textSecondary),
               ),
               const SizedBox(height: 24),
 
               // Urgency Selection
-              const Text(
+              Text(
                 'Urgency Level',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _urgency,
+                style: TextStyle(color: colors.textPrimary),
+                dropdownColor: colors.surface,
                 decoration: InputDecoration(
                   hintText: 'Select urgency level',
-                  prefixIcon: const Icon(Icons.speed_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.speed_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 items: _urgencyOptions.map((urgency) {
-                  return DropdownMenuItem(value: urgency, child: Text(urgency));
+                  return DropdownMenuItem(
+                    value: urgency,
+                    child: Text(
+                      urgency,
+                      style: TextStyle(color: colors.textPrimary),
+                    ),
+                  );
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
@@ -182,28 +224,51 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
               const SizedBox(height: 16),
 
               // Blood Needed By
-              const Text(
+              Text(
                 'Blood Needed By',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _bloodNeededBy,
+                style: TextStyle(color: colors.textPrimary),
+                dropdownColor: colors.surface,
                 decoration: InputDecoration(
                   hintText: 'Select when blood is needed',
-                  prefixIcon: const Icon(Icons.access_time_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.access_time_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 items: _bloodNeededByOptions.map((option) {
-                  return DropdownMenuItem(value: option, child: Text(option));
+                  return DropdownMenuItem(
+                    value: option,
+                    child: Text(
+                      option,
+                      style: TextStyle(color: colors.textPrimary),
+                    ),
+                  );
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
@@ -223,14 +288,31 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
               TextFormField(
                 controller: _contactNumberController,
                 keyboardType: TextInputType.phone,
+                style: TextStyle(color: colors.textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Contact Number',
+                  labelStyle: TextStyle(color: colors.textSecondary),
                   hintText: 'Enter your contact number',
-                  prefixIcon: const Icon(Icons.phone_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.phone_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 validator: (value) {
@@ -246,28 +328,51 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
               const SizedBox(height: 16),
 
               // Preferred Update Method
-              const Text(
+              Text(
                 'Preferred Update Method',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _preferredUpdateMethod,
+                style: TextStyle(color: colors.textPrimary),
+                dropdownColor: colors.surface,
                 decoration: InputDecoration(
                   hintText: 'Select update method',
-                  prefixIcon: const Icon(Icons.notifications_active_rounded),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.notifications_active_rounded,
+                    color: colors.textSecondary,
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: colors.elevatedSurface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 1.8),
                   ),
                 ),
                 items: _updateMethodOptions.map((method) {
-                  return DropdownMenuItem(value: method, child: Text(method));
+                  return DropdownMenuItem(
+                    value: method,
+                    child: Text(
+                      method,
+                      style: TextStyle(color: colors.textPrimary),
+                    ),
+                  );
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
@@ -291,6 +396,7 @@ class _UrgencyContactScreenState extends State<UrgencyContactScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
+                    elevation: 2,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

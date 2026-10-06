@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../hospital_home_screen.dart';
 import '../../../models/blood_request.dart';
+import '../../../services/request_service.dart';
 import '../../../utils/donor_availability.dart';
 import '../../../utils/request_status.dart';
 import '../../../theme/app_colors.dart';
@@ -15,6 +16,7 @@ import '../../../widgets/animated_count.dart';
 import '../../../widgets/live_pulse_dot.dart';
 import '../../../widgets/skeleton_loader.dart';
 import '../request_details_screen.dart';
+import '../../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Overview / analytics tab for the Doctor dashboard - the "Blood Bank
 /// Operations Command Center".
@@ -639,12 +641,10 @@ class _DemoCommandCard extends StatelessWidget {
     final colors = context.colors;
     return Opacity(
       opacity: 0.85,
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.elevatedSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.critical.withValues(alpha: 0.4)),
-        ),
+      child: NeumorphicCard(
+        elevation: NeumorphicElevationLevel.low,
+        color: colors.elevatedSurface,
+        borderColor: colors.critical.withValues(alpha: 0.4),
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
@@ -688,12 +688,11 @@ class _CommandCard extends StatelessWidget {
     final isCritical = request.urgency == UrgencyLevel.critical;
     final urgencyColor = UrgencyLevel.color(request.urgency);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isCritical ? colors.critical.withValues(alpha: 0.06) : colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isCritical ? colors.critical : colors.border, width: isCritical ? 1.6 : 1),
-      ),
+    return NeumorphicCard(
+      elevation: isCritical ? NeumorphicElevationLevel.raised : NeumorphicElevationLevel.card,
+      color: isCritical ? colors.critical.withValues(alpha: 0.06) : colors.surface,
+      borderColor: isCritical ? colors.critical : colors.border,
+      borderWidth: isCritical ? 1.6 : 1.0,
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -793,6 +792,12 @@ class _CommandCard extends StatelessWidget {
                 style: TextStyle(fontSize: 11.5, color: RequestStatus.color(request.status), fontWeight: FontWeight.w600),
               ),
               const Spacer(),
+              // Phase 3 — Quick-action claim/release UPDATE buttons
+              // so the doctor can take ownership of an urgent request
+              // directly from the dashboard without opening the detail
+              // screen first.
+              _ClaimReleaseButton(request: request),
+              const SizedBox(width: 4),
               TextButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestDetailsScreen(requestId: request.id))),
                 child: Text(
@@ -805,6 +810,89 @@ class _CommandCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Quick claim/release button for the dashboard command cards.
+///
+/// Uses [RequestService.claimRequest] and [RequestService.releaseRequest]
+/// which perform Firestore transactions (UPDATE) with ownership guards.
+class _ClaimReleaseButton extends StatefulWidget {
+  const _ClaimReleaseButton({required this.request});
+  final BloodRequest request;
+
+  @override
+  State<_ClaimReleaseButton> createState() => _ClaimReleaseButtonState();
+}
+
+class _ClaimReleaseButtonState extends State<_ClaimReleaseButton> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
+    final isMine = widget.request.assignedDoctorId == uid;
+    final isAssigned = widget.request.assignedDoctorId != null && widget.request.assignedDoctorId!.isNotEmpty;
+
+    // If assigned to someone else, don't show claim/release
+    if (isAssigned && !isMine) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 30,
+      child: TextButton.icon(
+        onPressed: _busy ? null : () => isMine ? _release() : _claim(),
+        icon: _busy
+            ? SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: colors.primary))
+            : Icon(
+                isMine ? Icons.person_remove_rounded : Icons.person_add_rounded,
+                size: 14,
+                color: isMine ? colors.warning : colors.success,
+              ),
+        label: Text(
+          isMine ? 'Release' : 'Claim',
+          style: TextStyle(fontSize: 11, color: isMine ? colors.warning : colors.success, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _claim() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    setState(() => _busy = true);
+    try {
+      await RequestService.instance.claimRequest(
+        requestId: widget.request.id,
+        doctorId: user.uid,
+        doctorName: user.displayName ?? user.email ?? 'Staff',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not claim: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _release() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    setState(() => _busy = true);
+    try {
+      await RequestService.instance.releaseRequest(
+        requestId: widget.request.id,
+        doctorId: user.uid,
+        doctorName: user.displayName ?? user.email ?? 'Staff',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not release: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 }
 
@@ -822,7 +910,8 @@ class _DonorCoverageBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final ratio = needed <= 0 ? 0.0 : (confirmed / needed).clamp(0.0, 1.0);
+    final effectiveConfirmed = confirmed > 0 ? confirmed : accepted;
+    final ratio = needed <= 0 ? 0.0 : (effectiveConfirmed / needed).clamp(0.0, 1.0);
     final pct = (ratio * 100).round();
     final barColor = ratio >= 1.0 ? colors.success : (ratio >= 0.5 ? colors.champagne : colors.critical);
     final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
@@ -848,20 +937,17 @@ class _DonorCoverageBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           child: SizedBox(
             height: 8,
-            child: Stack(
-              children: [
-                Container(color: colors.elevatedSurface),
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: ratio),
-                  duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 700),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, value, _) => FractionallySizedBox(
-                    widthFactor: value.clamp(0.0, 1.0),
-                    alignment: Alignment.centerLeft,
-                    child: Container(color: barColor),
-                  ),
-                ),
-              ],
+            width: double.infinity,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: ratio),
+              duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 700),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value.clamp(0.0, 1.0),
+                minHeight: 8,
+                backgroundColor: colors.elevatedSurface,
+                valueColor: AlwaysStoppedAnimation(barColor),
+              ),
             ),
           ),
         ),
@@ -869,7 +955,7 @@ class _DonorCoverageBar extends StatelessWidget {
         Text(
           notified == 0
               ? 'No donors notified yet'
-              : '$notified donor(s) notified · $accepted responding · $confirmed/$needed unit(s) confirmed',
+              : '$notified donor(s) notified · $accepted responding · $effectiveConfirmed/$needed unit(s) confirmed',
           style: TextStyle(fontSize: 10.5, color: colors.textSecondary),
         ),
       ],
@@ -1015,13 +1101,9 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final accent = data.color ?? colors.textSecondary;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.low,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1106,13 +1188,9 @@ class _ResponseFunnelSection extends StatelessWidget {
 
     final maxValue = stages.first.value == 0 ? 1 : stages.first.value;
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1255,13 +1333,9 @@ class _ResponsePerformanceSection extends StatelessWidget {
       _PerfStat('Completion Rate', completionRate, Icons.task_alt_rounded),
     ];
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1391,13 +1465,11 @@ class _DoctorInsightsSection extends StatelessWidget {
       }
     }
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
-      ),
+      elevation: NeumorphicElevationLevel.card,
+      color: colors.primary.withValues(alpha: 0.06),
+      borderColor: colors.primary.withValues(alpha: 0.25),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1534,13 +1606,9 @@ class _LiveActivityFeedSection extends StatelessWidget {
     final colors = context.colors;
     final isDemo = auditDocs.isEmpty;
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1666,13 +1734,10 @@ class _PolishedEmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      decoration: BoxDecoration(
-        color: colors.elevatedSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.low,
+      color: colors.elevatedSurface,
       child: Row(
         children: [
           Icon(icon, color: colors.success, size: 26),
@@ -1745,13 +1810,9 @@ class _RequestTrendCardState extends State<_RequestTrendCard> {
     final maxCount = counts.fold<int>(1, (m, v) => v > m ? v : m);
     final showLabelEvery = _rangeDays == 7 ? 1 : 5;
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1935,13 +1996,9 @@ class _BloodDemandCard extends StatelessWidget {
     final sortedGroups = _groups.toList()..sort((a, b) => (demand[b] ?? 0).compareTo(demand[a] ?? 0));
     final maxDemand = demand.values.fold<int>(1, (m, v) => v > m ? v : m);
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2040,13 +2097,9 @@ class _BloodGroupChartCard extends StatelessWidget {
         if (counts[_groups[i]]! > 0) _DonutSlice(label: _groups[i], value: counts[_groups[i]]!, color: palette[i % palette.length]),
     ];
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2311,13 +2364,9 @@ class _DonorLeaderboardSection extends StatelessWidget {
       if (entries.length > 10) entries = entries.sublist(0, 10);
     }
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

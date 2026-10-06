@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../auth/auth_gate.dart';
 
 class OrganisationProfileScreen extends StatefulWidget {
   const OrganisationProfileScreen({super.key});
@@ -1125,10 +1126,10 @@ class _OrganisationProfileScreenState
       return;
     }
 
-  Navigator.popUntil(
-  context,
-  (route) => route.isFirst,
-);
+     Navigator.of(context).pushAndRemoveUntil(
+     MaterialPageRoute(builder: (_) => const AuthGate()),
+     (route) => false,
+   );
   }
 
   // ============================================================

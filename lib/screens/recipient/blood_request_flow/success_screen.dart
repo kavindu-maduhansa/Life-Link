@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../theme/app_colors.dart';
+import '../../../widgets/neumorphic/neumorphic_widgets.dart';
+
 /// Success screen (HF 12)
 class SuccessScreen extends StatelessWidget {
   final String message;
@@ -13,10 +16,10 @@ class SuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC62828);
+    final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -24,36 +27,35 @@ class SuccessScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Success Icon
-                Container(
+                // Success Icon with soft neumorphic surface
+                NeumorphicSurface(
+                  borderRadius: BorderRadius.circular(60),
+                  elevation: NeumorphicElevationLevel.raised,
                   padding: const EdgeInsets.all(32),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.check_circle_rounded,
-                    size: 100,
-                    color: Colors.green,
+                    size: 80,
+                    color: colors.success,
                   ),
                 ),
                 const SizedBox(height: 32),
 
                 // Success Message
-                const Text(
+                Text(
                   'Success!',
                   style: TextStyle(
-                    fontSize: 32,
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
+                    color: colors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Text(
                   message,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF6B7280),
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: colors.textSecondary,
+                    height: 1.4,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -62,21 +64,16 @@ class SuccessScreen extends StatelessWidget {
                 // Continue Button
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: NeumorphicButton(
                     onPressed: onContinue ?? () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                    isPrimary: true,
+                    height: 52,
                     child: const Text(
                       'Continue',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),

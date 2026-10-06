@@ -15,6 +15,7 @@ import '../../widgets/common_states.dart';
 import '../../widgets/request_health_badge.dart';
 import '../../widgets/request_timeline.dart';
 import '../../widgets/entrance_fade_slide.dart';
+import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Full detail view for a single emergency blood request - the
 /// "Emergency Blood Request Verification & Donor Coordination"
@@ -149,9 +150,12 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     try {
       await _service.notifyDonor(requestId: request.id, donor: donor, unitsPledged: units, doctorId: _doctorId, doctorName: _doctorName);
       if (mounted) showSuccessSnack(context, '${donor['donorName']} notified.');
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[RequestDetailsScreen.notifyDonor] Error: $e\n$stack');
       if (!mounted) return;
-      final message = e is StateError ? e.message : 'Could not notify this donor. Please try again.';
+      final message = e is StateError
+          ? e.message
+          : (e is FirebaseException && e.message != null ? 'Could not notify this donor: ${e.message}' : 'Could not notify this donor: $e');
       showErrorSnack(context, message);
     }
   }
@@ -231,6 +235,100 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               _safeRun(() => _service.rejectRequest(request, doctorId: _doctorId, doctorName: _doctorName, reason: reason));
             },
             child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Phase 4 — cancellation dialog (soft-delete pattern)
+  void _showCancelDialog(BloodRequest request) {
+    final colors = context.colors;
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Request'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will permanently move the request to a cancelled state. '
+                'The request record and its audit trail will be preserved.',
+                style: TextStyle(fontSize: 13, color: colors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: controller,
+                maxLines: 3,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Reason for cancellation',
+                  hintText: 'e.g. Duplicate request / Patient transferred',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  final v = value?.trim() ?? '';
+                  if (v.isEmpty) return 'A cancellation reason is required.';
+                  if (v.length < 10) return 'Please provide a more specific reason (at least 10 characters).';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Keep Request')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: colors.critical, foregroundColor: Colors.white),
+            onPressed: () {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              final reason = controller.text.trim();
+              Navigator.pop(context);
+              _safeRun(
+                () => _service.cancelRequest(request: request, reason: reason, doctorId: _doctorId, doctorName: _doctorName),
+                errorMessage: 'Could not cancel this request. Please try again.',
+              );
+            },
+            child: const Text('Cancel Request'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Phase 7 — follow-up reminder dialog
+  void _showFollowUpDialog(BloodRequest request) {
+    final controller = TextEditingController(text: 'Follow up on ${request.bloodGroup} request for ${request.patientName}');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Set Follow-Up Reminder'),
+        content: TextField(
+          controller: controller,
+          maxLines: 2,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Reminder message', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final message = controller.text.trim();
+              Navigator.pop(context);
+              _safeRun(
+                () =>
+                    _service.createFollowUpReminder(requestId: request.id, message: message, doctorId: _doctorId, doctorName: _doctorName),
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Follow-up reminder created')));
+              }
+            },
+            child: const Text('Create Reminder'),
           ),
         ],
       ),
@@ -617,6 +715,16 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                       ),
                     ),
                   ],
+                  // Phase 4 — Safe cancellation for any active request
+                  if (RequestStatus.activeStatuses.contains(request.status)) ...[
+                    const SizedBox(height: 16),
+                    staggered(_CancelRequestButton(onCancel: () => _showCancelDialog(request))),
+                  ],
+                  // Phase 7 — Follow-up reminder
+                  if (RequestStatus.activeStatuses.contains(request.status)) ...[
+                    const SizedBox(height: 8),
+                    staggered(_FollowUpReminderButton(onPressed: () => _showFollowUpDialog(request))),
+                  ],
                   const SizedBox(height: 16),
                   staggered(_TimelineCard(request: request, responses: responses)),
                   const SizedBox(height: 16),
@@ -662,13 +770,9 @@ class _PatientCaseSummaryCard extends StatelessWidget {
         ? _notProvided
         : '${request.createdAt!.day.toString().padLeft(2, '0')}/${request.createdAt!.month.toString().padLeft(2, '0')}/${request.createdAt!.year}  ${request.createdAt!.hour.toString().padLeft(2, '0')}:${request.createdAt!.minute.toString().padLeft(2, '0')}';
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -871,13 +975,9 @@ class _AssignmentCard extends StatelessWidget {
       ),
     };
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -958,13 +1058,10 @@ class _EscalationCard extends StatelessWidget {
     final current = request.escalationLevel;
     final isClosed = RequestStatus.historyStatuses.contains(request.status);
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: current == EscalationLevel.critical ? colors.critical.withValues(alpha: 0.5) : colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
+      borderColor: current == EscalationLevel.critical ? colors.critical.withValues(alpha: 0.5) : colors.border,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1243,13 +1340,9 @@ class _ChecklistCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1385,13 +1478,9 @@ class _ReVerificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1462,15 +1551,16 @@ class _CoordinationCard extends StatelessWidget {
     final notified = responses.length;
     final responded = responses.where((r) => r.status != 'notified').length;
     final responseRate = notified == 0 ? null : (responded / notified * 100).round();
-    final progress = request.unitsNeeded == 0 ? 0.0 : (request.unitsConfirmed / request.unitsNeeded).clamp(0.0, 1.0);
+    final acceptedUnits = responses
+        .where((r) => r.status == 'accepted' || r.status == 'completed')
+        .fold<int>(0, (total, r) => total + r.unitsPledged);
+    final confirmedUnits = request.unitsConfirmed > 0 ? request.unitsConfirmed : acceptedUnits;
+    final progress = request.unitsNeeded == 0 ? 0.0 : (confirmedUnits / request.unitsNeeded).clamp(0.0, 1.0);
+    final remaining = (request.unitsNeeded - confirmedUnits).clamp(0, request.unitsNeeded);
 
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1494,16 +1584,16 @@ class _CoordinationCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                '${request.unitsConfirmed} / ${request.unitsNeeded} Units Confirmed',
+                '$confirmedUnits / ${request.unitsNeeded} Units Confirmed',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: colors.textPrimary),
               ),
               const Spacer(),
-              if (request.unitsRemaining > 0)
+              if (remaining > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
                   child: Text(
-                    '${request.unitsRemaining} unit(s) remaining',
+                    '$remaining unit(s) remaining',
                     style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: colors.warning),
                   ),
                 )
@@ -1720,13 +1810,9 @@ class _TimelineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1756,13 +1842,9 @@ class _AuditTrailCardState extends State<_AuditTrailCard> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
+    return NeumorphicCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
+      elevation: NeumorphicElevationLevel.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1880,6 +1962,49 @@ class _PdfReportButton extends StatelessWidget {
           side: BorderSide(color: colors.primary),
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
+      ),
+    );
+  }
+}
+
+/// Phase 4 — Cancel Request button. Styled as a destructive action
+/// with prominent warning color so staff don't trigger it accidentally.
+class _CancelRequestButton extends StatelessWidget {
+  final VoidCallback onCancel;
+  const _CancelRequestButton({required this.onCancel});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onCancel,
+        icon: Icon(Icons.block_rounded, color: colors.critical),
+        label: Text('Cancel Request', style: TextStyle(color: colors.critical)),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: colors.critical.withValues(alpha: 0.5)),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+      ),
+    );
+  }
+}
+
+/// Phase 7 — Follow-up reminder button.
+class _FollowUpReminderButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _FollowUpReminderButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(Icons.alarm_add_rounded, size: 18, color: colors.primary),
+        label: Text('Set Follow-Up Reminder', style: TextStyle(color: colors.primary, fontSize: 13)),
       ),
     );
   }
