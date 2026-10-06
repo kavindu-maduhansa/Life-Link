@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'my_requests_screen.dart';
+import '../recipient_home_screen.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../theme/lifelink_design.dart';
@@ -150,7 +150,7 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen> {
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const MyRequestsScreen(),
+                          builder: (context) => const RecipientHomeScreen(initialIndex: 1),
                         ),
                         (route) => false,
                       );

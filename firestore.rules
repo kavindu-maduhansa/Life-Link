@@ -157,10 +157,23 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // --- alerts (staff only) ----------------------------------------
+    // --- alerts -----------------------------------------------------
+    // Staff coordinate all alerts; recipients and donors read and update
+    // (e.g. mark as read) alerts sent to them (recipientId, donorId, userId).
     match /alerts/{alertId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff();
+      allow read: if isStaff()
+        || (isSignedIn() && (
+          ('recipientId' in resource.data && resource.data.recipientId == request.auth.uid) ||
+          ('donorId' in resource.data && resource.data.donorId == request.auth.uid) ||
+          ('userId' in resource.data && resource.data.userId == request.auth.uid)
+        ));
+      allow create: if isStaff() || isSignedIn();
+      allow update: if isStaff()
+        || (isSignedIn() && (
+          ('recipientId' in resource.data && resource.data.recipientId == request.auth.uid) ||
+          ('donorId' in resource.data && resource.data.donorId == request.auth.uid) ||
+          ('userId' in resource.data && resource.data.userId == request.auth.uid)
+        ));
       allow delete: if false;
     }
 

@@ -64,17 +64,21 @@ class NotificationsScreen extends StatelessWidget {
           // Notifications list
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('alerts')
-                  .where('recipientId', isEqualTo: user?.uid)
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
+              stream: user?.uid != null
+                  ? FirebaseFirestore.instance
+                      .collection('alerts')
+                      .where('recipientId', isEqualTo: user!.uid)
+                      .snapshots()
+                  : const Stream.empty(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData &&
+                    !snapshot.hasError) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                final rawDocs = snapshot.data?.docs ?? const [];
+                if (rawDocs.isEmpty || snapshot.hasError) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -106,7 +110,13 @@ class NotificationsScreen extends StatelessWidget {
                   );
                 }
 
-                final notifications = snapshot.data!.docs;
+                // Sort client-side safely without requiring Firestore composite index
+                final notifications = List.of(rawDocs)
+                  ..sort((a, b) {
+                    final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                    final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                    return bTime.compareTo(aTime);
+                  });
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),

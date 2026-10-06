@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/appearance_selector_sheet.dart';
 import '../../widgets/neumorphic/neumorphic_widgets.dart';
 
 /// Profile screen for recipient
@@ -61,6 +62,13 @@ class ProfileScreen extends StatelessWidget {
                       color: colors.textPrimary,
                     ),
                   ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Appearance',
+                    icon: const Icon(Icons.palette_outlined),
+                    color: colors.textSecondary,
+                    onPressed: () => AppearanceSelectorSheet.show(context),
+                  ),
                 ],
               ),
             ),
@@ -68,19 +76,29 @@ class ProfileScreen extends StatelessWidget {
           // Profile content
           Expanded(
             child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user?.uid)
-                  .snapshots(),
+              stream: user?.uid != null
+                  ? FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user!.uid)
+                      .snapshots()
+                  : const Stream.empty(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData &&
+                    !snapshot.hasError) {
+                  return Center(
+                    child: CircularProgressIndicator(color: primaryColor),
+                  );
                 }
 
-                final userData = snapshot.data!.data();
-                final fullName = userData?['fullName'] as String? ?? 'User';
-                final email =
-                    userData?['email'] as String? ?? user?.email ?? '';
+                final userData = snapshot.data?.data();
+                final fullName = userData?['fullName'] as String? ??
+                    (user?.displayName?.trim().isNotEmpty == true
+                        ? user!.displayName!.trim()
+                        : (user?.email != null && user!.email!.contains('@')
+                            ? user.email!.split('@').first
+                            : 'Recipient User'));
+                final email = userData?['email'] as String? ?? user?.email ?? 'Not available';
                 final phoneNumber =
                     userData?['phoneNumber'] as String? ?? 'Not provided';
                 final role = userData?['role'] as String? ?? 'Recipient';

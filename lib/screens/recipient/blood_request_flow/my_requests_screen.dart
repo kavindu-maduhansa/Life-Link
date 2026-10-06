@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/neumorphic/neumorphic_widgets.dart';
 import 'request_status_screen.dart';
+import 'patient_details_screen.dart';
 
 /// My Requests list screen (HF 09)
 class MyRequestsScreen extends StatelessWidget {
@@ -58,6 +59,20 @@ class MyRequestsScreen extends StatelessWidget {
                       color: colors.textPrimary,
                     ),
                   ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Create Request',
+                    icon: const Icon(Icons.add_circle_outline_rounded),
+                    color: primaryColor,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PatientDetailsScreen(isEmergency: true),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -65,17 +80,21 @@ class MyRequestsScreen extends StatelessWidget {
           // Request list
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('requests')
-                  .where('createdBy', isEqualTo: user?.uid)
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
+              stream: user?.uid != null
+                  ? FirebaseFirestore.instance
+                      .collection('requests')
+                      .where('createdBy', isEqualTo: user!.uid)
+                      .snapshots()
+                  : const Stream.empty(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData &&
+                    !snapshot.hasError) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                final rawDocs = snapshot.data?.docs ?? const [];
+                if (rawDocs.isEmpty || snapshot.hasError) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -107,7 +126,13 @@ class MyRequestsScreen extends StatelessWidget {
                   );
                 }
 
-                final requests = snapshot.data!.docs;
+                // Sort client-side safely without requiring Firestore composite index
+                final requests = List.of(rawDocs)
+                  ..sort((a, b) {
+                    final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                    final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                    return bTime.compareTo(aTime);
+                  });
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
