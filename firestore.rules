@@ -178,6 +178,25 @@ service cloud.firestore {
         || (isSignedIn() && resource.data.donorId == request.auth.uid);
     }
 
+       // --- coordinatorFollowUps (Organization Coordinator) ------------
+       // Private follow-up status and note per donor. Staff only; each
+       // coordinator reads and writes only their own documents
+       // (document id = {coordinatorUid}_{donorUid}). No donor personal data.
+       match /coordinatorFollowUps/{docId} {
+         allow read: if isStaff()
+           && docId.matches(request.auth.uid + '_.*');
+
+         allow create: if isStaff()
+           && docId.matches(request.auth.uid + '_.*')
+           && request.resource.data.coordinatorUid == request.auth.uid;
+
+         allow update: if isStaff()
+           && docId.matches(request.auth.uid + '_.*')
+           && request.resource.data.coordinatorUid == request.auth.uid;
+
+         allow delete: if false;
+       }
+
     // Anything not matched above is denied by default. When a new collection
     // is added to the app, add its rule here or every read and write to it
     // will fail with permission-denied.
