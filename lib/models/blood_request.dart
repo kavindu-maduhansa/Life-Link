@@ -30,7 +30,8 @@ class BloodRequest {
   final String notes;
   final String createdBy;
   final String createdByName;
-  final String status; // pending, verified, matched, fulfilled, rejected, expired
+  final String
+  status; // pending, verified, matched, fulfilled, rejected, expired
   final String? verifiedBy;
   final DateTime? verifiedAt;
   final String? rejectionReason;
@@ -112,6 +113,7 @@ class BloodRequest {
   final String? requestType;
   final String? requestingFor;
   final int? patientAge;
+  final String? gender;
   final String? relationship;
   final String? patientId;
   final String? reason;
@@ -176,6 +178,7 @@ class BloodRequest {
     this.requestType,
     this.requestingFor,
     this.patientAge,
+    this.gender,
     this.relationship,
     this.patientId,
     this.reason,
@@ -193,14 +196,16 @@ class BloodRequest {
     this.reviewedBy = const [],
   });
 
-  int get unitsRemaining => (unitsNeeded - unitsConfirmed).clamp(0, unitsNeeded);
+  int get unitsRemaining =>
+      (unitsNeeded - unitsConfirmed).clamp(0, unitsNeeded);
 
   bool isPinnedBy(String? uid) => uid != null && pinnedBy.contains(uid);
 
   /// True only for a Critical-urgency request that has its first
   /// co-sign recorded but has not yet been fully verified by a second,
   /// different staff member.
-  bool get awaitingSecondApproval => urgency == 'Critical' && status == 'pending' && firstApproverId != null;
+  bool get awaitingSecondApproval =>
+      urgency == 'Critical' && status == 'pending' && firstApproverId != null;
 
   /// True when no operator currently owns this request.
   bool get isUnassigned => (assignedDoctorId ?? '').trim().isEmpty;
@@ -212,7 +217,9 @@ class BloodRequest {
     return BloodRequest.fromMap(doc.id, doc.data());
   }
 
-  factory BloodRequest.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory BloodRequest.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     return BloodRequest.fromMap(doc.id, doc.data());
   }
 
@@ -225,13 +232,20 @@ class BloodRequest {
     final data = raw ?? <String, dynamic>{};
     return BloodRequest(
       id: id,
-      patientName: (data['patientName'] as String?)?.trim().isNotEmpty == true ? data['patientName'] as String : 'Unknown Patient',
+      patientName: (data['patientName'] as String?)?.trim().isNotEmpty == true
+          ? data['patientName'] as String
+          : 'Unknown Patient',
       bloodGroup: data['bloodGroup'] as String? ?? '-',
       unitsNeeded: _toInt(data['unitsNeeded'] ?? data['requiredUnits'], 1),
       urgency: _normalizeUrgency(data['urgency'] ?? data['urgencyLevel']),
       hospitalName: data['hospitalName'] as String? ?? '-',
-      location: data['location'] as String? ?? data['hospitalLocation'] as String? ?? '-',
-      notes: (data['notes'] ?? data['description'] ?? data['reason']) as String? ?? '',
+      location:
+          data['location'] as String? ??
+          data['hospitalLocation'] as String? ??
+          '-',
+      notes:
+          (data['notes'] ?? data['description'] ?? data['reason']) as String? ??
+          '',
       createdBy: data['createdBy'] as String? ?? '',
       createdByName: data['createdByName'] as String? ?? 'Recipient',
       status: data['status'] as String? ?? 'pending',
@@ -243,18 +257,23 @@ class BloodRequest {
       unitsConfirmed: _toInt(data['unitsConfirmed'], 0),
       donorsNotifiedCount: _toInt(data['donorsNotifiedCount'], 0),
       donorsAcceptedCount: _toInt(data['donorsAcceptedCount'], 0),
-      pinnedBy: (data['pinnedBy'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      pinnedBy:
+          (data['pinnedBy'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
       firstApproverId: data['firstApproverId'] as String?,
       firstApproverName: data['firstApproverName'] as String?,
       firstApprovedAt: _toDate(data['firstApprovedAt']),
       secondApproverId: data['secondApproverId'] as String?,
       secondApproverName: data['secondApproverName'] as String?,
-      patientReference: _text(data['patientReference']) ?? _text(data['patientId']),
+      patientReference:
+          _text(data['patientReference']) ?? _text(data['patientId']),
       ward: _text(data['ward']) ?? _text(data['wardUnit']),
-      requiredAt: _toDate(data['requiredAt']) ?? _toDate(data['requiredBefore']),
+      requiredAt:
+          _toDate(data['requiredAt']) ?? _toDate(data['requiredBefore']),
       bloodComponent: _text(data['bloodComponent']),
       requestingOfficerName: _text(data['requestingOfficerName']),
-      contactExtension: _text(data['contactExtension']) ?? _text(data['contactNumber']),
+      contactExtension:
+          _text(data['contactExtension']) ?? _text(data['contactNumber']),
       crossmatchStatus: _text(data['crossmatchStatus']),
       hospitalId: _text(data['hospitalId']),
       clinicalNotes: _text(data['clinicalNotes']),
@@ -267,21 +286,30 @@ class BloodRequest {
       requestType: data['requestType'] as String?,
       requestingFor: data['requestingFor'] as String?,
       patientAge: _toNullableInt(data['patientAge']),
+      gender: data['gender'] as String?,
       relationship: data['relationship'] as String?,
       patientId: _text(data['patientId']) ?? _text(data['patientReference']),
-      reason: _text(data['reason']) ?? _text(data['notes']) ?? _text(data['description']),
-      requiredBefore: _toDate(data['requiredBefore']) ?? _toDate(data['requiredAt']),
-      hospitalLocation: _text(data['hospitalLocation']) ?? _text(data['location']),
+      reason:
+          _text(data['reason']) ??
+          _text(data['notes']) ??
+          _text(data['description']),
+      requiredBefore:
+          _toDate(data['requiredBefore']) ?? _toDate(data['requiredAt']),
+      hospitalLocation:
+          _text(data['hospitalLocation']) ?? _text(data['location']),
       wardUnit: _text(data['wardUnit']) ?? _text(data['ward']),
       doctorClinic: _text(data['doctorClinic']),
       bloodNeededBy: _text(data['bloodNeededBy']),
-      contactNumber: _text(data['contactNumber']) ?? _text(data['contactExtension']),
+      contactNumber:
+          _text(data['contactNumber']) ?? _text(data['contactExtension']),
       preferredUpdateMethod: _text(data['preferredUpdateMethod']),
       verifiedDonorsCount: _toInt(data['verifiedDonorsCount'], 0),
       cancellationReason: data['cancellationReason'] as String?,
       cancelledBy: data['cancelledBy'] as String?,
       cancelledAt: _toDate(data['cancelledAt']),
-      reviewedBy: (data['reviewedBy'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      reviewedBy:
+          (data['reviewedBy'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
     );
   }
 
@@ -289,10 +317,16 @@ class BloodRequest {
     return {
       'createdBy': createdBy,
       'createdByName': createdByName,
-      'requestType': requestType ?? (urgency.toLowerCase().contains('critical') || urgency.toLowerCase().contains('emergency') ? 'emergency' : 'non-emergency'),
+      'requestType':
+          requestType ??
+          (urgency.toLowerCase().contains('critical') ||
+                  urgency.toLowerCase().contains('emergency')
+              ? 'emergency'
+              : 'non-emergency'),
       'requestingFor': requestingFor ?? 'self',
       'patientName': patientName,
       if (patientAge != null) 'patientAge': patientAge,
+      if (gender != null) 'gender': gender,
       if (relationship != null) 'relationship': relationship,
       'patientId': patientId ?? patientReference ?? '',
       'patientReference': patientReference ?? patientId ?? '',
@@ -300,19 +334,25 @@ class BloodRequest {
       'unitsNeeded': unitsNeeded,
       'reason': reason ?? notes,
       'notes': notes.isNotEmpty ? notes : (reason ?? ''),
-      if (requiredBefore != null) 'requiredBefore': Timestamp.fromDate(requiredBefore!),
+      if (requiredBefore != null)
+        'requiredBefore': Timestamp.fromDate(requiredBefore!),
       if (requiredAt != null) 'requiredAt': Timestamp.fromDate(requiredAt!),
       'hospitalId': hospitalId ?? '',
       'hospitalName': hospitalName,
-      'hospitalLocation': hospitalLocation ?? (location.isNotEmpty && location != '-' ? location : 'Not specified'),
-      'location': location.isNotEmpty && location != '-' ? location : (hospitalLocation ?? '-'),
+      'hospitalLocation':
+          hospitalLocation ??
+          (location.isNotEmpty && location != '-' ? location : 'Not specified'),
+      'location': location.isNotEmpty && location != '-'
+          ? location
+          : (hospitalLocation ?? '-'),
       'wardUnit': wardUnit ?? ward ?? '',
       'ward': ward ?? wardUnit ?? '',
       'doctorClinic': doctorClinic ?? '',
       'urgency': urgency,
       if (bloodNeededBy != null) 'bloodNeededBy': bloodNeededBy,
       if (contactNumber != null) 'contactNumber': contactNumber,
-      if (preferredUpdateMethod != null) 'preferredUpdateMethod': preferredUpdateMethod,
+      if (preferredUpdateMethod != null)
+        'preferredUpdateMethod': preferredUpdateMethod,
       'status': status,
       'verifiedDonorsCount': verifiedDonorsCount,
       'unitsConfirmed': unitsConfirmed,
@@ -321,11 +361,13 @@ class BloodRequest {
       'pinnedBy': pinnedBy,
       if (firstApproverId != null) 'firstApproverId': firstApproverId,
       if (firstApproverName != null) 'firstApproverName': firstApproverName,
-      if (firstApprovedAt != null) 'firstApprovedAt': Timestamp.fromDate(firstApprovedAt!),
+      if (firstApprovedAt != null)
+        'firstApprovedAt': Timestamp.fromDate(firstApprovedAt!),
       if (secondApproverId != null) 'secondApproverId': secondApproverId,
       if (secondApproverName != null) 'secondApproverName': secondApproverName,
       if (bloodComponent != null) 'bloodComponent': bloodComponent,
-      if (requestingOfficerName != null) 'requestingOfficerName': requestingOfficerName,
+      if (requestingOfficerName != null)
+        'requestingOfficerName': requestingOfficerName,
       if (contactExtension != null) 'contactExtension': contactExtension,
       if (crossmatchStatus != null) 'crossmatchStatus': crossmatchStatus,
       if (clinicalNotes != null) 'clinicalNotes': clinicalNotes,
@@ -335,7 +377,9 @@ class BloodRequest {
       'escalationLevel': escalationLevel.value,
       if (escalatedAt != null) 'escalatedAt': Timestamp.fromDate(escalatedAt!),
       if (escalationNote != null) 'escalationNote': escalationNote,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'createdAt': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
     };
   }
@@ -384,6 +428,7 @@ class BloodRequest {
     String? requestType,
     String? requestingFor,
     int? patientAge,
+    String? gender,
     String? relationship,
     String? patientId,
     String? reason,
@@ -430,7 +475,8 @@ class BloodRequest {
       ward: ward ?? this.ward,
       requiredAt: requiredAt ?? this.requiredAt,
       bloodComponent: bloodComponent ?? this.bloodComponent,
-      requestingOfficerName: requestingOfficerName ?? this.requestingOfficerName,
+      requestingOfficerName:
+          requestingOfficerName ?? this.requestingOfficerName,
       contactExtension: contactExtension ?? this.contactExtension,
       crossmatchStatus: crossmatchStatus ?? this.crossmatchStatus,
       hospitalId: hospitalId ?? this.hospitalId,
@@ -444,6 +490,7 @@ class BloodRequest {
       requestType: requestType ?? this.requestType,
       requestingFor: requestingFor ?? this.requestingFor,
       patientAge: patientAge ?? this.patientAge,
+      gender: gender ?? this.gender,
       relationship: relationship ?? this.relationship,
       patientId: patientId ?? this.patientId,
       reason: reason ?? this.reason,
@@ -453,7 +500,8 @@ class BloodRequest {
       doctorClinic: doctorClinic ?? this.doctorClinic,
       bloodNeededBy: bloodNeededBy ?? this.bloodNeededBy,
       contactNumber: contactNumber ?? this.contactNumber,
-      preferredUpdateMethod: preferredUpdateMethod ?? this.preferredUpdateMethod,
+      preferredUpdateMethod:
+          preferredUpdateMethod ?? this.preferredUpdateMethod,
       verifiedDonorsCount: verifiedDonorsCount ?? this.verifiedDonorsCount,
       cancellationReason: cancellationReason ?? this.cancellationReason,
       cancelledBy: cancelledBy ?? this.cancelledBy,
@@ -522,7 +570,12 @@ class CrossmatchStatus {
   static const compatible = 'compatible';
   static const incompatible = 'incompatible';
 
-  static const List<String> all = [notRequested, pending, compatible, incompatible];
+  static const List<String> all = [
+    notRequested,
+    pending,
+    compatible,
+    incompatible,
+  ];
 
   static String label(String? raw) => switch (raw) {
     notRequested => 'Not requested',
@@ -565,7 +618,9 @@ class DonorResponseRecord {
     this.unitsPledged = 1,
   });
 
-  factory DonorResponseRecord.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory DonorResponseRecord.fromDoc(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data() ?? <String, dynamic>{};
     return DonorResponseRecord(
       id: doc.id,

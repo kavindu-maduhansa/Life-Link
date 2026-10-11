@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/appearance_selector_sheet.dart';
 import '../../widgets/neumorphic/neumorphic_widgets.dart';
+import 'edit_profile_screen.dart';
 
 /// Profile screen for recipient
 class ProfileScreen extends StatelessWidget {
@@ -78,9 +79,9 @@ class ProfileScreen extends StatelessWidget {
             child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: user?.uid != null
                   ? FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(user!.uid)
-                      .snapshots()
+                        .collection('users')
+                        .doc(user!.uid)
+                        .snapshots()
                   : const Stream.empty(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting &&
@@ -92,13 +93,17 @@ class ProfileScreen extends StatelessWidget {
                 }
 
                 final userData = snapshot.data?.data();
-                final fullName = userData?['fullName'] as String? ??
+                final fullName =
+                    userData?['fullName'] as String? ??
                     (user?.displayName?.trim().isNotEmpty == true
                         ? user!.displayName!.trim()
                         : (user?.email != null && user!.email!.contains('@')
-                            ? user.email!.split('@').first
-                            : 'Recipient User'));
-                final email = userData?['email'] as String? ?? user?.email ?? 'Not available';
+                              ? user.email!.split('@').first
+                              : 'Recipient User'));
+                final email =
+                    userData?['email'] as String? ??
+                    user?.email ??
+                    'Not available';
                 final phoneNumber =
                     userData?['phoneNumber'] as String? ?? 'Not provided';
                 final role = userData?['role'] as String? ?? 'Recipient';
@@ -184,6 +189,32 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 32),
+
+                      // Edit Profile Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const EditProfileScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.edit_rounded),
+                          label: const Text('Edit Profile'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
 
                       // Profile Details Card
                       NeumorphicCard(

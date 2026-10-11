@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../widgets/neumorphic/neumorphic_widgets.dart';
+import '../recipient_shell.dart';
 
 /// Error screen (HF 13)
 class ErrorScreen extends StatelessWidget {
@@ -9,6 +10,7 @@ class ErrorScreen extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
   final VoidCallback? onBack;
+  final int currentNavIndex;
 
   const ErrorScreen({
     super.key,
@@ -16,15 +18,16 @@ class ErrorScreen extends StatelessWidget {
     this.message = 'An error occurred. Please try again.',
     this.onRetry,
     this.onBack,
+    this.currentNavIndex = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
+    return RecipientShell(
+      currentNavIndex: currentNavIndex,
+      child: SafeArea(
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),

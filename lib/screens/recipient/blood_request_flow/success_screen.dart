@@ -2,25 +2,28 @@ import 'package:flutter/material.dart';
 
 import '../../../theme/app_colors.dart';
 import '../../../widgets/neumorphic/neumorphic_widgets.dart';
+import '../recipient_shell.dart';
 
 /// Success screen (HF 12)
 class SuccessScreen extends StatelessWidget {
   final String message;
   final VoidCallback? onContinue;
+  final int currentNavIndex;
 
   const SuccessScreen({
     super.key,
     this.message = 'Request completed successfully!',
     this.onContinue,
+    this.currentNavIndex = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
+    return RecipientShell(
+      currentNavIndex: currentNavIndex,
+      child: SafeArea(
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),

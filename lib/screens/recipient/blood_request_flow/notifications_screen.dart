@@ -66,9 +66,9 @@ class NotificationsScreen extends StatelessWidget {
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: user?.uid != null
                   ? FirebaseFirestore.instance
-                      .collection('alerts')
-                      .where('recipientId', isEqualTo: user!.uid)
-                      .snapshots()
+                        .collection('alerts')
+                        .where('recipientId', isEqualTo: user!.uid)
+                        .snapshots()
                   : const Stream.empty(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting &&
@@ -113,8 +113,12 @@ class NotificationsScreen extends StatelessWidget {
                 // Sort client-side safely without requiring Firestore composite index
                 final notifications = List.of(rawDocs)
                   ..sort((a, b) {
-                    final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
-                    final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                    final aTime =
+                        (a.data()['createdAt'] as Timestamp?)?.toDate() ??
+                        DateTime(2000);
+                    final bTime =
+                        (b.data()['createdAt'] as Timestamp?)?.toDate() ??
+                        DateTime(2000);
                     return bTime.compareTo(aTime);
                   });
 
