@@ -122,6 +122,16 @@ The request form behind *Create Emergency Request* is not built yet; the screen 
 
 ---
 
+## Documentation
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Guidelines for contributing to the project
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
+- **[API Documentation](docs/API_DOCUMENTATION.md)** - Detailed API documentation with Firestore collections and data models
+- **[Data Contract](docs/LIFELINK_DATA_CONTRACT.md)** - Firestore collections and document shapes
+- **[Design System](docs/LIFELINK_DESIGN_SYSTEM.md)** - Colour, type, spacing and component rules
+
+---
+
 ## Tech stack
 
 | | |
